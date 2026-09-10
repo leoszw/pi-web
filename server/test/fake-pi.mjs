@@ -65,6 +65,14 @@ rl.on('line', (line) => {
     case 'die':
       process.exit(1)
       break
+    case 'hang':
+      break
+    case 'split':
+      process.stdout.write('{"type":"response","command":"split","success":true,"id":"' + id + '","data":{"par')
+      break
+    case 'split_end':
+      process.stdout.write('tial":true}}\n')
+      break
     default:
       console.error('[fake-pi] unknown command:', type)
       respond(null)

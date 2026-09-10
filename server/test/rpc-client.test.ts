@@ -80,3 +80,46 @@ test('child exit fires close handler with code', async () => {
   await assert.rejects(client.request({ type: 'die' }), /rpc client exited/)
   assert.equal(await exited, 1)
 })
+
+test('spawn error fails fast without crashing', async () => {
+  const client = new RpcClient({ command: ['definitely-not-a-real-bin-xyz'], cwd: process.cwd() })
+  const closed = new Promise<number | null>((resolve) => {
+    client.onClose((code) => resolve(code))
+  })
+  client.start()
+  await assert.rejects(client.request({ type: 'get_state' }), /rpc client errored/)
+  assert.equal(await closed, null)
+})
+
+test('request times out when the child never responds', async () => {
+  const client = startFake()
+  try {
+    await assert.rejects(client.request({ type: 'hang' }, 50), /timed out/)
+  } finally {
+    client.kill()
+  }
+})
+
+test('send before start throws', () => {
+  const client = new RpcClient({ command: ['node', fakePi], cwd: process.cwd() })
+  assert.throws(() => client.send({ type: 'get_state' }), /not started/)
+})
+
+test('response split across two writes is reassembled', async () => {
+  const client = startFake()
+  try {
+    const pending = client.request({ type: 'split' })
+    client.send({ type: 'split_end' })
+    const res = await pending
+    assert.ok(res.success)
+    assert.equal((res.data as { partial: boolean }).partial, true)
+  } finally {
+    client.kill()
+  }
+})
+
+test('start after kill throws', () => {
+  const client = startFake()
+  client.kill()
+  assert.throws(() => client.start(), /killed/)
+})

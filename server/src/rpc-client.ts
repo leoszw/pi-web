@@ -21,23 +21,30 @@ export class RpcClient {
   private nextId = 1
   private messageHandlers: ((message: RpcMessage) => void)[] = []
   private closeHandlers: ((code: number | null) => void)[] = []
+  private dead = false
+  private killed = false
 
   constructor(private readonly options: RpcClientOptions) {}
 
   start(): void {
+    if (this.killed) throw new Error('rpc client killed')
     if (this.child !== null) return
     const [cmd, ...args] = this.options.command
     const child = spawn(cmd, [...args, '--mode', 'rpc'], {
       cwd: this.options.cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
     })
+    // Swallow stdin write errors (EPIPE) when writing after the child dies.
+    child.stdin.on('error', () => {})
     child.stdout.setEncoding('utf8')
     child.stdout.on('data', (chunk: string) => this.handleChunk(chunk))
     child.stderr.setEncoding('utf8')
     child.stderr.on('data', (chunk: string) => process.stderr.write(`[pi stderr] ${chunk}`))
+    child.on('error', (error: Error) => {
+      this.markDead(`rpc client errored: ${error.message}`, null)
+    })
     child.on('exit', (code) => {
-      this.rejectPending('rpc client exited')
-      for (const handler of this.closeHandlers) handler(code)
+      this.markDead('rpc client exited', code)
     })
     this.child = child
   }
@@ -60,7 +67,12 @@ export class RpcClient {
       if (typeof parsed !== 'object' || parsed === null) continue
       const record = parsed as { type?: unknown } & Record<string, unknown>
       if (typeof record.type !== 'string') continue
-      if (record.type === 'response') this.resolvePending(record as unknown as RpcResponse)
+      if (
+        record.type === 'response' &&
+        typeof (record as { success?: unknown }).success === 'boolean'
+      ) {
+        this.resolvePending(record as unknown as RpcResponse)
+      }
       const message: RpcMessage = record as RpcMessage
       for (const handler of this.messageHandlers) handler(message)
     }
@@ -83,12 +95,23 @@ export class RpcClient {
     this.pending.clear()
   }
 
+  private markDead(reason: string, code: number | null): void {
+    if (this.dead) return
+    this.dead = true
+    this.rejectPending(reason)
+    for (const handler of this.closeHandlers) handler(code)
+  }
+
   send(command: Record<string, unknown>): void {
     if (this.child === null) throw new Error('rpc client not started')
+    if (this.dead) throw new Error('rpc client exited')
     this.child.stdin.write(JSON.stringify(command) + '\n')
   }
 
+  /** Caller must await or .catch the returned promise: timeout, child exit, and kill all reject it. */
   request(command: Record<string, unknown>, timeoutMs = 60000): Promise<RpcResponse> {
+    if (this.child === null) return Promise.reject(new Error('rpc client not started'))
+    if (this.dead) return Promise.reject(new Error('rpc client exited'))
     const id = `req-${this.nextId++}`
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -121,6 +144,7 @@ export class RpcClient {
   }
 
   kill(): void {
+    this.killed = true
     if (this.child !== null) {
       this.child.kill()
       this.child = null
