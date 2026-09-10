@@ -10,12 +10,21 @@ export interface BridgeOptions {
 
 export function attachBridge(options: BridgeOptions): WebSocketServer {
   const wss = new WebSocketServer({ server: options.server, path: '/ws' })
+  wss.on('error', (error) => {
+    console.error('[bridge] server error:', error)
+  })
   let bridgeId = 0
 
   wss.on('connection', (ws: WebSocket) => {
     const client = new RpcClient({ command: options.piCommand, cwd: options.piCwd })
     client.start()
+    ws.on('error', () => {
+      ws.terminate()
+    })
     const pending = new Map<string, (response: { type: string } & Record<string, unknown>) => void>()
+    // An id is single-use per connection: in-flight ids are correlated via pending,
+    // and reuse after completion is rejected instead of silently re-correlated.
+    const usedIds = new Set<string>()
 
     const sendJson = (value: unknown): void => {
       if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(value))
@@ -35,6 +44,7 @@ export function attachBridge(options: BridgeOptions): WebSocketServer {
     })
 
     const removeClose = client.onClose((code) => {
+      pending.clear()
       sendJson({ type: 'server_error', message: `pi process exited (code ${code ?? 'unknown'})` })
     })
 
@@ -52,6 +62,11 @@ export function attachBridge(options: BridgeOptions): WebSocketServer {
       }
       const command = parsed as { type: string; id?: unknown } & Record<string, unknown>
       const id = typeof command.id === 'string' && command.id !== '' ? command.id : `bridge-${bridgeId++}`
+      if (usedIds.has(id)) {
+        sendJson({ type: 'server_error', message: 'duplicate request id' })
+        return
+      }
+      usedIds.add(id)
       const payload = { ...command, id }
       pending.set(id, (response) => sendJson(response))
       try {
