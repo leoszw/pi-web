@@ -1,0 +1,38 @@
+{
+  "name": "pi-web",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "dev:server": "tsx server/src/main.ts",
+    "dev:web": "vite --config web/vite.config.ts",
+    "build": "vite build --config web/vite.config.ts",
+    "start": "tsx server/src/main.ts",
+    "test:server": "tsx --test server/test/rpc-client.test.ts server/test/bridge.test.ts",
+    "test:web": "vitest run web/test/store.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p web/tsconfig.json"
+  },
+  "dependencies": {
+    "highlight.js": "11.10.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-markdown": "9.0.1",
+    "rehype-highlight": "7.0.0",
+    "remark-gfm": "4.0.0",
+    "ws": "8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@types/ws": "8.5.13",
+    "@vitejs/plugin-react": "4.3.4",
+    "tsx": "4.19.2",
+    "typescript": "5.6.3",
+    "vite": "6.0.7",
+    "vitest": "2.1.8"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
