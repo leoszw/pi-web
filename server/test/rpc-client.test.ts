@@ -77,6 +77,6 @@ test('child exit fires close handler with code', async () => {
   const exited = new Promise<number | null>((resolve) => {
     client.onClose((code) => resolve(code))
   })
-  client.request({ type: 'die' }).catch(() => {})
+  await assert.rejects(client.request({ type: 'die' }), /rpc client exited/)
   assert.equal(await exited, 1)
 })

@@ -8,6 +8,7 @@ export interface RpcClientOptions {
 
 interface Pending {
   resolve: (response: RpcResponse) => void
+  reject: (error: Error) => void
   timer: NodeJS.Timeout
 }
 
@@ -35,6 +36,7 @@ export class RpcClient {
     child.stderr.setEncoding('utf8')
     child.stderr.on('data', (chunk: string) => process.stderr.write(`[pi stderr] ${chunk}`))
     child.on('exit', (code) => {
+      this.rejectPending('rpc client exited')
       for (const handler of this.closeHandlers) handler(code)
     })
     this.child = child
@@ -73,6 +75,14 @@ export class RpcClient {
     pending.resolve(response)
   }
 
+  private rejectPending(reason: string): void {
+    for (const pending of this.pending.values()) {
+      clearTimeout(pending.timer)
+      pending.reject(new Error(reason))
+    }
+    this.pending.clear()
+  }
+
   send(command: Record<string, unknown>): void {
     if (this.child === null) throw new Error('rpc client not started')
     this.child.stdin.write(JSON.stringify(command) + '\n')
@@ -85,7 +95,7 @@ export class RpcClient {
         this.pending.delete(id)
         reject(new Error(`rpc request timed out: ${String(command.type)}`))
       }, timeoutMs)
-      this.pending.set(id, { resolve, timer })
+      this.pending.set(id, { resolve, reject, timer })
       try {
         this.send({ ...command, id })
       } catch (error) {
@@ -115,7 +125,6 @@ export class RpcClient {
       this.child.kill()
       this.child = null
     }
-    for (const pending of this.pending.values()) clearTimeout(pending.timer)
-    this.pending.clear()
+    this.rejectPending('rpc client killed')
   }
 }
