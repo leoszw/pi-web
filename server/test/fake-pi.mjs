@@ -12,9 +12,11 @@ const model = {
   maxTokens: 8192,
 }
 
+const assistantText = 'Hello from fake pi'
+
 const assistantMessage = {
   role: 'assistant',
-  content: [{ type: 'text', text: 'Hello from fake pi' }],
+  content: [{ type: 'text', text: assistantText }],
   stopReason: 'stop',
 }
 
@@ -27,6 +29,7 @@ rl.on('line', (line) => {
   } catch {
     return
   }
+  if (typeof msg !== 'object' || msg === null) return
   const { id, type } = msg
   const write = (obj) => process.stdout.write(JSON.stringify(obj) + '\n')
   const respond = (data) => write({ type: 'response', command: type, success: true, id, data })
@@ -46,9 +49,9 @@ rl.on('line', (line) => {
       break
     case 'prompt': {
       emit({ type: 'agent_start' })
-      emit({ type: 'message_start', message: { role: 'user', content: msg.message ?? '', timestamp: Date.now() } })
-      emit({ type: 'message_start', message: { ...assistantMessage, content: [], timestamp: Date.now() } })
-      emit({ type: 'message_update', usage: {}, assistantMessageEvent: { type: 'text_delta', contentIndex: 0, delta: 'Hello from fake pi' } })
+      emit({ type: 'message_start', message: { role: 'user', content: msg.message ?? '' } })
+      emit({ type: 'message_start', message: { ...assistantMessage, content: [] } })
+      emit({ type: 'message_update', usage: {}, assistantMessageEvent: { type: 'text_delta', contentIndex: 0, delta: assistantText } })
       emit({ type: 'message_end', message: assistantMessage })
       emit({ type: 'agent_end' })
       emit({ type: 'agent_settled' })
@@ -63,6 +66,7 @@ rl.on('line', (line) => {
       process.exit(1)
       break
     default:
+      console.error('[fake-pi] unknown command:', type)
       respond(null)
   }
 })
