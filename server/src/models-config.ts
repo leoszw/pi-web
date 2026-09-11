@@ -1,9 +1,8 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { ConfigModelEntry, ConfigProvider, ModelsConfig } from '../../shared/protocol'
 
-const VALID_APIS = ['openai-completions', 'openai-responses', 'anthropic-messages', 'google-generative-ai']
 const DEFAULT_API = 'openai-completions'
 const KNOWN_PROVIDER_KEYS = new Set(['baseUrl', 'api', 'apiKey', 'models'])
 const KNOWN_MODEL_KEYS = new Set(['id', 'name', 'reasoning', 'contextWindow', 'maxTokens'])
@@ -31,9 +30,11 @@ export async function readModelsConfig(): Promise<ReadModelsConfigResult> {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { config: { providers: {} } }
     return { error: `failed to read models.json: ${String(error)}` }
   }
+  // pi tolerates a leading BOM; strip it before parsing (JSONC is not handled here).
+  const text = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw
   let parsed: unknown
   try {
-    parsed = JSON.parse(raw)
+    parsed = JSON.parse(text)
   } catch (error) {
     return { error: `failed to parse models.json: ${error instanceof Error ? error.message : String(error)}` }
   }
@@ -67,9 +68,15 @@ export function validateModelsConfig(input: unknown): ValidateModelsConfigResult
 export async function saveModelsConfig(config: ModelsConfig): Promise<void> {
   const path = modelsConfigPath()
   await mkdir(dirname(path), { recursive: true })
-  const tmpPath = `${path}.tmp-${process.pid}`
-  await writeFile(tmpPath, JSON.stringify(config, null, 2) + '\n', 'utf8')
-  await rename(tmpPath, path)
+  const tmpPath = `${path}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  try {
+    await writeFile(tmpPath, JSON.stringify(config, null, 2) + '\n', 'utf8')
+    await rename(tmpPath, path)
+  } catch (error) {
+    // Best-effort cleanup so a failed save never leaves tmp files behind.
+    await unlink(tmpPath).catch(() => {})
+    throw error
+  }
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -89,39 +96,46 @@ function validateProvider(name: string, raw: Record<string, unknown>, problems: 
   }
 
   let baseUrl: string | undefined
-  if (typeof raw.baseUrl === 'string' && (raw.baseUrl.startsWith('http://') || raw.baseUrl.startsWith('https://'))) {
-    baseUrl = raw.baseUrl
-  } else {
-    fail('baseUrl must be a string starting with http:// or https://')
+  if (raw.baseUrl !== undefined) {
+    if (typeof raw.baseUrl === 'string' && raw.baseUrl !== '') baseUrl = raw.baseUrl
+    else fail('baseUrl must be a non-empty string')
   }
 
+  // pi accepts any non-empty api string (its KnownApi set evolves; the schema does not restrict it).
   let api = DEFAULT_API
   if (raw.api !== undefined) {
-    if (typeof raw.api === 'string' && VALID_APIS.includes(raw.api)) api = raw.api
-    else fail(`api must be one of: ${VALID_APIS.join(', ')} (got ${JSON.stringify(raw.api)})`)
+    if (typeof raw.api === 'string' && raw.api !== '') api = raw.api
+    else fail('api must be a non-empty string')
   }
 
+  // pi's schema requires apiKey minLength 1 when present and discards the whole file otherwise.
   let apiKey: string | undefined
   if (raw.apiKey !== undefined) {
-    if (typeof raw.apiKey === 'string') apiKey = raw.apiKey
-    else fail('apiKey must be a string')
+    if (typeof raw.apiKey === 'string' && raw.apiKey !== '') apiKey = raw.apiKey
+    else fail('apiKey must be a non-empty string')
   }
 
-  let models: ConfigModelEntry[] | undefined
-  if (!Array.isArray(raw.models) || raw.models.length === 0) {
-    fail('models must be a non-empty array')
-  } else {
-    const list: ConfigModelEntry[] = []
-    raw.models.forEach((rawModel, index) => {
-      const model = validateModel(`${label}.models[${index}]`, rawModel, problems)
-      if (model !== undefined) list.push(model)
-    })
-    models = list
+  // models is optional: absent and empty both mean a provider with no models.
+  let models: ConfigModelEntry[] = []
+  if (raw.models !== undefined) {
+    if (!Array.isArray(raw.models)) {
+      fail('models must be an array')
+    } else {
+      const list: ConfigModelEntry[] = []
+      raw.models.forEach((rawModel, index) => {
+        const model = validateModel(`${label}.models[${index}]`, rawModel, problems)
+        if (model !== undefined) list.push(model)
+      })
+      models = list
+    }
   }
 
-  if (failed || baseUrl === undefined || models === undefined) return undefined
+  if (failed) return undefined
 
-  const value: ConfigProvider = { baseUrl, api, models }
+  // Absent baseUrl stays absent: writing '' would fail the next validation round
+  // (pi's schema requires minLength 1 when present).
+  const value: ConfigProvider = { api, models }
+  if (baseUrl !== undefined) value.baseUrl = baseUrl
   if (apiKey !== undefined) value.apiKey = apiKey
   for (const [key, v] of Object.entries(raw)) {
     if (KNOWN_PROVIDER_KEYS.has(key)) continue

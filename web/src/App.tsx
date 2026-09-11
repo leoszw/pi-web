@@ -26,6 +26,9 @@ export default function App() {
   // Bumped after a models.json save: recycles the WS connection so a fresh pi
   // child re-reads the config file.
   const [connEpoch, setConnEpoch] = useState(0)
+  // Set right before an epoch bump: the next connection carries ?continue=1 so
+  // the fresh pi child resumes the current session instead of a new one.
+  const pendingContinueRef = useRef(false)
   const socketRef = useRef<RpcSocket | null>(null)
 
   const runRefresh = useCallback((socket: RpcSocket): void => {
@@ -38,7 +41,8 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`
+    const baseWsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`
+    const wsUrl = pendingContinueRef.current ? `${baseWsUrl}?continue=1` : baseWsUrl
     const socket = new RpcSocket(wsUrl, {
       onEvent: (event) => {
         if (socketRef.current !== socket) return
@@ -46,6 +50,7 @@ export default function App() {
       },
       onStatus: (connected) => {
         if (socketRef.current !== socket) return
+        if (connected) pendingContinueRef.current = false
         dispatch({ type: connected ? 'connected' : 'disconnected' })
         if (connected) runRefresh(socket)
       },
@@ -66,7 +71,9 @@ export default function App() {
     const socket = socketRef.current
     if (socket === null) return Promise.reject(new Error('not connected'))
     return socket.request(command).then((response) => {
-      dispatch({ type: 'rpc_response', response })
+      // Config commands surface errors inline in the model modal; keep them out
+      // of the global notice banner.
+      if (!String(command.type).startsWith('config_')) dispatch({ type: 'rpc_response', response })
       return response
     })
   }, [])
@@ -143,8 +150,10 @@ export default function App() {
   const onSaveConfig = useCallback((providers: Record<string, ConfigProvider>): Promise<void> => {
     return sendCommand({ type: 'config_save_models', providers }).then((response) => {
       if (!response.success) throw new Error(response.error ?? 'config_save_models failed')
-      // Recycle the connection: the fresh pi child picks up the new models.json,
-      // and runRefresh pulls the updated model list.
+      // Recycle the connection with ?continue=1: the fresh pi child picks up the
+      // new models.json AND resumes the current session (pi falls back to a new
+      // session when none exists), then runRefresh pulls the updated model list.
+      pendingContinueRef.current = true
       setConnEpoch((epoch) => epoch + 1)
     })
   }, [sendCommand])

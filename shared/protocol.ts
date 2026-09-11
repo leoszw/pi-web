@@ -150,7 +150,7 @@ export interface ConfigProviderCompat {
 }
 
 export interface ConfigProvider {
-  baseUrl: string
+  baseUrl?: string
   api: string
   apiKey?: string
   models: ConfigModelEntry[]

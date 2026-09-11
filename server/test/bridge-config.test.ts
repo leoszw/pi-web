@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { WebSocket } from 'ws'
-import { attachBridge } from '../src/bridge'
+import { attachBridge, buildSpawnArgs } from '../src/bridge'
 
 const fakePi = fileURLToPath(new URL('./fake-pi.mjs', import.meta.url))
 
@@ -22,20 +22,20 @@ function waitFor(predicate: () => boolean, timeoutMs = 5000): Promise<void> {
   })
 }
 
-function openSocket(port: number): Promise<WebSocket> {
+function openSocket(port: number, path = '/ws'): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`)
+    const ws = new WebSocket(`ws://127.0.0.1:${port}${path}`)
     ws.once('open', () => resolve(ws))
     ws.once('error', reject)
   })
 }
 
-async function startBridge(): Promise<{ server: http.Server; ws: WebSocket }> {
+async function startBridge(path = '/ws'): Promise<{ server: http.Server; ws: WebSocket }> {
   const server = http.createServer()
   attachBridge({ server, piCommand: ['node', fakePi], piCwd: process.cwd() })
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   const port = (server.address() as { port: number }).port
-  const ws = await openSocket(port)
+  const ws = await openSocket(port, path)
   ws.on('error', () => {})
   return { server, ws }
 }
@@ -112,13 +112,36 @@ test('config_save_models rejects invalid payloads and writes nothing', async () 
   try {
     const received: ({ type: string } & Record<string, unknown>)[] = []
     ws.on('message', (raw) => received.push(JSON.parse(String(raw))))
-    const providers = { custom: { models: [{ id: 'm1' }] } }
+    // A model entry without id is invalid; a missing baseUrl alone would be fine now.
+    const providers = { custom: { models: [{ name: 'no-id' }] } }
     ws.send(JSON.stringify({ id: 'c4', type: 'config_save_models', providers }))
     await waitFor(() => received.some((m) => m.type === 'response' && m.id === 'c4'))
     const response = received.find((m) => m.type === 'response' && m.id === 'c4')
     assert.equal(response?.success, false)
-    assert.match(String(response?.error), /baseUrl must be a string starting with/)
+    assert.match(String(response?.error), /id must be a non-empty string/)
     await assert.rejects(readFile(join(agentDir, 'models.json'), 'utf8'))
+  } finally {
+    ws.close()
+    server.close()
+  }
+})
+
+test('buildSpawnArgs appends --continue after the existing args', () => {
+  assert.deepEqual(buildSpawnArgs(['node', 'pi.js'], false), ['node', 'pi.js'])
+  assert.deepEqual(buildSpawnArgs(['node', 'pi.js'], true), ['node', 'pi.js', '--continue'])
+})
+
+test('a /ws?continue=1 connection spawns pi with --continue', async () => {
+  const { server, ws } = await startBridge('/ws?continue=1')
+  try {
+    const received: ({ type: string } & Record<string, unknown>)[] = []
+    ws.on('message', (raw) => received.push(JSON.parse(String(raw))))
+    ws.send(JSON.stringify({ id: 'k1', type: 'get_state' }))
+    await waitFor(() => received.some((m) => m.type === 'response' && m.id === 'k1'))
+    const response = received.find((m) => m.type === 'response' && m.id === 'k1')
+    assert.equal(response?.success, true)
+    const data = response?.data as { argv: string[] }
+    assert.ok(data.argv.includes('--continue'))
   } finally {
     ws.close()
     server.close()
@@ -134,8 +157,9 @@ test('normal commands still forward to pi alongside config interception', async 
     await waitFor(() => received.some((m) => m.type === 'response' && m.id === 's1'))
     const response = received.find((m) => m.type === 'response' && m.id === 's1')
     assert.equal(response?.success, true)
-    const data = response?.data as { model: { id: string } }
+    const data = response?.data as { model: { id: string }; argv: string[] }
     assert.equal(data.model.id, 'fake-model')
+    assert.ok(!data.argv.includes('--continue'))
   } finally {
     ws.close()
     server.close()

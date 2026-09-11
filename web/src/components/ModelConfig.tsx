@@ -161,6 +161,10 @@ function normalizeProviders(config: ModelsConfig): Record<string, ConfigProvider
   return providers
 }
 
+function isRowEmpty(row: ModelRowState): boolean {
+  return row.id.trim() === '' && row.name.trim() === '' && row.contextWindow.trim() === '' && !row.reasoning
+}
+
 function buildModelEntry(row: ModelRowState): ConfigModelEntry {
   const entry: ConfigModelEntry = { ...row.entry, id: row.id.trim() }
   const name = row.name.trim()
@@ -174,21 +178,26 @@ function buildModelEntry(row: ModelRowState): ConfigModelEntry {
 }
 
 function buildProviderEntry(editor: EditorState): ConfigProvider {
-  const models = editor.models.map(buildModelEntry)
+  // Rows left entirely empty are dropped (the form shows a hint counting them).
+  const models = editor.models.filter((row) => !isRowEmpty(row)).map(buildModelEntry)
   const compat = {
     ...(editor.original?.compat ?? {}),
     supportsDeveloperRole: editor.supportsDeveloperRole,
     supportsReasoningEffort: editor.supportsReasoningEffort,
   }
-  const known = {
-    baseUrl: editor.baseUrl.trim(),
-    api: editor.api,
-    apiKey: editor.apiKey,
-    models,
-    compat,
-  }
+  // pi accepts any non-empty api string; a blank field means the default.
+  const api = editor.api.trim() === '' ? 'openai-completions' : editor.api.trim()
   // Spread the original entry so unknown keys survive, then overwrite known fields.
-  return editor.original !== null ? { ...editor.original, ...known } : { ...known }
+  const entry: ConfigProvider =
+    editor.original !== null ? { ...editor.original, api, models, compat } : { api, models, compat }
+  // pi's schema requires apiKey minLength 1 when present and discards the whole
+  // models.json otherwise: an emptied field must be omitted, never saved as ''.
+  if (editor.apiKey.trim() === '') delete entry.apiKey
+  else entry.apiKey = editor.apiKey
+  // Same for baseUrl: an emptied field is omitted instead of written as ''.
+  if (editor.baseUrl.trim() === '') delete entry.baseUrl
+  else entry.baseUrl = editor.baseUrl.trim()
+  return entry
 }
 
 function ServicesTab({ onGetConfig, onSaveConfig }: {
@@ -285,13 +294,19 @@ function ServicesTab({ onGetConfig, onSaveConfig }: {
     const name = editor.name.trim()
     if (name === '') errors.push('名称必填')
     else if (editor.isNew && providers !== null && name in providers) errors.push(`名称 "${name}" 已存在`)
+    // New providers need a usable endpoint; when editing, an empty Base URL is
+    // allowed (it is omitted on save) but a filled-in one must still be a URL.
     const baseUrl = editor.baseUrl.trim()
-    if (baseUrl === '') errors.push('Base URL 必填')
-    else if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+    const badScheme = baseUrl !== '' && !baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')
+    if (editor.isNew) {
+      if (baseUrl === '') errors.push('Base URL 必填')
+      else if (badScheme) errors.push('Base URL 必须以 http:// 或 https:// 开头')
+      if (editor.models.every(isRowEmpty)) errors.push('至少需要一个模型')
+    } else if (badScheme) {
       errors.push('Base URL 必须以 http:// 或 https:// 开头')
     }
-    if (editor.models.length === 0) errors.push('至少需要一个模型')
     editor.models.forEach((row, index) => {
+      if (isRowEmpty(row)) return
       if (row.id.trim() === '') errors.push(`模型 ${index + 1}: id 必填`)
       const contextWindow = row.contextWindow.trim()
       if (contextWindow !== '' && (!/^\d+$/.test(contextWindow) || Number(contextWindow) <= 0)) {
@@ -300,6 +315,8 @@ function ServicesTab({ onGetConfig, onSaveConfig }: {
     })
     return errors
   }, [editor, providers])
+
+  const emptyRowCount = editor === null ? 0 : editor.models.filter(isRowEmpty).length
 
   const save = async (): Promise<void> => {
     if (editor === null || providers === null || validationErrors.length > 0) return
@@ -349,13 +366,17 @@ function ServicesTab({ onGetConfig, onSaveConfig }: {
         </label>
         <label>
           API 类型
-          <select value={editor.api} onChange={(event) => setEditor({ ...editor, api: event.target.value })}>
+          <input
+            list="config-api-types"
+            value={editor.api}
+            placeholder="openai-completions"
+            onChange={(event) => setEditor({ ...editor, api: event.target.value })}
+          />
+          <datalist id="config-api-types">
             {API_TYPES.map((api) => (
-              <option key={api} value={api}>
-                {api}
-              </option>
+              <option key={api} value={api} />
             ))}
-          </select>
+          </datalist>
         </label>
         <label>
           API Key
@@ -435,6 +456,9 @@ function ServicesTab({ onGetConfig, onSaveConfig }: {
             </div>
           ))}
         </div>
+        {emptyRowCount > 0 && (
+          <div className="provider-form-hint">将忽略 {emptyRowCount} 个空行</div>
+        )}
         {(validationErrors.length > 0 || saveError !== null) && (
           <div className="provider-form-error" role="alert">
             {saveError !== null && <div>{saveError}</div>}
@@ -477,7 +501,7 @@ function ServicesTab({ onGetConfig, onSaveConfig }: {
             <div className="provider-row-info">
               <div className="provider-row-name">{name}</div>
               <div className="provider-row-meta">
-                {provider.baseUrl} · {(provider.models ?? []).length} 个模型
+                {provider.baseUrl || '未设置 Base URL'} · {(provider.models ?? []).length} 个模型
               </div>
             </div>
             <div className="provider-row-actions">

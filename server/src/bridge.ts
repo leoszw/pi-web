@@ -1,7 +1,15 @@
-import type { Server } from 'node:http'
+import type { IncomingMessage, Server } from 'node:http'
 import { WebSocket, WebSocketServer } from 'ws'
 import { RpcClient } from './rpc-client'
 import { readModelsConfig, saveModelsConfig, validateModelsConfig } from './models-config'
+
+/**
+ * Appends --continue after the base args so the fresh pi child resumes the most
+ * recent session (pi falls back to a new session when none exists).
+ */
+export function buildSpawnArgs(baseArgs: string[], continueSession: boolean): string[] {
+  return continueSession ? [...baseArgs, '--continue'] : [...baseArgs]
+}
 
 export interface BridgeOptions {
   server: Server
@@ -16,8 +24,13 @@ export function attachBridge(options: BridgeOptions): WebSocketServer {
   })
   let bridgeId = 0
 
-  wss.on('connection', (ws: WebSocket) => {
-    const client = new RpcClient({ command: options.piCommand, cwd: options.piCwd })
+  wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
+    // /ws?continue=1 → the spawned pi child resumes the most recent session
+    // instead of starting a fresh one (used after models.json saves so the
+    // transcript survives the reconnect).
+    const continueSession =
+      new URL(request.url ?? '/', 'http://localhost').searchParams.get('continue') === '1'
+    const client = new RpcClient({ command: buildSpawnArgs(options.piCommand, continueSession), cwd: options.piCwd })
     client.start()
     ws.on('error', () => {
       ws.terminate()

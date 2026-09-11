@@ -247,4 +247,5 @@ button.ghost:disabled { opacity: 0.5; cursor: default; }
 .model-row-reasoning { display: flex; align-items: center; gap: 4px; color: var(--text-dim); font-size: 12px; white-space: nowrap; }
 .provider-form-error { color: var(--error); font-size: 13px; white-space: pre-wrap; }
 .provider-form-error .ghost { margin-left: 8px; }
+.provider-form-hint { color: var(--text-dim); font-size: 12px; }
 .provider-form-actions { display: flex; justify-content: flex-end; gap: 8px; }

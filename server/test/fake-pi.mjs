@@ -36,7 +36,8 @@ rl.on('line', (line) => {
   const emit = (event) => write(event)
   switch (type) {
     case 'get_state':
-      respond({ model, thinkingLevel: 'medium', isStreaming: false, sessionId: 'fake-session-id' })
+      // argv lets tests assert which spawn flags the bridge passed (e.g. --continue).
+      respond({ model, thinkingLevel: 'medium', isStreaming: false, sessionId: 'fake-session-id', argv: process.argv.slice(2) })
       break
     case 'get_messages':
       respond({ messages: [] })
