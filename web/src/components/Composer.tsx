@@ -51,7 +51,7 @@ export function Composer({ streaming, busy, hasUserMessage, onSend, onStop, onRe
             停止
           </button>
         ) : (
-          <button className="primary" onClick={submit}>
+          <button className="primary" onClick={submit} disabled={busy}>
             发送
           </button>
         )}
