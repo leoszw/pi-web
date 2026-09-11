@@ -153,6 +153,9 @@ export default function App() {
       // Recycle the connection with ?continue=1: the fresh pi child picks up the
       // new models.json AND resumes the current session (pi falls back to a new
       // session when none exists), then runRefresh pulls the updated model list.
+      // Multi-tab caveat: pi has no session locking, so with two tabs live the
+      // resumed session may be the OTHER tab's (same exposure as running
+      // `pi --continue` twice; single-user localhost tool, accepted).
       pendingContinueRef.current = true
       setConnEpoch((epoch) => epoch + 1)
     })

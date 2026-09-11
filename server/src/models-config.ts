@@ -161,8 +161,8 @@ function validateModel(label: string, input: unknown, problems: string[]): Confi
 
   let name: string | undefined
   if (input.name !== undefined) {
-    if (typeof input.name === 'string') name = input.name
-    else fail('name must be a string')
+    if (typeof input.name === 'string' && input.name !== '') name = input.name
+    else fail('name must be a non-empty string when present')
   }
 
   let reasoning: boolean | undefined
