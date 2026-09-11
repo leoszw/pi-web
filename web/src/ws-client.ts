@@ -78,8 +78,10 @@ export class RpcSocket {
         entry.reject(new Error('connection closed'))
       }
       this.pending.clear()
+      const wasStable = this.openedAt !== 0 && Date.now() - this.openedAt >= 5000
+      this.openedAt = 0
       if (!this.closedByUser) {
-        if (Date.now() - this.openedAt >= 5000) {
+        if (wasStable) {
           this.retryDelay = 1000
         } else {
           this.retryDelay = Math.min(this.retryDelay * 2, 10000)
