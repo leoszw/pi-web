@@ -57,6 +57,7 @@ export type ChatAction =
   | { type: 'rpc_response'; response: RpcResponse }
   | { type: 'rpc_event'; event: { type: string } & Record<string, unknown> }
   | { type: 'optimistic_user'; text: string }
+  | { type: 'prompt_failed'; text: string }
   | { type: 'notice_cleared' }
 
 let keyCounter = 0
@@ -72,6 +73,15 @@ export function reducer(state: ChatState, action: ChatAction): ChatState {
       return { ...state, notice: null }
     case 'optimistic_user':
       return { ...state, items: [...state.items, { kind: 'user', key: nextKey('user'), text: action.text }] }
+    case 'prompt_failed': {
+      for (let i = state.items.length - 1; i >= 0; i--) {
+        const item = state.items[i]
+        if (item.kind === 'user' && item.text === action.text) {
+          return { ...state, items: [...state.items.slice(0, i), ...state.items.slice(i + 1)] }
+        }
+      }
+      return state
+    }
     case 'rpc_response':
       return applyResponse(state, action.response)
     case 'rpc_event':
@@ -92,7 +102,7 @@ function applyResponse(state: ChatState, response: RpcResponse): ChatState {
       if (data === undefined) return state
       return {
         ...state,
-        model: data.model,
+        model: data.model ?? null,
         thinkingLevel: data.thinkingLevel ?? null,
         sessionId: data.sessionId ?? null,
         streaming: data.isStreaming ?? false,
@@ -163,15 +173,17 @@ function applyMessageStart(state: ChatState, event: MessageStartEvent): ChatStat
 function applyUpdate(state: ChatState, event: MessageUpdateEvent): ChatState {
   const delta = event.assistantMessageEvent as AssistantDelta | undefined
   if (delta === undefined) return state
+  if (delta.type !== 'text_delta' && delta.type !== 'thinking_delta') return state
   const last = state.items[state.items.length - 1]
-  if (last?.kind !== 'assistant') return state
-  if (delta.type === 'text_delta') {
-    return replaceLast(state, { ...last, text: last.text + delta.delta })
-  }
-  if (delta.type === 'thinking_delta') {
-    return replaceLast(state, { ...last, thinking: last.thinking + delta.delta })
-  }
-  return state
+  const continues = last?.kind === 'assistant'
+  const target: AssistantItem = continues
+    ? last
+    : { kind: 'assistant', key: nextKey('asst'), text: '', thinking: '' }
+  const head = continues ? state.items.slice(0, -1) : state.items
+  const updated: AssistantItem = delta.type === 'text_delta'
+    ? { ...target, text: target.text + delta.delta }
+    : { ...target, thinking: target.thinking + delta.delta }
+  return { ...state, items: [...head, updated] }
 }
 
 function applyMessageEnd(state: ChatState, event: MessageEndEvent): ChatState {
@@ -181,10 +193,14 @@ function applyMessageEnd(state: ChatState, event: MessageEndEvent): ChatState {
   if (last?.kind !== 'assistant') return state
   const text = message.content.filter((b) => b.type === 'text').map((b) => b.text).join('')
   const thinking = message.content.filter((b) => b.type === 'thinking').map((b) => b.thinking).join('')
+  if (text === '' && thinking === '' && last.text === '' && last.thinking === '') {
+    return { ...state, items: state.items.slice(0, -1) }
+  }
   return replaceLast(state, { ...last, text: text !== '' ? text : last.text, thinking: thinking !== '' ? thinking : last.thinking })
 }
 
 function applyToolStart(state: ChatState, event: ToolExecutionStartEvent): ChatState {
+  if (state.items.some((item) => item.kind === 'tool' && item.toolCallId === event.toolCallId)) return state
   const item = {
     kind: 'tool' as const,
     key: `tool-${event.toolCallId}`,
@@ -218,7 +234,13 @@ function replaceLast(state: ChatState, item: ChatItem): ChatState {
 }
 
 function updateTool(state: ChatState, toolCallId: string, fn: (tool: ToolItem) => ToolItem): ChatState {
-  return { ...state, items: state.items.map((item) => (item.kind === 'tool' && item.toolCallId === toolCallId ? fn(item) : item)) }
+  const index = state.items.findIndex((item) => item.kind === 'tool' && item.toolCallId === toolCallId)
+  if (index === -1) return state
+  const item = state.items[index]
+  if (item.kind !== 'tool') return state
+  const items = state.items.slice()
+  items[index] = fn(item)
+  return { ...state, items }
 }
 
 function userText(message: UserMessage): string {

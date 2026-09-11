@@ -109,3 +109,64 @@ test('failed response sets notice', () => {
   })
   expect(state.notice).toBe('no model')
 })
+
+test('thinking deltas accumulate into the thinking field', () => {
+  let state = reducer(base, event('message_start', { message: { role: 'assistant', content: [] } }))
+  state = reducer(state, event('message_update', { assistantMessageEvent: { type: 'thinking_delta', contentIndex: 0, delta: 'a' } }))
+  state = reducer(state, event('message_update', { assistantMessageEvent: { type: 'thinking_delta', contentIndex: 0, delta: 'b' } }))
+  const item = state.items[0]
+  assert(item.kind === 'assistant')
+  expect(item.thinking).toBe('ab')
+  expect(item.text).toBe('')
+})
+
+test('connected clears notice and disconnected flips state', () => {
+  let state = reducer({ ...base, notice: 'boom' }, { type: 'connected' })
+  expect(state.connected).toBe(true)
+  expect(state.notice).toBeNull()
+  state = reducer(state, { type: 'disconnected' })
+  expect(state.connected).toBe(false)
+})
+
+test('server_error sets notice and stops streaming', () => {
+  let state = reducer(base, event('agent_start'))
+  state = reducer(state, event('server_error', { message: 'pi died' }))
+  expect(state.notice).toBe('pi died')
+  expect(state.streaming).toBe(false)
+})
+
+test('tool update and end for unknown toolCallId are no-ops', () => {
+  const before = reducer(base, event('agent_start'))
+  const after = reducer(before, event('tool_execution_update', { toolCallId: 'ghost', partialResult: { content: [{ type: 'text', text: 'x' }] } }))
+  expect(after).toBe(before)
+  const afterEnd = reducer(before, event('tool_execution_end', { toolCallId: 'ghost', result: { content: [] }, isError: false }))
+  expect(afterEnd).toBe(before)
+})
+
+test('duplicate tool_execution_start does not create a second card', () => {
+  let state = reducer(base, event('tool_execution_start', { toolCallId: 'c1', toolName: 'bash', args: {} }))
+  state = reducer(state, event('tool_execution_start', { toolCallId: 'c1', toolName: 'bash', args: {} }))
+  expect(state.items).toHaveLength(1)
+})
+
+test('message_end with empty content removes the empty assistant item', () => {
+  let state = reducer(base, event('message_start', { message: { role: 'assistant', content: [] } }))
+  state = reducer(state, event('message_end', { message: { role: 'assistant', content: [{ type: 'toolCall', id: 'c1', name: 'bash', arguments: {} }] } }))
+  expect(state.items).toHaveLength(0)
+})
+
+test('delta arriving without a trailing assistant item creates one', () => {
+  let state = reducer(base, event('tool_execution_start', { toolCallId: 'c1', toolName: 'bash', args: {} }))
+  state = reducer(state, event('message_update', { assistantMessageEvent: { type: 'text_delta', contentIndex: 0, delta: 'resumed' } }))
+  const item = state.items[1]
+  assert(item.kind === 'assistant')
+  expect(item.text).toBe('resumed')
+})
+
+test('prompt_failed removes the matching optimistic user item', () => {
+  let state = reducer(base, { type: 'optimistic_user', text: 'hello' })
+  state = reducer(state, event('tool_execution_start', { toolCallId: 'c1', toolName: 'bash', args: {} }))
+  state = reducer(state, { type: 'prompt_failed', text: 'hello' })
+  expect(state.items.filter((i) => i.kind === 'user')).toHaveLength(0)
+  expect(state.items).toHaveLength(1)
+})
