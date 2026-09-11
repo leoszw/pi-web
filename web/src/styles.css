@@ -199,3 +199,52 @@ button.ghost:disabled { opacity: 0.5; cursor: default; }
 .model-row-name { font-size: 14px; }
 .model-row-meta { color: var(--text-dim); font-size: 12px; font-family: var(--mono); }
 .model-empty { color: var(--text-dim); text-align: center; padding: 24px 0; }
+
+/* config modal tabs */
+.config-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+.config-tab {
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--text-dim); font-size: 14px;
+  padding: 6px 12px; cursor: pointer; margin-bottom: -1px;
+}
+.config-tab:hover { color: var(--text); }
+.config-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+/* provider (services) list */
+.provider-list { overflow-y: auto; min-height: 120px; }
+.provider-list-actions { display: flex; justify-content: flex-end; padding: 0 0 4px; }
+.provider-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; }
+.provider-row:hover { background: var(--bg-elevated); }
+.provider-row-info { flex: 1; min-width: 0; }
+.provider-row-name { font-size: 14px; }
+.provider-row-meta {
+  color: var(--text-dim); font-size: 12px; font-family: var(--mono);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.provider-row-actions { display: flex; gap: 6px; }
+.provider-row-actions .ghost { padding: 3px 10px; }
+
+/* provider editor form */
+.provider-form { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 120px; }
+.provider-form > label { display: flex; flex-direction: column; gap: 4px; color: var(--text-dim); font-size: 12px; }
+.provider-form input, .provider-form select {
+  background: var(--bg-elevated); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 12px; font: inherit;
+}
+.provider-form input:focus, .provider-form select:focus { outline: none; border-color: var(--accent); }
+.provider-form input:disabled { opacity: 0.6; }
+.provider-compat { border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; }
+.provider-compat summary { cursor: pointer; color: var(--text-dim); font-size: 13px; }
+.provider-compat label {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 6px; color: var(--text); font-size: 13px;
+}
+.model-rows { display: flex; flex-direction: column; gap: 8px; }
+.model-rows-header { display: flex; align-items: center; justify-content: space-between; color: var(--text-dim); font-size: 12px; }
+.model-row-edit { display: grid; grid-template-columns: 1.2fr 1fr 0.9fr auto auto; gap: 6px; align-items: center; }
+.model-row-edit input { width: 100%; padding: 6px 8px; }
+.model-row-reasoning { display: flex; align-items: center; gap: 4px; color: var(--text-dim); font-size: 12px; white-space: nowrap; }
+.provider-form-error { color: var(--error); font-size: 13px; white-space: pre-wrap; }
+.provider-form-error .ghost { margin-left: 8px; }
+.provider-form-actions { display: flex; justify-content: flex-end; gap: 8px; }

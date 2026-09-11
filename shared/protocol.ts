@@ -130,3 +130,34 @@ export interface SessionState {
   sessionFile?: string
   messageCount?: number
 }
+
+// Shape of pi's <agentDir>/models.json. Index signatures keep unknown extra
+// keys (pi evolves) intact across read/validate/save round-trips.
+
+export interface ConfigModelEntry {
+  id: string
+  name?: string
+  reasoning?: boolean
+  contextWindow?: number
+  maxTokens?: number
+  [key: string]: unknown
+}
+
+export interface ConfigProviderCompat {
+  supportsDeveloperRole?: boolean
+  supportsReasoningEffort?: boolean
+  [key: string]: unknown
+}
+
+export interface ConfigProvider {
+  baseUrl: string
+  api: string
+  apiKey?: string
+  models: ConfigModelEntry[]
+  compat?: ConfigProviderCompat
+  [key: string]: unknown
+}
+
+export interface ModelsConfig {
+  providers: Record<string, ConfigProvider>
+}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import type { ConfigProvider, ModelsConfig } from '../../shared/protocol'
 import { ChatView } from './components/ChatView'
 import { Composer } from './components/Composer'
 import { ModelConfig } from './components/ModelConfig'
@@ -22,6 +23,9 @@ export default function App() {
   const [state, dispatch] = useReducer(reducer, initialState)
   const [configOpen, setConfigOpen] = useState(false)
   const [sending, setSending] = useState(false)
+  // Bumped after a models.json save: recycles the WS connection so a fresh pi
+  // child re-reads the config file.
+  const [connEpoch, setConnEpoch] = useState(0)
   const socketRef = useRef<RpcSocket | null>(null)
 
   const runRefresh = useCallback((socket: RpcSocket): void => {
@@ -52,7 +56,7 @@ export default function App() {
       socket.close()
       socketRef.current = null
     }
-  }, [runRefresh])
+  }, [runRefresh, connEpoch])
 
   useEffect(() => {
     if (state.streaming) setSending(false)
@@ -129,6 +133,22 @@ export default function App() {
       .catch(() => {})
   }
 
+  const onGetConfig = useCallback((): Promise<ModelsConfig> => {
+    return sendCommand({ type: 'config_get_models' }).then((response) => {
+      if (!response.success) throw new Error(response.error ?? 'config_get_models failed')
+      return response.data as ModelsConfig
+    })
+  }, [sendCommand])
+
+  const onSaveConfig = useCallback((providers: Record<string, ConfigProvider>): Promise<void> => {
+    return sendCommand({ type: 'config_save_models', providers }).then((response) => {
+      if (!response.success) throw new Error(response.error ?? 'config_save_models failed')
+      // Recycle the connection: the fresh pi child picks up the new models.json,
+      // and runRefresh pulls the updated model list.
+      setConnEpoch((epoch) => epoch + 1)
+    })
+  }, [sendCommand])
+
   const hasUserMessage = state.items.some((item) => item.kind === 'user')
 
   return (
@@ -156,6 +176,8 @@ export default function App() {
           onClose={() => setConfigOpen(false)}
           onSelectModel={onSelectModel}
           onSelectThinking={onSelectThinking}
+          onGetConfig={onGetConfig}
+          onSaveConfig={onSaveConfig}
         />
       )}
     </div>

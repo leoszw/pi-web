@@ -1,6 +1,7 @@
 import type { Server } from 'node:http'
 import { WebSocket, WebSocketServer } from 'ws'
 import { RpcClient } from './rpc-client'
+import { readModelsConfig, saveModelsConfig, validateModelsConfig } from './models-config'
 
 export interface BridgeOptions {
   server: Server
@@ -28,6 +29,29 @@ export function attachBridge(options: BridgeOptions): WebSocketServer {
 
     const sendJson = (value: unknown): void => {
       if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(value))
+    }
+
+    // Config commands are served by the bridge itself (never forwarded to pi):
+    // read/validate/save pi's models.json through the same send path as normal responses.
+    const respondConfig = async (command: string, id: string, frame: Record<string, unknown>): Promise<void> => {
+      if (command === 'config_get_models') {
+        const result = await readModelsConfig()
+        if ('config' in result) sendJson({ type: 'response', command, id, success: true, data: result.config })
+        else sendJson({ type: 'response', command, id, success: false, error: result.error })
+        return
+      }
+      // frame is the full ws command; its `providers` field is the map to validate.
+      const verdict = validateModelsConfig(frame)
+      if (!verdict.ok) {
+        sendJson({ type: 'response', command, id, success: false, error: verdict.error })
+        return
+      }
+      try {
+        await saveModelsConfig(verdict.value)
+        sendJson({ type: 'response', command, id, success: true, data: { saved: true } })
+      } catch (error) {
+        sendJson({ type: 'response', command, id, success: false, error: String(error) })
+      }
     }
 
     const removeMessage = client.onMessage((message) => {
@@ -67,6 +91,12 @@ export function attachBridge(options: BridgeOptions): WebSocketServer {
         return
       }
       usedIds.add(id)
+      if (command.type === 'config_get_models' || command.type === 'config_save_models') {
+        respondConfig(command.type, id, command).catch((error: unknown) => {
+          sendJson({ type: 'response', command: command.type, success: false, id, error: String(error) })
+        })
+        return
+      }
       const payload = { ...command, id }
       pending.set(id, (response) => sendJson(response))
       try {
