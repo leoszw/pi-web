@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ChatState } from '../store'
 
 interface ModelConfigProps {
@@ -10,6 +10,14 @@ interface ModelConfigProps {
 
 export function ModelConfig({ state, onClose, onSelectModel, onSelectThinking }: ModelConfigProps) {
   const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
 
   const grouped = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -65,6 +73,7 @@ export function ModelConfig({ state, onClose, onSelectModel, onSelectThinking }:
           placeholder="搜索模型 (provider/id 或名称)"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          autoFocus
         />
         <div className="model-list">
           {grouped.map(([provider, models]) => (

@@ -21,6 +21,7 @@ const initialState: ChatState = {
 export default function App() {
   const [state, dispatch] = useReducer(reducer, initialState)
   const [configOpen, setConfigOpen] = useState(false)
+  const [sending, setSending] = useState(false)
   const socketRef = useRef<RpcSocket | null>(null)
 
   const runRefresh = useCallback((socket: RpcSocket): void => {
@@ -35,8 +36,12 @@ export default function App() {
   useEffect(() => {
     const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`
     const socket = new RpcSocket(wsUrl, {
-      onEvent: (event) => dispatch({ type: 'rpc_event', event }),
+      onEvent: (event) => {
+        if (socketRef.current !== socket) return
+        dispatch({ type: 'rpc_event', event })
+      },
       onStatus: (connected) => {
+        if (socketRef.current !== socket) return
         dispatch({ type: connected ? 'connected' : 'disconnected' })
         if (connected) runRefresh(socket)
       },
@@ -49,6 +54,10 @@ export default function App() {
     }
   }, [runRefresh])
 
+  useEffect(() => {
+    if (state.streaming) setSending(false)
+  }, [state.streaming])
+
   const sendCommand = useCallback((command: Record<string, unknown>) => {
     const socket = socketRef.current
     if (socket === null) return Promise.reject(new Error('not connected'))
@@ -59,10 +68,18 @@ export default function App() {
   }, [])
 
   const onSend = (text: string): void => {
+    if (state.streaming || sending) return
     dispatch({ type: 'optimistic_user', text })
-    sendCommand({ type: 'prompt', message: text }).catch(() => {
-      dispatch({ type: 'prompt_failed', text })
-    })
+    setSending(true)
+    sendCommand({ type: 'prompt', message: text })
+      .then((response) => {
+        setSending(false)
+        if (!response.success) dispatch({ type: 'prompt_failed', text })
+      })
+      .catch(() => {
+        setSending(false)
+        dispatch({ type: 'prompt_failed', text })
+      })
   }
 
   const onStop = (): void => {
@@ -70,18 +87,27 @@ export default function App() {
   }
 
   const onRegenerate = (): void => {
+    if (state.streaming || sending) return
     for (let i = state.items.length - 1; i >= 0; i--) {
       const item = state.items[i]
       if (item.kind === 'user') {
-        sendCommand({ type: 'prompt', message: item.text }).catch(() => {
-          dispatch({ type: 'prompt_failed', text: item.text })
-        })
+        setSending(true)
+        sendCommand({ type: 'prompt', message: item.text })
+          .then((response) => {
+            setSending(false)
+            if (!response.success) dispatch({ type: 'prompt_failed', text: item.text })
+          })
+          .catch(() => {
+            setSending(false)
+            dispatch({ type: 'prompt_failed', text: item.text })
+          })
         return
       }
     }
   }
 
   const onNewSession = (): void => {
+    if (state.streaming || sending) return
     sendCommand({ type: 'new_session' })
       .then(() => {
         const socket = socketRef.current
@@ -93,6 +119,7 @@ export default function App() {
   const onSelectModel = (provider: string, modelId: string): void => {
     sendCommand({ type: 'set_model', provider, modelId })
       .then(() => sendCommand({ type: 'get_available_thinking_levels' }))
+      .then(() => sendCommand({ type: 'get_state' }))
       .catch(() => {})
   }
 
@@ -108,14 +135,15 @@ export default function App() {
     <div className="app">
       <StatusBar state={state} onOpenModelConfig={() => setConfigOpen(true)} />
       {state.notice !== null && (
-        <div className="notice">
+        <div className="notice" role="alert">
           <span>{state.notice}</span>
-          <button onClick={() => dispatch({ type: 'notice_cleared' })}>×</button>
+          <button onClick={() => dispatch({ type: 'notice_cleared' })} aria-label="关闭提示">×</button>
         </div>
       )}
       <ChatView items={state.items} streaming={state.streaming} />
       <Composer
         streaming={state.streaming}
+        busy={state.streaming || sending}
         hasUserMessage={hasUserMessage}
         onSend={onSend}
         onStop={onStop}

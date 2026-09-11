@@ -2,6 +2,7 @@ import { useState, type KeyboardEvent } from 'react'
 
 interface ComposerProps {
   streaming: boolean
+  busy: boolean
   hasUserMessage: boolean
   onSend: (text: string) => void
   onStop: () => void
@@ -9,17 +10,18 @@ interface ComposerProps {
   onNewSession: () => void
 }
 
-export function Composer({ streaming, hasUserMessage, onSend, onStop, onRegenerate, onNewSession }: ComposerProps) {
+export function Composer({ streaming, busy, hasUserMessage, onSend, onStop, onRegenerate, onNewSession }: ComposerProps) {
   const [text, setText] = useState('')
 
   const submit = (): void => {
     const trimmed = text.trim()
-    if (trimmed === '' || streaming) return
+    if (trimmed === '' || busy) return
     onSend(trimmed)
     setText('')
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
       submit()
@@ -36,11 +38,11 @@ export function Composer({ streaming, hasUserMessage, onSend, onStop, onRegenera
         rows={3}
       />
       <div className="composer-actions">
-        <button className="ghost" onClick={onNewSession}>
+        <button className="ghost" onClick={onNewSession} disabled={busy}>
           新会话
         </button>
         {hasUserMessage && (
-          <button className="ghost" onClick={onRegenerate}>
+          <button className="ghost" onClick={onRegenerate} disabled={busy}>
             重新生成
           </button>
         )}

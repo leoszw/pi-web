@@ -150,6 +150,7 @@ button.ghost {
   padding: 6px 14px; cursor: pointer; font-size: 13px;
 }
 button.ghost:hover { color: var(--text); border-color: var(--text-dim); }
+button.ghost:disabled { opacity: 0.5; cursor: default; }
 
 /* modal */
 .modal-backdrop {
