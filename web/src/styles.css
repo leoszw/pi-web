@@ -58,7 +58,7 @@ body {
 /* chat view */
 .chat-view { flex: 1; overflow-y: auto; padding: 16px 0 8px; position: relative; }
 .chat-view > * { max-width: 860px; margin-left: auto; margin-right: auto; padding-left: 16px; padding-right: 16px; }
-.user-message { display: flex; justify-content: flex-end; margin: 8px 0; }
+.user-message { display: flex; justify-content: flex-end; margin: 8px auto; }
 .user-bubble {
   background: var(--accent-dim);
   border-radius: 12px 12px 4px 12px;
@@ -66,7 +66,7 @@ body {
   max-width: 80%;
   white-space: pre-wrap;
 }
-.assistant-message { margin: 12px 0; }
+.assistant-message { margin: 12px auto; }
 .assistant-message details.thinking {
   border: 1px solid var(--border); border-radius: 8px;
   background: var(--bg-panel);
@@ -99,7 +99,7 @@ body {
 .tool-card {
   border: 1px solid var(--border); border-radius: 8px;
   background: var(--bg-panel);
-  margin: 8px 0; overflow: hidden;
+  margin: 8px auto; overflow: hidden;
 }
 .tool-header {
   display: flex; align-items: center; gap: 8px;
