@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { IndustryApiError } from '../../../shared/industry/common'
-import type { PiWebMode } from '../../../shared/industry/common'
+import type { IndustryApiError, PiWebMode } from '../../../shared/industry/common'
 import type { PrincipalProvider } from './auth'
 import type { IndustryAgentClient } from './clients/industry-agent-client'
 import { IndustryContextError, IndustryContextService } from './context'
+import type { EvaluationClient } from './eval/evaluation-client'
+import { handleEvalRoute } from './eval/router'
 import { isOriginAllowed } from '../security/origin'
 import { DEFAULT_JSON_BODY_LIMIT_BYTES, RequestBodyError, readJsonBody } from '../security/request-limits'
 
@@ -12,6 +13,7 @@ export interface IndustryRouterOptions {
   mode: PiWebMode
   principalProvider: PrincipalProvider
   client: IndustryAgentClient
+  evaluationClient: EvaluationClient
   contextService: IndustryContextService
   allowedOrigins: ReadonlySet<string>
   jsonBodyLimitBytes?: number
@@ -49,9 +51,20 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
 
     try {
       const principal = await options.principalProvider.getPrincipal(request)
+      const resolved = await options.contextService.getContext(principal, requestId)
+
+      if (await handleEvalRoute({
+        request,
+        response,
+        url,
+        requestId,
+        principal,
+        context: resolved.trusted,
+        client: options.evaluationClient,
+        bodyLimitBytes: bodyLimit,
+      })) return true
 
       if (url.pathname === '/api/industry/v1/health' && request.method === 'GET') {
-        const resolved = await options.contextService.getContext(principal, requestId)
         const health = await options.client.getHealth(resolved.trusted)
         sendJson(response, {
           apiVersion: 'industry-api-v1',
@@ -64,7 +77,6 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
       }
 
       if (url.pathname === '/api/industry/v1/context' && request.method === 'GET') {
-        const resolved = await options.contextService.getContext(principal, requestId)
         sendJson(response, {
           apiVersion: 'industry-api-v1',
           context: resolved.view,
@@ -76,11 +88,11 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
       if (url.pathname === '/api/industry/v1/context/project' && request.method === 'POST') {
         const body = await readJsonBody(request, bodyLimit)
         const projectId = parseProjectSelection(body)
-        const resolved = await options.contextService.selectProject(principal, requestId, projectId)
+        const selected = await options.contextService.selectProject(principal, requestId, projectId)
         sendJson(response, {
           apiVersion: 'industry-api-v1',
-          context: resolved.view,
-          authorizedProjects: resolved.authorizedProjects,
+          context: selected.view,
+          authorizedProjects: selected.authorizedProjects,
         })
         return true
       }

@@ -4,6 +4,7 @@ import test from 'node:test'
 import { MockPrincipalProvider, type AuthPrincipal } from '../src/industry/auth'
 import { MockIndustryAgentClient } from '../src/industry/clients/mock-industry-agent-client'
 import { IndustryContextService } from '../src/industry/context'
+import { MockEvaluationClient } from '../src/industry/eval/mock-evaluation-client'
 import { createIndustryRouter } from '../src/industry/router'
 
 const principal: AuthPrincipal = {
@@ -25,6 +26,7 @@ function makeRouter(mode: 'local' | 'control-plane' = 'control-plane') {
     mode,
     principalProvider: new MockPrincipalProvider(principal),
     client,
+    evaluationClient: new MockEvaluationClient(),
     contextService: new IndustryContextService(client),
     allowedOrigins: new Set(['http://127.0.0.1']),
     jsonBodyLimitBytes: 1024,

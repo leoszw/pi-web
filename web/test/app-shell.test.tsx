@@ -19,6 +19,25 @@ describe('AppShell routing', () => {
     expect(html).not.toContain('Coding chat sentinel')
   })
 
+  it('routes /industry/eval to the evaluation overview slot', () => {
+    expect(resolveAppRoute('/industry/eval')).toBe('industry-eval')
+    expect(routePath('industry-eval')).toBe('/industry/eval')
+    const html = renderToStaticMarkup(
+      <AppShell initialPath="/industry/eval" evalOverview={<div>Eval overview sentinel</div>} codingChat={<div>Coding chat sentinel</div>} />,
+    )
+    expect(html).toContain('Eval overview sentinel')
+    expect(html).not.toContain('Coding chat sentinel')
+  })
+
+  it('routes /industry/eval/intent to the Intent Lab slot', () => {
+    expect(resolveAppRoute('/industry/eval/intent')).toBe('industry-eval-intent')
+    expect(routePath('industry-eval-intent')).toBe('/industry/eval/intent')
+    const html = renderToStaticMarkup(
+      <AppShell initialPath="/industry/eval/intent" intentLab={<div>Intent Lab sentinel</div>} />,
+    )
+    expect(html).toContain('Intent Lab sentinel')
+  })
+
   it('renders the coding chat slot for /chat', () => {
     const html = renderToStaticMarkup(
       <AppShell initialPath="/chat" codingChat={<div>Coding chat sentinel</div>} />,

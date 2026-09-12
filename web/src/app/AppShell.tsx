@@ -1,15 +1,19 @@
 import { useEffect, useState, type MouseEvent, type ReactNode } from 'react'
 import CodingChatApp from '../App'
+import { EvalOverviewPage } from '../features/eval/EvalOverviewPage'
+import { IntentLabPage } from '../features/eval/IntentLabPage'
 import { IndustryDashboard } from '../features/industry-dashboard/IndustryDashboard'
-import { resolveAppRoute, routePath, type AppRoute } from './routes'
+import { isIndustryRoute, resolveAppRoute, routePath, type AppRoute } from './routes'
 import './app-shell.css'
 
 export interface AppShellProps {
   initialPath?: string
   codingChat?: ReactNode
+  evalOverview?: ReactNode
+  intentLab?: ReactNode
 }
 
-export function AppShell({ initialPath, codingChat }: AppShellProps) {
+export function AppShell({ initialPath, codingChat, evalOverview, intentLab }: AppShellProps) {
   const [route, setRoute] = useState<AppRoute>(() => resolveAppRoute(initialPath ?? currentPath()))
 
   useEffect(() => {
@@ -32,12 +36,30 @@ export function AppShell({ initialPath, codingChat }: AppShellProps) {
       <nav className="app-shell__nav" aria-label="主导航">
         <a href="/chat" data-active={route === 'chat'} onClick={navigate('chat')}>Coding Chat</a>
         <a href="/industry" data-active={route === 'industry'} onClick={navigate('industry')}>Industry Agent</a>
+        <a href="/industry/eval" data-active={isIndustryRoute(route) && route !== 'industry'} onClick={navigate('industry-eval')}>Evaluation</a>
       </nav>
       <div className="app-shell__content">
-        {route === 'industry' ? <IndustryDashboard /> : (codingChat ?? <CodingChatApp />)}
+        <AppContent route={route} codingChat={codingChat} evalOverview={evalOverview} intentLab={intentLab} />
       </div>
     </div>
   )
+}
+
+function AppContent({
+  route,
+  codingChat,
+  evalOverview,
+  intentLab,
+}: {
+  route: AppRoute
+  codingChat?: ReactNode
+  evalOverview?: ReactNode
+  intentLab?: ReactNode
+}) {
+  if (route === 'industry-eval-intent') return intentLab ?? <IntentLabPage />
+  if (route === 'industry-eval') return evalOverview ?? <EvalOverviewPage />
+  if (route === 'industry') return <IndustryDashboard />
+  return codingChat ?? <CodingChatApp />
 }
 
 function currentPath(): string {

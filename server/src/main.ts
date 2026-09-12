@@ -6,6 +6,7 @@ import { attachBridge } from './bridge'
 import { MockPrincipalProvider, parseMockPrincipal, type AuthPrincipal } from './industry/auth'
 import { MockIndustryAgentClient, parseMockProjects } from './industry/clients/mock-industry-agent-client'
 import { IndustryContextService } from './industry/context'
+import { MockEvaluationClient } from './industry/eval/mock-evaluation-client'
 import { createIndustryRouter } from './industry/router'
 import { parseAllowedOrigins } from './security/origin'
 import { createRequestHandler } from './static'
@@ -58,14 +59,14 @@ const PORT = Number.isFinite(parsedPort) ? parsedPort : 3210
 const PI_CMD = parsePiCommand(process.env.PI_CMD)
 const MODE = parseMode(process.env.PI_WEB_MODE)
 
-const principal =
-  MODE === 'control-plane'
-    ? parseMockPrincipal(process.env.PI_WEB_MOCK_PRINCIPAL_JSON)
-    : localPrincipal()
+const principal = MODE === 'control-plane'
+  ? parseMockPrincipal(process.env.PI_WEB_MOCK_PRINCIPAL_JSON)
+  : localPrincipal()
 const projects = MODE === 'control-plane' ? parseMockProjects(process.env.PI_WEB_MOCK_PROJECTS_JSON) : []
 
 const principalProvider = new MockPrincipalProvider(principal)
 const industryClient = new MockIndustryAgentClient(projects)
+const evaluationClient = new MockEvaluationClient()
 const contextService = new IndustryContextService(industryClient)
 const allowedOrigins = parseAllowedOrigins(process.env.PI_WEB_ALLOWED_ORIGINS, PORT)
 
@@ -75,6 +76,7 @@ const industryRouter = createIndustryRouter({
   mode: MODE,
   principalProvider,
   client: industryClient,
+  evaluationClient,
   contextService,
   allowedOrigins,
 })
