@@ -26,17 +26,19 @@ export function createRequestHandler(webDist: string): (req: IncomingMessage, re
         res.end()
         return
       }
-      const filePath = normalize(join(webDist, pathname))
-      if (!filePath.startsWith(webDist + sep)) {
-        res.writeHead(403)
-        res.end()
+
+      const requestedPath = safeFilePath(webDist, pathname)
+      try {
+        const data = await readFile(requestedPath)
+        sendFile(res, requestedPath, data)
         return
+      } catch {
+        if (!isSpaRoute(pathname)) throw new Error('not found')
       }
-      const data = await readFile(filePath)
-      const headers: Record<string, string> = { 'content-type': MIME[extname(filePath)] ?? 'application/octet-stream' }
-      if (extname(filePath) === '.html') headers['cache-control'] = 'no-cache'
-      res.writeHead(200, headers)
-      res.end(data)
+
+      const indexPath = safeFilePath(webDist, '/index.html')
+      const index = await readFile(indexPath)
+      sendFile(res, indexPath, index)
     } catch {
       if (!res.headersSent) {
         res.writeHead(404)
@@ -44,4 +46,21 @@ export function createRequestHandler(webDist: string): (req: IncomingMessage, re
       res.end('not found')
     }
   }
+}
+
+function safeFilePath(webDist: string, pathname: string): string {
+  const filePath = normalize(join(webDist, pathname))
+  if (!filePath.startsWith(webDist + sep)) throw new Error('path outside web root')
+  return filePath
+}
+
+function isSpaRoute(pathname: string): boolean {
+  return pathname === '/chat' || pathname === '/industry' || pathname.startsWith('/industry/')
+}
+
+function sendFile(res: ServerResponse, filePath: string, data: Buffer): void {
+  const headers: Record<string, string> = { 'content-type': MIME[extname(filePath)] ?? 'application/octet-stream' }
+  if (extname(filePath) === '.html') headers['cache-control'] = 'no-cache'
+  res.writeHead(200, headers)
+  res.end(data)
 }

@@ -8,8 +8,8 @@
     "dev:web": "vite --config web/vite.config.ts",
     "build": "vite build --config web/vite.config.ts",
     "start": "tsx server/src/main.ts",
-    "test:server": "tsx --test server/test/rpc-client.test.ts server/test/bridge.test.ts server/test/bridge-config.test.ts server/test/models-config.test.ts server/test/static-server.test.ts",
-    "test:web": "vitest run web/test/store.test.ts",
+    "test:server": "tsx --test server/test/rpc-client.test.ts server/test/bridge.test.ts server/test/bridge-config.test.ts server/test/models-config.test.ts server/test/static-server.test.ts server/test/industry-auth.test.ts server/test/industry-context.test.ts server/test/industry-router.test.ts server/test/industry-secret-redaction.test.ts server/test/bridge-control-plane.test.ts server/test/spa-routing.test.ts",
+    "test:web": "vitest run web/test",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p web/tsconfig.json"
   },
   "dependencies": {

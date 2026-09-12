@@ -1,7 +1,13 @@
 import http from 'node:http'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { PiWebMode } from '../../shared/industry/common'
 import { attachBridge } from './bridge'
+import { MockPrincipalProvider, parseMockPrincipal, type AuthPrincipal } from './industry/auth'
+import { MockIndustryAgentClient, parseMockProjects } from './industry/clients/mock-industry-agent-client'
+import { IndustryContextService } from './industry/context'
+import { createIndustryRouter } from './industry/router'
+import { parseAllowedOrigins } from './security/origin'
 import { createRequestHandler } from './static'
 
 const HOME = process.env.HOME ?? ''
@@ -29,14 +35,61 @@ function parsePiCommand(raw: string | undefined): string[] {
   return DEFAULT_PI_CMD
 }
 
+function parseMode(raw: string | undefined): PiWebMode {
+  if (raw === undefined || raw === 'local') return 'local'
+  if (raw === 'control-plane') return 'control-plane'
+  throw new Error('PI_WEB_MODE must be "local" or "control-plane"')
+}
+
+function localPrincipal(): AuthPrincipal {
+  return {
+    subject: 'local',
+    userId: 'local',
+    tenantId: 'local',
+    companyIds: [],
+    roles: [],
+    permissions: [],
+    sessionId: 'local',
+  }
+}
+
 const parsedPort = Number.parseInt(process.env.PI_PORT ?? process.env.PORT ?? '3210', 10)
 const PORT = Number.isFinite(parsedPort) ? parsedPort : 3210
 const PI_CMD = parsePiCommand(process.env.PI_CMD)
+const MODE = parseMode(process.env.PI_WEB_MODE)
+
+const principal =
+  MODE === 'control-plane'
+    ? parseMockPrincipal(process.env.PI_WEB_MOCK_PRINCIPAL_JSON)
+    : localPrincipal()
+const projects = MODE === 'control-plane' ? parseMockProjects(process.env.PI_WEB_MOCK_PROJECTS_JSON) : []
+
+const principalProvider = new MockPrincipalProvider(principal)
+const industryClient = new MockIndustryAgentClient(projects)
+const contextService = new IndustryContextService(industryClient)
+const allowedOrigins = parseAllowedOrigins(process.env.PI_WEB_ALLOWED_ORIGINS, PORT)
 
 const webDist = fileURLToPath(new URL('../../web/dist', import.meta.url))
+const staticHandler = createRequestHandler(webDist)
+const industryRouter = createIndustryRouter({
+  mode: MODE,
+  principalProvider,
+  client: industryClient,
+  contextService,
+  allowedOrigins,
+})
 
-const server = http.createServer(createRequestHandler(webDist))
-attachBridge({ server, piCommand: PI_CMD, piCwd: PI_CWD })
+const server = http.createServer((request, response) => {
+  void (async () => {
+    if (await industryRouter(request, response)) return
+    await staticHandler(request, response)
+  })().catch(() => {
+    if (!response.headersSent) response.writeHead(500)
+    response.end('internal server error')
+  })
+})
+
+attachBridge({ server, piCommand: PI_CMD, piCwd: PI_CWD, mode: MODE })
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`pi-web: http://127.0.0.1:${PORT} (pi cwd: ${PI_CWD})`)
+  console.log(`pi-web: http://127.0.0.1:${PORT} (mode: ${MODE}, pi cwd: ${PI_CWD})`)
 })

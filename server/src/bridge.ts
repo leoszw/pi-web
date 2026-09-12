@@ -1,7 +1,9 @@
 import type { IncomingMessage, Server } from 'node:http'
 import { WebSocket, WebSocketServer } from 'ws'
+import type { PiWebMode } from '../../shared/industry/common'
 import { RpcClient } from './rpc-client'
 import { readModelsConfig, saveModelsConfig, validateModelsConfig } from './models-config'
+import { redactModelsConfigForControlPlane } from './industry/models-config-security'
 
 /**
  * Appends --continue after the base args so the fresh pi child resumes the most
@@ -15,9 +17,11 @@ export interface BridgeOptions {
   server: Server
   piCommand: string[]
   piCwd: string
+  mode?: PiWebMode
 }
 
 export function attachBridge(options: BridgeOptions): WebSocketServer {
+  const mode = options.mode ?? 'local'
   const wss = new WebSocketServer({ server: options.server, path: '/ws' })
   wss.on('error', (error) => {
     console.error('[bridge] server error:', error)
@@ -44,13 +48,27 @@ export function attachBridge(options: BridgeOptions): WebSocketServer {
       if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(value))
     }
 
-    // Config commands are served by the bridge itself (never forwarded to pi):
-    // read/validate/save pi's models.json through the same send path as normal responses.
+    // Config commands are served by the bridge itself (never forwarded to pi).
+    // Control-plane mode is deliberately read-only and redacts provider secrets.
     const respondConfig = async (command: string, id: string, frame: Record<string, unknown>): Promise<void> => {
       if (command === 'config_get_models') {
         const result = await readModelsConfig()
-        if ('config' in result) sendJson({ type: 'response', command, id, success: true, data: result.config })
-        else sendJson({ type: 'response', command, id, success: false, error: result.error })
+        if ('config' in result) {
+          const config = mode === 'control-plane' ? redactModelsConfigForControlPlane(result.config) : result.config
+          sendJson({ type: 'response', command, id, success: true, data: config })
+        } else {
+          sendJson({ type: 'response', command, id, success: false, error: result.error })
+        }
+        return
+      }
+      if (mode === 'control-plane') {
+        sendJson({
+          type: 'response',
+          command,
+          id,
+          success: false,
+          error: 'model config writes are disabled in control-plane mode',
+        })
         return
       }
       // frame is the full ws command; its `providers` field is the map to validate.
