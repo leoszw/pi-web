@@ -1,4 +1,9 @@
 import type { AuthorizedProject } from '../../../../shared/industry/common'
+import type {
+  IndustryConversation,
+  IndustryEventBatch,
+  SendConversationMessageRequest,
+} from '../../../../shared/industry/conversation'
 import type { AuthPrincipal } from '../auth'
 import type { TrustedRequestContext } from '../context'
 
@@ -10,4 +15,26 @@ export interface IndustryAgentHealth {
 export interface IndustryAgentClient {
   getHealth(context: TrustedRequestContext): Promise<IndustryAgentHealth>
   listAuthorizedProjects(principal: AuthPrincipal): Promise<readonly AuthorizedProject[]>
+  createConversation(context: TrustedRequestContext, requestId: string): Promise<IndustryConversation>
+  getConversation(context: TrustedRequestContext, conversationId: string): Promise<IndustryConversation>
+  sendConversationMessage(
+    context: TrustedRequestContext,
+    conversationId: string,
+    request: SendConversationMessageRequest,
+    requestId: string,
+  ): Promise<IndustryConversation>
+  abortConversation(context: TrustedRequestContext, conversationId: string, requestId: string): Promise<IndustryConversation>
+  getConversationEvents(context: TrustedRequestContext, conversationId: string, afterSequenceNo: number): Promise<IndustryEventBatch>
+}
+
+export class IndustryAgentClientError extends Error {
+  readonly code: string
+  readonly statusCode: number
+
+  constructor(code: string, message: string, statusCode: number) {
+    super(message)
+    this.name = 'IndustryAgentClientError'
+    this.code = code
+    this.statusCode = statusCode
+  }
 }
