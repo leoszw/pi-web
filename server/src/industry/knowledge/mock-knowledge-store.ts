@@ -43,7 +43,8 @@ export class MockKnowledgeStore {
 
   list(context: TrustedRequestContext): readonly KnowledgeDocument[] {
     const projectId = requireProject(context)
-    return [...this.#projectDocuments(projectId).values()]
+    const companyId = requireCompany(context)
+    return [...this.#projectDocuments(projectId, companyId).values()]
       .filter((item) => canRead(item.document, context))
       .map((item) => structuredClone(item.document))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
@@ -96,7 +97,7 @@ export class MockKnowledgeStore {
       createdAt: now,
       updatedAt: now,
     }
-    this.#projectDocuments(projectId).set(documentId, { document, chunks })
+    this.#projectDocuments(projectId, request.companyId).set(documentId, { document, chunks })
     this.#projectIngestions(projectId).set(ingestionId, ingestion)
     return structuredClone(document)
   }
@@ -128,10 +129,10 @@ export class MockKnowledgeStore {
     return structuredClone(stored.document)
   }
 
-  #projectDocuments(projectId: string): Map<string, StoredDocument> {
+  #projectDocuments(projectId: string, companyId: string): Map<string, StoredDocument> {
     let store = this.#documents.get(projectId)
     if (store === undefined) {
-      store = seedDocuments(projectId)
+      store = seedDocuments(projectId, companyId)
       this.#documents.set(projectId, store)
       const ingestions = this.#projectIngestions(projectId)
       for (const item of store.values()) {
@@ -158,7 +159,8 @@ export class MockKnowledgeStore {
 
   #requireReadableDocument(context: TrustedRequestContext, documentId: string): StoredDocument {
     const projectId = requireProject(context)
-    const stored = this.#projectDocuments(projectId).get(documentId)
+    const companyId = requireCompany(context)
+    const stored = this.#projectDocuments(projectId, companyId).get(documentId)
     if (stored === undefined || !canRead(stored.document, context)) {
       throw new IndustryAgentClientError('KNOWLEDGE_DOCUMENT_NOT_FOUND', 'knowledge document not found', 404)
     }
@@ -189,8 +191,7 @@ export class MockKnowledgeStore {
   }
 }
 
-function seedDocuments(projectId: string): Map<string, StoredDocument> {
-  const companyId = 'company-1'
+function seedDocuments(projectId: string, companyId: string): Map<string, StoredDocument> {
   const createdAt = '2026-09-13T07:00:00.000Z'
   const rows: StoredDocument[] = [
     seedDocument(projectId, companyId, 'spec-001', '路基工程技术规范.pdf', '工程部', 'PROJECT', [], [], ['TECHNICAL'], createdAt),
