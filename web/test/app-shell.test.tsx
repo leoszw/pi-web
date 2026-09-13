@@ -10,6 +10,8 @@ import {
   retrievalRunIdFromPath,
   retrievalRunPath,
   routePath,
+  traceIdFromPath,
+  tracePath,
 } from '../src/app/routes'
 
 describe('AppShell routing', () => {
@@ -24,6 +26,17 @@ describe('AppShell routing', () => {
     const html = renderToStaticMarkup(<AppShell initialPath="/industry" industryWorkspace={<div>Industry Workspace sentinel</div>} codingChat={<div>Coding chat sentinel</div>} />)
     expect(html).toContain('Industry Workspace sentinel')
     expect(html).not.toContain('Coding chat sentinel')
+  })
+
+  it('routes Trace Explorer list and detail before the generic industry catch-all', () => {
+    expect(resolveAppRoute('/industry/traces')).toBe('industry-traces')
+    expect(routePath('industry-traces')).toBe('/industry/traces')
+    const detailPath = tracePath('trace project/1')
+    expect(detailPath).toBe('/industry/traces/trace%20project%2F1')
+    expect(resolveAppRoute(detailPath)).toBe('industry-trace-detail')
+    expect(traceIdFromPath(detailPath)).toBe('trace project/1')
+    expect(renderToStaticMarkup(<AppShell initialPath="/industry/traces" traceExplorer={<div>Trace list sentinel</div>} />)).toContain('Trace list sentinel')
+    expect(renderToStaticMarkup(<AppShell initialPath={detailPath} traceExplorer={<div>Trace detail sentinel</div>} />)).toContain('Trace detail sentinel')
   })
 
   it('routes Mutation Center list, detail, and reconciliation paths', () => {
