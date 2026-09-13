@@ -10,6 +10,7 @@ import type {
 } from '../../../../shared/industry/conversation'
 import type { AuthPrincipal } from '../auth'
 import type { TrustedRequestContext } from '../context'
+import { buildMockUiActions } from '../ui-action-fixtures'
 import { IndustryAgentClientError, type IndustryAgentClient, type IndustryAgentHealth } from './industry-agent-client'
 
 export interface MockAuthorizedProject extends AuthorizedProject {
@@ -103,9 +104,19 @@ export class MockIndustryAgentClient implements IndustryAgentClient {
       createdAt: now,
       traceId: assistantTraceId,
     }
+    const actions = buildMockUiActions(request.text, assistantTraceId)
 
     const userSequenceNo = stored.conversation.lastSequenceNo + 1
     const assistantSequenceNo = userSequenceNo + 1
+    const actionEvents = actions.map((action, index) => eventEnvelope({
+      conversationId,
+      sequenceNo: assistantSequenceNo + index + 1,
+      traceId: assistantTraceId,
+      requestId,
+      type: 'ui.action.presented',
+      timestamp: now,
+      payload: { action },
+    }))
     stored.events.push(
       eventEnvelope({
         conversationId,
@@ -125,12 +136,13 @@ export class MockIndustryAgentClient implements IndustryAgentClient {
         timestamp: now,
         payload: { messageId: assistantMessage.messageId, text: assistantMessage.text },
       }),
+      ...actionEvents,
     )
     stored.conversation = {
       ...stored.conversation,
       updatedAt: now,
       messages: [...stored.conversation.messages, userMessage, assistantMessage],
-      lastSequenceNo: assistantSequenceNo,
+      lastSequenceNo: assistantSequenceNo + actions.length,
     }
     return cloneConversation(stored.conversation)
   }
