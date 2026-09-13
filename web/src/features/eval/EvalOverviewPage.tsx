@@ -45,16 +45,17 @@ export function EvalOverviewView({ snapshot }: { snapshot: EvalOverviewSnapshot 
   const completedRuns = useMemo(() => snapshot.runs.filter((run) => run.status === 'COMPLETED'), [snapshot.runs])
   return (
     <main className="eval-page" aria-labelledby="eval-overview-title">
-      <div className="eval-eyebrow">Evaluation Workbench · P4</div>
+      <div className="eval-eyebrow">Evaluation Workbench · P5</div>
       <div className="eval-heading-row">
         <div>
           <h1 id="eval-overview-title">Evaluation</h1>
-          <p>Intent, deterministic Engineering / BOQ retrieval, and mutation safety evaluation are available. Production metrics remain owned by pi.</p>
+          <p>Intent, deterministic Engineering / BOQ retrieval, mutation safety, and trace/token observability evaluation are available. Production metrics remain owned by pi.</p>
         </div>
         <div className="eval-heading-actions">
           <a className="eval-primary-link" href="/industry/eval/intent">Open Intent Lab</a>
           <a className="eval-primary-link" href="/industry/eval/playground/retrieval">Open Retrieval Lab</a>
           <a className="eval-primary-link" href="/industry/eval/mutation">Open Mutation Eval</a>
+          <a className="eval-primary-link" href="/industry/eval/trace">Open Trace Eval</a>
         </div>
       </div>
 
@@ -63,6 +64,7 @@ export function EvalOverviewView({ snapshot }: { snapshot: EvalOverviewSnapshot 
         <article><strong>{completedRuns.length}</strong><span>Completed intent runs</span></article>
         <article><strong>10</strong><span>Retrieval stages</span></article>
         <article><strong>7</strong><span>Mutation safety gates</span></article>
+        <article><strong>6</strong><span>Trace observability gates</span></article>
       </section>
 
       <section className="eval-panel">
