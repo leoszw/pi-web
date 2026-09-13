@@ -51,15 +51,17 @@ const snapshot: EvalOverviewSnapshot = {
 }
 
 describe('EvalOverviewView', () => {
-  it('renders P2 workbench, existing intent data and both lab entry points', () => {
+  it('renders P4 workbench and intent, retrieval, mutation evaluation entry points', () => {
     const html = renderToStaticMarkup(<EvalOverviewView snapshot={snapshot} />)
-    expect(html).toContain('Evaluation Workbench · P2')
+    expect(html).toContain('Evaluation Workbench · P4')
     expect(html).toContain('Intent Regression v1')
     expect(html).toContain('intent-candidate-v2')
     expect(html).toContain('Production metrics remain owned by pi')
     expect(html).toContain('Open Intent Lab')
     expect(html).toContain('Open Retrieval Lab')
-    expect(html).toContain('/industry/eval/playground/retrieval')
+    expect(html).toContain('Open Mutation Eval')
+    expect(html).toContain('/industry/eval/mutation')
     expect(html).toContain('Retrieval stages')
+    expect(html).toContain('Mutation safety gates')
   })
 })
