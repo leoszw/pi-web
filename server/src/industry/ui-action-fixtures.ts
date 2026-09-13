@@ -218,7 +218,7 @@ function actionFor(type: UiActionType, traceId: string, index: number): UiAction
 }
 
 function initialTablePayload(actionId: string): UiActionTablePayload {
-  const base: Omit<UiActionTablePayload, 'rows' | 'pagination'> = {
+  const base: Omit<UiActionTablePayload, 'rows' | 'pagination' | 'query'> = {
     title: '工程量清单结果',
     columns: [
       { key: 'id', label: '清单 ID', sortable: true, filterable: false },
@@ -231,7 +231,12 @@ function initialTablePayload(actionId: string): UiActionTablePayload {
     selectedRowIds: [LONG_ID],
     exportSnapshotRef: 'snapshot://boq/mock-001',
   }
-  return queryTable(actionId, { ...base, rows: [], pagination: { pageSize: 2, stableCursor: '', totalRows: BOQ_ROWS.length } }, {
+  return queryTable(actionId, {
+    ...base,
+    rows: [],
+    pagination: { pageSize: 2, stableCursor: '', totalRows: BOQ_ROWS.length },
+    query: { filters: [] },
+  }, {
     kind: 'table_query',
     pageSize: 2,
   })
@@ -271,6 +276,10 @@ function queryTable(
       ...(nextOffset < rows.length ? { nextCursor: makeCursor(fingerprint, nextOffset) } : {}),
       ...(offset > 0 ? { previousCursor: makeCursor(fingerprint, previousOffset) } : {}),
       totalRows: rows.length,
+    },
+    query: {
+      ...(interaction.sort === undefined ? {} : { sort: { ...interaction.sort } }),
+      filters: filters.map((filter) => ({ ...filter })),
     },
   }
 }
