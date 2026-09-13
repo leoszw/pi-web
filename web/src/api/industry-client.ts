@@ -1,5 +1,6 @@
 import type { EvalVariantSummary } from '../../../shared/industry/eval/common'
 import type { CreateIntentDraftCaseRequest, EvalDatasetSummary, IntentDatasetDetail, IntentEvalCase, IntentTurn } from '../../../shared/industry/eval/datasets'
+import type { RetrievalDomain, RetrievalEvalCase, RetrievalLeakageReport, RetrievalPlaygroundResult } from '../../../shared/industry/eval/retrieval'
 import type { EvalRunSummary, IntentEvalObservation, IntentPlaygroundResult, IntentRunComparison } from '../../../shared/industry/eval/runs'
 
 interface EvalApiEnvelope<T> {
@@ -23,6 +24,9 @@ export interface EvaluationApiClient {
   listCases(datasetId: string): Promise<readonly IntentEvalCase[]>
   createDraftCase(datasetId: string, input: CreateIntentDraftCaseRequest): Promise<IntentEvalCase>
   playgroundIntent(input: { query: string; previousTurns: readonly IntentTurn[]; variantId: string }): Promise<IntentPlaygroundResult>
+  listRetrievalCases(): Promise<readonly RetrievalEvalCase[]>
+  playgroundRetrieval(input: { query: string; domain: RetrievalDomain; variantId: string }): Promise<RetrievalPlaygroundResult>
+  getRetrievalLeakageReport(): Promise<RetrievalLeakageReport>
   listRuns(): Promise<readonly EvalRunSummary[]>
   startIntentRun(input: { datasetId: string; variantId: string }): Promise<EvalRunSummary>
   listObservations(runId: string): Promise<readonly IntentEvalObservation[]>
@@ -51,6 +55,9 @@ export function createEvaluationApiClient(fetcher: typeof fetch = fetch): Evalua
     listCases: (datasetId) => get(`/api/industry/v1/eval/datasets/${encodeURIComponent(datasetId)}/cases`),
     createDraftCase: (datasetId, input) => post(`/api/industry/v1/eval/datasets/${encodeURIComponent(datasetId)}/cases`, input),
     playgroundIntent: (input) => post('/api/industry/v1/eval/playground/intent', input),
+    listRetrievalCases: () => get('/api/industry/v1/eval/retrieval/cases'),
+    playgroundRetrieval: (input) => post('/api/industry/v1/eval/playground/retrieval', input),
+    getRetrievalLeakageReport: () => get('/api/industry/v1/eval/retrieval/leakage'),
     listRuns: () => get('/api/industry/v1/eval/runs'),
     startIntentRun: (input) => post('/api/industry/v1/eval/runs', input),
     listObservations: (runId) => get(`/api/industry/v1/eval/runs/${encodeURIComponent(runId)}/observations`),
