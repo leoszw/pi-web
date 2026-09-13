@@ -15,7 +15,7 @@ const principal: AuthPrincipal = {
   tenantId: 'tenant-1',
   companyIds: ['company-1'],
   roles: ['project-user'],
-  permissions: ['industry.read'],
+  permissions: ['industry.workspace'],
   sessionId: 'session-conversation-router',
 }
 
