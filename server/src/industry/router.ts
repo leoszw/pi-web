@@ -1,16 +1,19 @@
 import { randomUUID } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { IndustryApiError, PiWebMode } from '../../../shared/industry/common'
+import { handleAgentLoopRoute } from './agent-loop-router'
 import type { PrincipalProvider } from './auth'
 import { IndustryAgentClientError, type IndustryAgentClient } from './clients/industry-agent-client'
 import { handleConversationRoute } from './conversation-router'
 import { IndustryContextError, IndustryContextService } from './context'
 import type { EvaluationClient } from './eval/evaluation-client'
 import { handleP7EvalRoute } from './eval/p7-router'
+import { handleP8EvalRoute } from './eval/p8-router'
 import { handleRagEvalRoute } from './eval/rag-router'
 import { handleEvalRoute } from './eval/router'
 import { handleTraceEvalRoute } from './eval/trace-router'
 import { handleKnowledgeRoute } from './knowledge-router'
+import { handleMultimodalRoute } from './multimodal-router'
 import { handleMutationRoute } from './mutation-router'
 import { handleTraceRoute } from './trace-router'
 import { isOriginAllowed } from '../security/origin'
@@ -49,10 +52,13 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
       const principal = await options.principalProvider.getPrincipal(request)
       const resolved = await options.contextService.getContext(principal, requestId)
 
+      if (await handleP8EvalRoute({ request, response, url, requestId, principal, context: resolved.trusted, client: options.evaluationClient, bodyLimitBytes: bodyLimit })) return true
       if (await handleP7EvalRoute({ request, response, url, requestId, principal, context: resolved.trusted, client: options.evaluationClient, agentClient: options.client, bodyLimitBytes: bodyLimit })) return true
       if (await handleRagEvalRoute({ request, response, url, requestId, principal, context: resolved.trusted, client: options.evaluationClient, bodyLimitBytes: bodyLimit })) return true
       if (await handleTraceEvalRoute({ request, response, url, requestId, principal, context: resolved.trusted, client: options.evaluationClient, bodyLimitBytes: bodyLimit })) return true
       if (await handleEvalRoute({ request, response, url, requestId, principal, context: resolved.trusted, client: options.evaluationClient, bodyLimitBytes: bodyLimit })) return true
+      if (await handleMultimodalRoute({ request, response, url, requestId, principal, context: resolved.trusted, client: options.client, bodyLimitBytes: bodyLimit })) return true
+      if (await handleAgentLoopRoute({ request, response, url, requestId, principal, context: resolved.trusted, client: options.client, bodyLimitBytes: bodyLimit })) return true
       if (await handleKnowledgeRoute({ request, response, url, requestId, principal, context: resolved.trusted, client: options.client, bodyLimitBytes: bodyLimit })) return true
       if (await handleTraceRoute({ request, response, url, requestId, principal, context: resolved.trusted, client: options.client })) return true
       if (await handleMutationRoute({ request, response, url, requestId, context: resolved.trusted, client: options.client, bodyLimitBytes: bodyLimit })) return true
