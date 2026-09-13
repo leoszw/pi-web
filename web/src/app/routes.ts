@@ -13,10 +13,14 @@ export type AppRoute =
   | 'industry-eval-retrieval-run'
   | 'industry-eval-mutation'
   | 'industry-eval-mutation-run'
+  | 'industry-eval-trace'
+  | 'industry-eval-trace-run'
 
 export function resolveAppRoute(pathname: string): AppRoute {
+  if (traceEvalRunIdFromPath(pathname) !== null) return 'industry-eval-trace-run'
   if (mutationEvalRunIdFromPath(pathname) !== null) return 'industry-eval-mutation-run'
   if (retrievalRunIdFromPath(pathname) !== null) return 'industry-eval-retrieval-run'
+  if (pathname === '/industry/eval/trace' || pathname.startsWith('/industry/eval/trace/')) return 'industry-eval-trace'
   if (pathname === '/industry/eval/mutation' || pathname.startsWith('/industry/eval/mutation/')) return 'industry-eval-mutation'
   if (pathname === '/industry/eval/playground/retrieval' || pathname.startsWith('/industry/eval/playground/retrieval/')) return 'industry-eval-retrieval'
   if (pathname === '/industry/eval/retrieval' || pathname.startsWith('/industry/eval/retrieval/')) return 'industry-eval-retrieval'
@@ -33,6 +37,7 @@ export function resolveAppRoute(pathname: string): AppRoute {
 }
 
 export function routePath(route: AppRoute): string {
+  if (route === 'industry-eval-trace-run' || route === 'industry-eval-trace') return '/industry/eval/trace'
   if (route === 'industry-eval-mutation-run' || route === 'industry-eval-mutation') return '/industry/eval/mutation'
   if (route === 'industry-eval-retrieval-run' || route === 'industry-eval-retrieval') return '/industry/eval/playground/retrieval'
   if (route === 'industry-eval-intent') return '/industry/eval/intent'
@@ -42,6 +47,20 @@ export function routePath(route: AppRoute): string {
   if (route === 'industry-mutation-detail' || route === 'industry-mutations') return '/industry/mutations'
   if (route === 'industry') return '/industry'
   return '/chat'
+}
+
+export function traceEvalRunPath(runId: string): string {
+  return `/industry/eval/runs/${encodeURIComponent(runId)}/trace`
+}
+
+export function traceEvalRunIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/industry\/eval\/runs\/([^/]+)\/trace\/?$/u)
+  if (match?.[1] === undefined) return null
+  try {
+    return decodeURIComponent(match[1])
+  } catch {
+    return null
+  }
 }
 
 export function retrievalDebugPath(traceId: string): string {
