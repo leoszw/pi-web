@@ -3,8 +3,9 @@ import CodingChatApp from '../App'
 import { EvalOverviewPage } from '../features/eval/EvalOverviewPage'
 import { IntentLabPage } from '../features/eval/IntentLabPage'
 import { RetrievalLabPage } from '../features/eval/RetrievalLabPage'
+import { RetrievalRunPage } from '../features/eval/RetrievalRunPage'
 import { IndustryDashboard } from '../features/industry-dashboard/IndustryDashboard'
-import { isIndustryRoute, resolveAppRoute, routePath, type AppRoute } from './routes'
+import { isIndustryRoute, resolveAppRoute, retrievalRunIdFromPath, routePath, type AppRoute } from './routes'
 import './app-shell.css'
 
 export interface AppShellProps {
@@ -13,10 +14,13 @@ export interface AppShellProps {
   evalOverview?: ReactNode
   intentLab?: ReactNode
   retrievalLab?: ReactNode
+  retrievalRun?: ReactNode
 }
 
-export function AppShell({ initialPath, codingChat, evalOverview, intentLab, retrievalLab }: AppShellProps) {
+export function AppShell({ initialPath, codingChat, evalOverview, intentLab, retrievalLab, retrievalRun }: AppShellProps) {
   const [route, setRoute] = useState<AppRoute>(() => resolveAppRoute(initialPath ?? currentPath()))
+  const pathname = initialPath ?? currentPath()
+  const retrievalRunId = retrievalRunIdFromPath(pathname)
 
   useEffect(() => {
     if (initialPath !== undefined) return undefined
@@ -43,10 +47,12 @@ export function AppShell({ initialPath, codingChat, evalOverview, intentLab, ret
       <div className="app-shell__content">
         <AppContent
           route={route}
+          retrievalRunId={retrievalRunId}
           codingChat={codingChat}
           evalOverview={evalOverview}
           intentLab={intentLab}
           retrievalLab={retrievalLab}
+          retrievalRun={retrievalRun}
         />
       </div>
     </div>
@@ -55,17 +61,24 @@ export function AppShell({ initialPath, codingChat, evalOverview, intentLab, ret
 
 function AppContent({
   route,
+  retrievalRunId,
   codingChat,
   evalOverview,
   intentLab,
   retrievalLab,
+  retrievalRun,
 }: {
   route: AppRoute
+  retrievalRunId: string | null
   codingChat?: ReactNode
   evalOverview?: ReactNode
   intentLab?: ReactNode
   retrievalLab?: ReactNode
+  retrievalRun?: ReactNode
 }) {
+  if (route === 'industry-eval-retrieval-run' && retrievalRunId !== null) {
+    return retrievalRun ?? <RetrievalRunPage runId={retrievalRunId} />
+  }
   if (route === 'industry-eval-retrieval') return retrievalLab ?? <RetrievalLabPage />
   if (route === 'industry-eval-intent') return intentLab ?? <IntentLabPage />
   if (route === 'industry-eval') return evalOverview ?? <EvalOverviewPage />
