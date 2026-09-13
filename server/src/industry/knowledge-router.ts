@@ -32,7 +32,7 @@ export async function handleKnowledgeRoute(options: KnowledgeRouteOptions): Prom
     }
 
     if (path === '/api/industry/v1/knowledge/uploads' && options.request.method === 'POST') {
-      requirePermission(options.principal, 'knowledge.upload')
+      requireWritePermission(options.principal, 'knowledge.upload')
       const body = await readJsonBody(options.request, options.bodyLimitBytes)
       return sendData(options.response, await options.client.uploadKnowledgeDocument(options.context, parseUploadRequest(body)), 201)
     }
@@ -45,7 +45,7 @@ export async function handleKnowledgeRoute(options: KnowledgeRouteOptions): Prom
 
     const reingestMatch = path.match(/^\/api\/industry\/v1\/knowledge\/documents\/([^/]+)\/reingest$/u)
     if (reingestMatch !== null && options.request.method === 'POST') {
-      requirePermission(options.principal, 'knowledge.reingest')
+      requireWritePermission(options.principal, 'knowledge.reingest')
       const body = await readJsonBody(options.request, options.bodyLimitBytes)
       assertEmptyObject(body)
       return sendData(options.response, await options.client.reingestKnowledgeDocument(options.context, decodeSegment(reingestMatch[1])))
@@ -153,6 +153,12 @@ function decodeSegment(value: string | undefined): string {
 function requirePermission(principal: AuthPrincipal, permission: 'knowledge.read' | 'knowledge.upload' | 'knowledge.reingest'): void {
   if (principal.permissions.includes('knowledge.admin') || principal.permissions.includes(permission)) return
   throw new KnowledgeAccessError('KNOWLEDGE_ACCESS_DENIED', `missing permission: ${permission}`, 403)
+}
+
+function requireWritePermission(principal: AuthPrincipal, permission: 'knowledge.upload' | 'knowledge.reingest'): void {
+  if (principal.permissions.includes('knowledge.admin')) return
+  if (principal.permissions.includes('knowledge.read') && principal.permissions.includes(permission)) return
+  throw new KnowledgeAccessError('KNOWLEDGE_ACCESS_DENIED', `${permission} requires knowledge.read + ${permission}`, 403)
 }
 
 class KnowledgeAccessError extends Error {
