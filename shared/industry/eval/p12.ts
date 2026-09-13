@@ -16,6 +16,7 @@ export type OnlineSignalSeverity = 'INFO' | 'WARN' | 'CRITICAL'
 export type OnlineFeedbackDomain = 'INTENT' | 'RETRIEVAL' | 'RAG' | 'TOOL' | 'MUTATION' | 'MEMORY'
 export type OnlineFeedbackStage = 'SANITIZED' | 'DRAFT' | 'LABELED' | 'REVIEWED' | 'VERSIONED'
 export type EvalCaseDifficulty = 'NORMAL' | 'HARD' | 'ADVERSARIAL'
+export type QualityDataSource = 'MOCK_FIXTURE' | 'ONLINE_AGGREGATE'
 
 export interface OnlineQualityMetric {
   metricId: OnlineQualityMetricId
@@ -41,6 +42,7 @@ export interface OnlineQualitySignal {
 }
 
 export interface OnlineQualitySnapshot {
+  source: QualityDataSource
   projectId: string
   windowStart: string
   windowEnd: string
@@ -131,6 +133,7 @@ export interface DatasetHealthIssue {
 }
 
 export interface DatasetHealthSummary {
+  source: QualityDataSource
   projectId: string
   datasetId: string
   sourceCaseCount: number
