@@ -8,6 +8,7 @@ import { IndustryContextError, IndustryContextService } from './context'
 import type { EvaluationClient } from './eval/evaluation-client'
 import { handleEvalRoute } from './eval/router'
 import { handleMutationRoute } from './mutation-router'
+import { handleTraceRoute } from './trace-router'
 import { isOriginAllowed } from '../security/origin'
 import { DEFAULT_JSON_BODY_LIMIT_BYTES, RequestBodyError, readJsonBody } from '../security/request-limits'
 
@@ -64,6 +65,16 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
         context: resolved.trusted,
         client: options.evaluationClient,
         bodyLimitBytes: bodyLimit,
+      })) return true
+
+      if (await handleTraceRoute({
+        request,
+        response,
+        url,
+        requestId,
+        principal,
+        context: resolved.trusted,
+        client: options.client,
       })) return true
 
       if (await handleMutationRoute({
