@@ -8,6 +8,15 @@ import type {
   StartMutationEvalRunRequest,
 } from '../../../../shared/industry/eval/mutation'
 import type {
+  P7EvalCase,
+  P7EvalDomain,
+  P7EvalDraft,
+  P7EvalFailureSummary,
+  P7EvalObservation,
+  P7EvalRunSummary,
+  StartP7EvalRunRequest,
+} from '../../../../shared/industry/eval/p7'
+import type {
   RagEvalCase,
   RagEvalFailureSummary,
   RagEvalObservation,
@@ -56,12 +65,7 @@ export interface EvaluationClient {
   startRetrievalRun(context: TrustedRequestContext, request: StartRetrievalRunRequest): Promise<RetrievalRunSummary>
   getRetrievalRun(context: TrustedRequestContext, runId: string): Promise<RetrievalRunSummary>
   listRetrievalObservations(context: TrustedRequestContext, runId: string): Promise<readonly RetrievalEvalObservation[]>
-  compareRetrievalRuns(
-    context: TrustedRequestContext,
-    baselineRunId: string,
-    candidateRunId: string,
-    comparisonType: RetrievalComparisonType,
-  ): Promise<RetrievalRunComparison>
+  compareRetrievalRuns(context: TrustedRequestContext, baselineRunId: string, candidateRunId: string, comparisonType: RetrievalComparisonType): Promise<RetrievalRunComparison>
   listMutationEvalCases(context: TrustedRequestContext): Promise<readonly MutationEvalCase[]>
   listMutationEvalRuns(context: TrustedRequestContext): Promise<readonly MutationEvalRunSummary[]>
   startMutationEvalRun(context: TrustedRequestContext, request: StartMutationEvalRunRequest): Promise<MutationEvalRunSummary>
@@ -80,6 +84,14 @@ export interface EvaluationClient {
   getRagEvalRun(context: TrustedRequestContext, runId: string): Promise<RagEvalRunSummary>
   listRagEvalObservations(context: TrustedRequestContext, runId: string): Promise<readonly RagEvalObservation[]>
   listRagEvalFailures(context: TrustedRequestContext, runId: string): Promise<readonly RagEvalFailureSummary[]>
+  listP7EvalCases(context: TrustedRequestContext, domain: P7EvalDomain): Promise<readonly P7EvalCase[]>
+  listP7EvalRuns(context: TrustedRequestContext, domain: P7EvalDomain): Promise<readonly P7EvalRunSummary[]>
+  startP7EvalRun(context: TrustedRequestContext, domain: P7EvalDomain, request: StartP7EvalRunRequest): Promise<P7EvalRunSummary>
+  getP7EvalRun(context: TrustedRequestContext, runId: string): Promise<P7EvalRunSummary>
+  listP7EvalObservations(context: TrustedRequestContext, runId: string): Promise<readonly P7EvalObservation[]>
+  listP7EvalFailures(context: TrustedRequestContext, runId: string): Promise<readonly P7EvalFailureSummary[]>
+  listP7Drafts(context: TrustedRequestContext): Promise<readonly P7EvalDraft[]>
+  createP7DraftFromTrace(context: TrustedRequestContext, traceId: string, targetDomain: P7EvalDomain, sourceTraceName: string): Promise<P7EvalDraft>
   listRuns(context: TrustedRequestContext): Promise<readonly EvalRunSummary[]>
   startIntentRun(context: TrustedRequestContext, request: StartIntentRunRequest): Promise<EvalRunSummary>
   getRun(context: TrustedRequestContext, runId: string): Promise<EvalRunSummary>
