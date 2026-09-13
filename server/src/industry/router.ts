@@ -7,6 +7,7 @@ import { IndustryAgentClientError, type IndustryAgentClient } from './clients/in
 import { handleConversationRoute } from './conversation-router'
 import { IndustryContextError, IndustryContextService } from './context'
 import { EvaluationClientError, type EvaluationClient } from './eval/evaluation-client'
+import { handleP11EvalRoute } from './eval/p11-router'
 import { handleP7EvalRoute } from './eval/p7-router'
 import { handleP8EvalRoute } from './eval/p8-router'
 import { handleP9EvalRoute } from './eval/p9-router'
@@ -46,6 +47,7 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
     try {
       const principal = await options.principalProvider.getPrincipal(request)
       const resolved = await options.contextService.getContext(principal, requestId)
+      if (await handleP11EvalRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.evaluationClient,bodyLimitBytes:bodyLimit })) return true
       if (await handleP9EvalRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.evaluationClient,bodyLimitBytes:bodyLimit })) return true
       if (await handleP8EvalRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.evaluationClient,bodyLimitBytes:bodyLimit })) return true
       if (await handleP7EvalRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.evaluationClient,agentClient:options.client,bodyLimitBytes:bodyLimit })) return true
