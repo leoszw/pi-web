@@ -136,10 +136,16 @@ function TableView({
   busy: boolean
   onInteract: UiActionInteractionHandler
 }) {
-  const [sortKey, setSortKey] = useState('')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-  const [filterKey, setFilterKey] = useState(payload.filterAllowlist[0] ?? '')
-  const [filterValue, setFilterValue] = useState('')
+  const [sortKey, setSortKey] = useState(payload.query.sort?.key ?? '')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(payload.query.sort?.direction ?? 'asc')
+  const [filterKey, setFilterKey] = useState(payload.query.filters[0]?.key ?? payload.filterAllowlist[0] ?? '')
+  const [filterValue, setFilterValue] = useState(payload.query.filters[0]?.value ?? '')
+  useEffect(() => {
+    setSortKey(payload.query.sort?.key ?? '')
+    setSortDirection(payload.query.sort?.direction ?? 'asc')
+    setFilterKey(payload.query.filters[0]?.key ?? payload.filterAllowlist[0] ?? '')
+    setFilterValue(payload.query.filters[0]?.value ?? '')
+  }, [payload])
   const tableQuery = (cursor?: string): UiActionInteraction => ({
     kind: 'table_query',
     pageSize: payload.pagination.pageSize,
