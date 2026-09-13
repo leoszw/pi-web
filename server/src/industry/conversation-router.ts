@@ -1,5 +1,12 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { CreateConversationRequest, SendConversationMessageRequest } from '../../../shared/industry/conversation'
+import type {
+  UiActionInteraction,
+  UiActionInteractionRequest,
+  UiActionPrimitive,
+  UiActionTableFilter,
+  UiActionTableSort,
+} from '../../../shared/industry/ui-actions'
 import type { TrustedRequestContext } from './context'
 import type { IndustryAgentClient } from './clients/industry-agent-client'
 import { RequestBodyError, readJsonBody } from '../security/request-limits'
@@ -35,6 +42,21 @@ export async function handleConversationRoute(options: ConversationRouteOptions)
       options.requestId,
     )
     return sendData(options.response, updated)
+  }
+
+  const interactionMatch = path.match(/^\/api\/industry\/v1\/conversations\/([^/]+)\/ui-actions\/([^/]+)\/interactions$/u)
+  if (interactionMatch !== null && options.request.method === 'POST') {
+    const body = await readJsonBody(options.request, options.bodyLimitBytes)
+    const conversationId = decodeSegment(interactionMatch[1])
+    const actionId = decodeSegment(interactionMatch[2])
+    const result = await options.client.interactWithUiAction(
+      options.context,
+      conversationId,
+      actionId,
+      parseUiActionInteractionRequest(body),
+      options.requestId,
+    )
+    return sendData(options.response, result)
   }
 
   const abortMatch = path.match(/^\/api\/industry\/v1\/conversations\/([^/]+)\/abort$/u)
@@ -82,6 +104,102 @@ function parseSendMessageRequest(input: unknown): SendConversationMessageRequest
   return { text: record.text.trim() }
 }
 
+function parseUiActionInteractionRequest(input: unknown): UiActionInteractionRequest {
+  const record = requireRecord(input)
+  assertOnlyKeys(record, ['interaction'])
+  return { interaction: parseUiActionInteraction(record.interaction) }
+}
+
+function parseUiActionInteraction(input: unknown): UiActionInteraction {
+  const record = requireRecord(input)
+  const kind = record.kind
+  if (kind === 'entity_selection') {
+    assertOnlyKeys(record, ['kind', 'selectedEntityIds'])
+    return { kind, selectedEntityIds: parseStringArray(record.selectedEntityIds, 'selectedEntityIds') }
+  }
+  if (kind === 'form_submit') {
+    assertOnlyKeys(record, ['kind', 'values'])
+    return { kind, values: parsePrimitiveRecord(record.values, 'values') }
+  }
+  if (kind === 'table_query') {
+    assertOnlyKeys(record, ['kind', 'pageSize', 'cursor', 'sort', 'filters'])
+    if (!Number.isInteger(record.pageSize) || (record.pageSize as number) < 1 || (record.pageSize as number) > 100) {
+      throw new RequestBodyError('INVALID_JSON', 'pageSize must be an integer between 1 and 100', 400)
+    }
+    const cursor = optionalNonEmptyString(record.cursor, 'cursor')
+    const sort = record.sort === undefined ? undefined : parseTableSort(record.sort)
+    const filters = record.filters === undefined ? undefined : parseTableFilters(record.filters)
+    return {
+      kind,
+      pageSize: record.pageSize as number,
+      ...(cursor === undefined ? {} : { cursor }),
+      ...(sort === undefined ? {} : { sort }),
+      ...(filters === undefined ? {} : { filters }),
+    }
+  }
+  if (kind === 'table_selection') {
+    assertOnlyKeys(record, ['kind', 'selectedRowIds'])
+    return { kind, selectedRowIds: parseStringArray(record.selectedRowIds, 'selectedRowIds') }
+  }
+  if (kind === 'multi_select') {
+    assertOnlyKeys(record, ['kind', 'selectedIds'])
+    return { kind, selectedIds: parseStringArray(record.selectedIds, 'selectedIds') }
+  }
+  if (kind === 'date_select') {
+    assertOnlyKeys(record, ['kind', 'value'])
+    if (record.value !== null && (typeof record.value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/u.test(record.value))) {
+      throw new RequestBodyError('INVALID_JSON', 'date_select.value must be null or YYYY-MM-DD', 400)
+    }
+    return { kind, value: record.value as string | null }
+  }
+  throw new RequestBodyError('INVALID_JSON', 'unsupported UIAction interaction kind', 400)
+}
+
+function parseTableSort(input: unknown): UiActionTableSort {
+  const record = requireRecord(input)
+  assertOnlyKeys(record, ['key', 'direction'])
+  const key = requireNonEmptyString(record.key, 'sort.key')
+  if (record.direction !== 'asc' && record.direction !== 'desc') {
+    throw new RequestBodyError('INVALID_JSON', 'sort.direction must be asc or desc', 400)
+  }
+  return { key, direction: record.direction }
+}
+
+function parseTableFilters(input: unknown): readonly UiActionTableFilter[] {
+  if (!Array.isArray(input) || input.length > 20) {
+    throw new RequestBodyError('INVALID_JSON', 'filters must be an array with at most 20 items', 400)
+  }
+  return input.map((item, index) => {
+    const record = requireRecord(item)
+    assertOnlyKeys(record, ['key', 'value'])
+    return {
+      key: requireNonEmptyString(record.key, `filters[${index}].key`),
+      value: requireString(record.value, `filters[${index}].value`, 500),
+    }
+  })
+}
+
+function parseStringArray(input: unknown, field: string): readonly string[] {
+  if (!Array.isArray(input) || input.length > 200 || input.some((item) => typeof item !== 'string' || item.trim() === '')) {
+    throw new RequestBodyError('INVALID_JSON', `${field} must be an array of non-empty strings`, 400)
+  }
+  return [...new Set(input as string[])]
+}
+
+function parsePrimitiveRecord(input: unknown, field: string): Readonly<Record<string, UiActionPrimitive>> {
+  const record = requireRecord(input)
+  if (Object.keys(record).length > 100) throw new RequestBodyError('INVALID_JSON', `${field} has too many fields`, 400)
+  const result: Record<string, UiActionPrimitive> = {}
+  for (const [key, value] of Object.entries(record)) {
+    if (key.trim() === '') throw new RequestBodyError('INVALID_JSON', `${field} contains an empty key`, 400)
+    if (value !== null && typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
+      throw new RequestBodyError('INVALID_JSON', `${field}.${key} must be a primitive value`, 400)
+    }
+    result[key] = value as UiActionPrimitive
+  }
+  return result
+}
+
 function parseAfterSequenceNo(value: string | null): number {
   if (value === null || value === '') return 0
   if (!/^\d+$/u.test(value)) throw new RequestBodyError('INVALID_QUERY', 'afterSequenceNo must be a non-negative integer', 400)
@@ -103,6 +221,25 @@ function assertOnlyKeys(record: Record<string, unknown>, allowed: readonly strin
   if (unexpected.length > 0) {
     throw new RequestBodyError('INVALID_JSON', `unexpected request fields: ${unexpected.join(', ')}`, 400)
   }
+}
+
+function requireNonEmptyString(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new RequestBodyError('INVALID_JSON', `${field} must be a non-empty string`, 400)
+  }
+  return value.trim()
+}
+
+function optionalNonEmptyString(value: unknown, field: string): string | undefined {
+  if (value === undefined) return undefined
+  return requireNonEmptyString(value, field)
+}
+
+function requireString(value: unknown, field: string, maxLength: number): string {
+  if (typeof value !== 'string' || value.length > maxLength) {
+    throw new RequestBodyError('INVALID_JSON', `${field} must be a string up to ${maxLength} characters`, 400)
+  }
+  return value
 }
 
 function decodeSegment(value: string | undefined): string {
