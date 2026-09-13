@@ -26,6 +26,13 @@ import type {
   IntentRunComparison,
   StartIntentRunRequest,
 } from '../../../../shared/industry/eval/runs'
+import type {
+  StartTraceEvalRunRequest,
+  TraceEvalCase,
+  TraceEvalFailureSummary,
+  TraceEvalObservation,
+  TraceEvalRunSummary,
+} from '../../../../shared/industry/eval/trace'
 import type { TrustedRequestContext } from '../context'
 
 export interface EvaluationClient {
@@ -54,6 +61,12 @@ export interface EvaluationClient {
   getMutationEvalRun(context: TrustedRequestContext, runId: string): Promise<MutationEvalRunSummary>
   listMutationEvalObservations(context: TrustedRequestContext, runId: string): Promise<readonly MutationEvalObservation[]>
   listMutationEvalFailures(context: TrustedRequestContext, runId: string): Promise<readonly MutationEvalFailureSummary[]>
+  listTraceEvalCases(context: TrustedRequestContext): Promise<readonly TraceEvalCase[]>
+  listTraceEvalRuns(context: TrustedRequestContext): Promise<readonly TraceEvalRunSummary[]>
+  startTraceEvalRun(context: TrustedRequestContext, request: StartTraceEvalRunRequest): Promise<TraceEvalRunSummary>
+  getTraceEvalRun(context: TrustedRequestContext, runId: string): Promise<TraceEvalRunSummary>
+  listTraceEvalObservations(context: TrustedRequestContext, runId: string): Promise<readonly TraceEvalObservation[]>
+  listTraceEvalFailures(context: TrustedRequestContext, runId: string): Promise<readonly TraceEvalFailureSummary[]>
   listRuns(context: TrustedRequestContext): Promise<readonly EvalRunSummary[]>
   startIntentRun(context: TrustedRequestContext, request: StartIntentRunRequest): Promise<EvalRunSummary>
   getRun(context: TrustedRequestContext, runId: string): Promise<EvalRunSummary>
