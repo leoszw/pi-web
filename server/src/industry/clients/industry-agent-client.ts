@@ -5,6 +5,7 @@ import type {
   IndustryEventBatch,
   SendConversationMessageRequest,
 } from '../../../../shared/industry/conversation'
+import type { UiActionInteractionRequest, UiActionInteractionResult } from '../../../../shared/industry/ui-actions'
 import type { AuthPrincipal } from '../auth'
 import type { TrustedRequestContext } from '../context'
 
@@ -24,6 +25,13 @@ export interface IndustryAgentClient {
     request: SendConversationMessageRequest,
     requestId: string,
   ): Promise<IndustryConversation>
+  interactWithUiAction(
+    context: TrustedRequestContext,
+    conversationId: string,
+    actionId: string,
+    request: UiActionInteractionRequest,
+    requestId: string,
+  ): Promise<UiActionInteractionResult>
   abortConversation(context: TrustedRequestContext, conversationId: string, requestId: string): Promise<IndustryConversation>
   getConversationEvents(context: TrustedRequestContext, conversationId: string, afterSequenceNo: number): Promise<IndustryEventBatch>
 }
