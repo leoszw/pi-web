@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import { WebSocket } from 'ws'
 import { attachBridge } from '../src/bridge'
+import { MockPrincipalProvider, type AuthPrincipal } from '../src/industry/auth'
 
 const fakePi = fileURLToPath(new URL('./fake-pi.mjs', import.meta.url))
 
@@ -28,12 +29,24 @@ function waitFor(predicate: () => boolean, timeoutMs = 5000): Promise<void> {
   })
 }
 
-async function openSocket(port: number): Promise<WebSocket> {
+async function openSocket(port: number, origin = 'http://127.0.0.1'): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`)
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, { origin })
     ws.once('open', () => resolve(ws))
     ws.once('error', reject)
   })
+}
+
+function principal(permissions: readonly string[]): AuthPrincipal {
+  return {
+    subject: 'subject-coding',
+    userId: 'user-coding',
+    tenantId: 'tenant-1',
+    companyIds: ['company-1'],
+    roles: ['developer'],
+    permissions,
+    sessionId: 'session-coding',
+  }
 }
 
 test('control-plane config reads redact secrets and config writes are disabled', async () => {
@@ -58,6 +71,8 @@ test('control-plane config reads redact secrets and config writes are disabled',
     piCommand: ['node', fakePi],
     piCwd: process.cwd(),
     mode: 'control-plane',
+    allowedOrigins: new Set(['http://127.0.0.1']),
+    principalProvider: new MockPrincipalProvider(principal(['coding.chat'])),
   })
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   const port = (server.address() as { port: number }).port
@@ -95,5 +110,25 @@ test('control-plane config reads redact secrets and config writes are disabled',
     server.close()
     if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR
     else process.env.PI_CODING_AGENT_DIR = previousAgentDir
+  }
+})
+
+test('control-plane websocket rejects untrusted origin and missing coding permission before connection', async () => {
+  const server = http.createServer()
+  attachBridge({
+    server,
+    piCommand: ['node', fakePi],
+    piCwd: process.cwd(),
+    mode: 'control-plane',
+    allowedOrigins: new Set(['http://127.0.0.1']),
+    principalProvider: new MockPrincipalProvider(principal([])),
+  })
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const port = (server.address() as { port: number }).port
+  try {
+    await assert.rejects(openSocket(port), /Unexpected server response: 403/)
+    await assert.rejects(openSocket(port, 'https://evil.example'), /Unexpected server response: 403/)
+  } finally {
+    server.close()
   }
 })
