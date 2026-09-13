@@ -86,12 +86,28 @@ export function RetrievalLabPage({
     }
   }
 
+  function clearResult(): void {
+    setSnapshot((current) => current === undefined ? current : { ...current, result: undefined })
+    setSelectedStage('FINAL')
+    setError(null)
+  }
+
+  function changeDomain(nextDomain: RetrievalDomain): void {
+    if (nextDomain === domain) return
+    const first = snapshot?.cases.find((item) => item.domain === nextDomain)
+    setDomain(nextDomain)
+    setSelectedCaseId(first?.caseId ?? '')
+    setQuery(first?.queryContext.query ?? '')
+    clearResult()
+  }
+
   function selectCase(caseId: string): void {
     const testCase = snapshot?.cases.find((item) => item.caseId === caseId)
     if (testCase === undefined) return
     setSelectedCaseId(testCase.caseId)
     setDomain(testCase.domain)
     setQuery(testCase.queryContext.query)
+    clearResult()
   }
 
   if (error !== null && snapshot === undefined) {
@@ -109,7 +125,7 @@ export function RetrievalLabPage({
       selectedStage={selectedStage}
       running={running}
       error={error}
-      onDomainChange={setDomain}
+      onDomainChange={changeDomain}
       onCaseSelect={selectCase}
       onQueryChange={setQuery}
       onVariantChange={setVariantId}
@@ -260,7 +276,7 @@ function StageNavigator({
       <h2>Retrieval pipeline</h2>
       <div className="eval-stage-grid" aria-label="Retrieval stages">
         {RETRIEVAL_STAGE_ORDER.map((stage, index) => {
-          const snapshot = result.stages.find((item) => item.stage === stage)
+          const stageSnapshot = result.stages.find((item) => item.stage === stage)
           return (
             <button
               type="button"
@@ -270,7 +286,7 @@ function StageNavigator({
             >
               <span>{index + 1}</span>
               <strong>{STAGE_LABELS[stage]}</strong>
-              <small>{snapshot?.candidates.length ?? 0} candidates</small>
+              <small>{stageSnapshot?.candidates.length ?? 0} candidates</small>
             </button>
           )
         })}
