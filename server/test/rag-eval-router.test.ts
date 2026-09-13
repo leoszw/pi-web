@@ -116,13 +116,15 @@ test('guarded RAG run passes retrieval answer citation and deterministic ACL gat
   })
 })
 
-test('broken RAG run exposes ACL leakage unsupported claims and citation drilldown', async () => {
+test('broken RAG run exposes deterministic safety failures and uses evidence-specific metric denominators', async () => {
   await withServer(makeRouter(['eval.read']), async (baseUrl) => {
     await selectProject(baseUrl)
     const run = await fetch(`${baseUrl}/api/industry/v1/eval/rag/runs/run-rag-broken-v0`)
     assert.equal(run.status, 200)
-    const runBody = await run.json() as { data: { metrics: { releaseGate: string; aclLeakageRate: number; unsupportedClaimRate: number; duplicateRate: number } } }
+    const runBody = await run.json() as { data: { metrics: { releaseGate: string; recallAt3: number; insufficientEvidenceCorrectness: number; aclLeakageRate: number; unsupportedClaimRate: number; duplicateRate: number } } }
     assert.equal(runBody.data.metrics.releaseGate, 'FAIL')
+    assert.equal(runBody.data.metrics.recallAt3, 0.5, 'Recall@3 must use only evidence-bearing cases')
+    assert.equal(runBody.data.metrics.insufficientEvidenceCorrectness, 0, 'insufficient-evidence correctness must use only no-evidence cases')
     assert.ok(runBody.data.metrics.aclLeakageRate > 0)
     assert.ok(runBody.data.metrics.unsupportedClaimRate > 0)
     assert.ok(runBody.data.metrics.duplicateRate > 0)
