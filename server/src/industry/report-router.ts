@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AuthPrincipal } from './auth'
 import { IndustryAgentClientError, type IndustryAgentClient } from './clients/industry-agent-client'
 import type { TrustedRequestContext } from './context'
-import { RequestBodyError } from '../security/request-limits'
+import { RequestBodyError, readJsonBody } from '../security/request-limits'
 
 export interface ReportRouteOptions {
   request: IncomingMessage
@@ -12,6 +12,7 @@ export interface ReportRouteOptions {
   principal: AuthPrincipal
   context: TrustedRequestContext
   client: IndustryAgentClient
+  bodyLimitBytes: number
 }
 
 export async function handleReportRoute(options: ReportRouteOptions): Promise<boolean> {
@@ -24,6 +25,8 @@ export async function handleReportRoute(options: ReportRouteOptions): Promise<bo
   const downloadMatch = path.match(/^\/api\/industry\/v1\/reports\/([^/]+)\/download$/u)
   if (downloadMatch !== null && options.request.method === 'POST') {
     requirePermission(options.principal, 'report.download')
+    const body = await readJsonBody(options.request, options.bodyLimitBytes)
+    requireEmptyBody(body)
     return sendData(options.response, await options.client.createReportDownloadGrant(options.context, decode(downloadMatch[1])), 201)
   }
   const detailMatch = path.match(/^\/api\/industry\/v1\/reports\/([^/]+)$/u)
@@ -34,6 +37,9 @@ export async function handleReportRoute(options: ReportRouteOptions): Promise<bo
   return false
 }
 
+function requireEmptyBody(value: unknown): void {
+  if (typeof value !== 'object' || value === null || Array.isArray(value) || Object.keys(value).length !== 0) throw new RequestBodyError('INVALID_JSON','report download request body must be an empty object',400)
+}
 function requirePermission(principal: AuthPrincipal, permission: 'report.read' | 'report.download'): void {
   if (principal.permissions.includes('report.admin') || principal.permissions.includes(permission)) return
   throw new IndustryAgentClientError('REPORT_ACCESS_DENIED', `missing permission: ${permission}`, 403)
