@@ -28,6 +28,10 @@ async function startSandbox(baseUrl:string,scenario:string,budget=sandboxBudget)
 
 test('P9 management permissions use explicit access-denied errors',async()=>{await withServer(makeRouter([]),async(baseUrl)=>{await selectProject(baseUrl);const report=await fetch(`${baseUrl}/api/industry/v1/reports`);assert.equal(report.status,403);assert.equal(((await report.json()) as {error:{code:string}}).error.code,'REPORT_ACCESS_DENIED');const sandbox=await fetch(`${baseUrl}/api/industry/v1/sandbox/runs`);assert.equal(sandbox.status,403);assert.equal(((await sandbox.json()) as {error:{code:string}}).error.code,'SANDBOX_ACCESS_DENIED')})})
 
+test('Report download requires both read and download permissions',async()=>{
+  for(const permissions of [['report.read'],['report.download']] as const){await withServer(makeRouter(permissions),async(baseUrl)=>{await selectProject(baseUrl);const response=await fetch(`${baseUrl}/api/industry/v1/reports/report-progress-v1/download`,{method:'POST',headers:headers(),body:'{}'});assert.equal(response.status,403);assert.equal(((await response.json()) as {error:{code:string}}).error.code,'REPORT_ACCESS_DENIED')})}
+})
+
 test('Report Center exposes preview metadata evidence lineage and authorized scoped download grants',async()=>{await withServer(makeRouter(['report.read','report.download']),async(baseUrl)=>{
   const missing=await fetch(`${baseUrl}/api/industry/v1/reports`);assert.equal(missing.status,409);await selectProject(baseUrl)
   const list=await fetch(`${baseUrl}/api/industry/v1/reports`);assert.equal(list.status,200);const listBody=await list.json() as {data:Array<{reportId:string;projectId:string;security:{hiddenFieldBlocked:boolean};evidence:unknown[];lineage:unknown[]}>};assert.ok(listBody.data.length>=2);assert.ok(listBody.data.every((item)=>item.projectId==='project-1'&&item.security.hiddenFieldBlocked&&item.evidence.length>0&&item.lineage.length>0))
