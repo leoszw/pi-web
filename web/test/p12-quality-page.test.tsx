@@ -1,0 +1,27 @@
+import { renderToStaticMarkup } from 'react-dom/server'
+import { describe, expect, it } from 'vitest'
+import type { OnlineQualityWorkspaceSnapshot } from '../src/features/p12/OnlineQualityPage'
+import { OnlineQualityView } from '../src/features/p12/OnlineQualityPage'
+
+const metricIds=['INTENT_DRIFT_RATE','CLARIFICATION_RATE','ZERO_RETRIEVAL_RATE','LOW_CONFIDENCE_RATE','TOOL_ERROR_RATE','MUTATION_REJECT_RATE','RAG_INSUFFICIENT_EVIDENCE_RATE','P95_LATENCY_MS','AVG_TOKENS','AVG_COST_USD','USER_CORRECTION_RATE'] as const
+const snapshot:OnlineQualityWorkspaceSnapshot={
+  online:{projectId:'project-1',windowStart:'2026-09-12T00:00:00.000Z',windowEnd:'2026-09-13T00:00:00.000Z',sampleCount:500,metrics:metricIds.map((metricId,index)=>({metricId,label:metricId,value:index===0?.03:.01,previousValue:.01,delta:index===0?.02:0,unit:metricId==='P95_LATENCY_MS'?'MS':metricId==='AVG_TOKENS'?'TOKENS':metricId==='AVG_COST_USD'?'USD':'RATE',warningThreshold:index===0?.02:.1,failureThreshold:index===0?.05:.2,status:index===0?'WARN':'PASS'})),signals:[{signalId:'s1',type:'INTENT_DRIFT_RATE',title:'Intent drift increased',severity:'WARN',detail:'above threshold',observedValue:.03,threshold:.02,traceIds:['trace-project-1-conversation-001']}]},
+  feedback:[{feedbackId:'feedback-1',projectId:'project-1',traceId:'trace-project-1-conversation-001',source:'ONLINE_TRACE',targetDomain:'INTENT',stage:'VERSIONED',sanitizedInput:'CONVERSATION · 行业 Agent 对话',sanitization:{removedSecretPatterns:1,removedPromptContent:true,sourceScopeTrusted:true},humanLabel:{label:'CLARIFICATION_REQUIRED',tags:['intent','clarification'],difficulty:'ADVERSARIAL',labeledBy:'user-1',labeledAt:'2026-09-13T00:00:00.000Z'},review:{approved:true,reviewNote:'checked',reviewedBy:'reviewer-1',reviewedAt:'2026-09-13T00:01:00.000Z'},datasetVersion:{datasetId:'online-feedback-reviewed',version:'1.0.1',status:'REVIEWED',golden:false,createdAt:'2026-09-13T00:02:00.000Z'},createdAt:'2026-09-13T00:00:00.000Z',updatedAt:'2026-09-13T00:02:00.000Z'}],
+  health:{projectId:'project-1',datasetId:'online-feedback-reviewed',sourceCaseCount:3,draftCount:1,labeledCount:2,reviewedCount:1,versionedCount:1,reviewedPercent:1/3,hardAdversarialCount:2,hardAdversarialPercent:1,tagDistribution:[{tag:'intent',count:1},{tag:'clarification',count:1}],duplicateCount:1,nearDuplicateCount:2,holdoutLeakageCount:0,labelChurnRate:.08,lastReviewAgeDays:2,issues:[{issueId:'i1',type:'DUPLICATE',severity:'WARN',count:1,detail:'review duplicate'},{issueId:'i2',type:'NEAR_DUPLICATE',severity:'WARN',count:2,detail:'review near duplicates'},{issueId:'i3',type:'LABEL_CHURN',severity:'WARN',count:1,detail:'label churn 8%'}],computedAt:'2026-09-13T00:00:00.000Z'},
+  versions:[{datasetId:'online-feedback-reviewed',projectId:'project-1',version:'1.0.1',status:'REVIEWED',golden:false,sourceFeedbackIds:['feedback-1'],caseCount:1,fingerprint:'sha256:1234567890abcdef1234567890abcdef',createdAt:'2026-09-13T00:02:00.000Z',createdBy:'user-1'}],
+}
+
+describe('OnlineQualityView',()=>{
+  it('renders all P12 monitoring and Dataset Health dimensions',()=>{
+    const html=renderToStaticMarkup(<OnlineQualityView snapshot={snapshot} error={null} busy={false} traceId="" domain="INTENT" label="" tags="online" difficulty="HARD" notes="" reviewNote=""/>)
+    expect(html).toContain('Online Quality Feedback Loop · P12');expect(html).toContain('500');for(const id of metricIds)expect(html).toContain(id.replaceAll('_',' ').replace('RATE','').trim().split(' ').map((part)=>part[0]+part.slice(1).toLowerCase()).join(' ').split(' ')[0]??'')
+    expect(html).toContain('Trace → sanitize → Draft Case → Human Label → Review → Dataset Version')
+    for(const text of ['Reviewed %','Hard / adversarial','Duplicates','Near duplicates','Holdout leakage','Label churn','Last review age'])expect(html).toContain(text)
+    expect(html).toContain('trace-project-1-conversation-001');expect(html).toContain('CLARIFICATION_REQUIRED');expect(html).toContain('Golden:');expect(html).toContain('false')
+  })
+  it('does not render an executable Golden or promote control',()=>{
+    const html=renderToStaticMarkup(<OnlineQualityView snapshot={snapshot} error={null} busy={false} traceId="" domain="INTENT" label="" tags="online" difficulty="HARD" notes="" reviewNote=""/>)
+    expect(html).not.toContain('>Make Golden<');expect(html).not.toContain('>Promote to Golden<');expect(html).not.toContain('>Promote<')
+    expect(html).toContain('no Make Golden / Promote-to-Golden action')
+  })
+})
