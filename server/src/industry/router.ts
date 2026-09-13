@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { IndustryApiError, PiWebMode } from '../../../shared/industry/common'
 import type { PrincipalProvider } from './auth'
-import type { IndustryAgentClient } from './clients/industry-agent-client'
+import { IndustryAgentClientError, type IndustryAgentClient } from './clients/industry-agent-client'
+import { handleConversationRoute } from './conversation-router'
 import { IndustryContextError, IndustryContextService } from './context'
 import type { EvaluationClient } from './eval/evaluation-client'
 import { handleEvalRoute } from './eval/router'
@@ -64,6 +65,16 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
         bodyLimitBytes: bodyLimit,
       })) return true
 
+      if (await handleConversationRoute({
+        request,
+        response,
+        url,
+        requestId,
+        context: resolved.trusted,
+        client: options.client,
+        bodyLimitBytes: bodyLimit,
+      })) return true
+
       if (url.pathname === '/api/industry/v1/health' && request.method === 'GET') {
         const health = await options.client.getHealth(resolved.trusted)
         sendJson(response, {
@@ -112,6 +123,15 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
           message: error.message,
           retryable: false,
           resolution: { type: 'reselect_project' },
+        }, error.statusCode)
+        return true
+      }
+      if (error instanceof IndustryAgentClientError) {
+        sendError(response, {
+          requestId,
+          code: error.code,
+          message: error.message,
+          retryable: false,
         }, error.statusCode)
         return true
       }
