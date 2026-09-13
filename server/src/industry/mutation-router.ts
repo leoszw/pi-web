@@ -18,6 +18,7 @@ export interface MutationRouteOptions {
 export async function handleMutationRoute(options: MutationRouteOptions): Promise<boolean> {
   const path = options.url.pathname
   if (!path.startsWith('/api/industry/v1/mutations')) return false
+  requireMutationPermission(options.context)
 
   if (path === '/api/industry/v1/mutations' && options.request.method === 'GET') {
     return sendData(options.response, { operations: await options.client.listMutations(options.context) })
@@ -87,6 +88,12 @@ function parseRejectRequest(input: unknown): RejectMutationRequest {
     throw new RequestBodyError('INVALID_JSON', 'reason must be a non-empty string up to 500 characters', 400)
   }
   return { reason: record.reason.trim() }
+}
+
+function requireMutationPermission(context: TrustedRequestContext): void {
+  if (!context.permissions.includes('industry.mutation')) {
+    throw new IndustryAgentClientError('ACCESS_DENIED', 'mutation permission is required', 403)
+  }
 }
 
 function requireIdempotencyKey(request: IncomingMessage): string {
