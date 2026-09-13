@@ -42,6 +42,6 @@ describe('P8 evaluation views',()=>{
     const run:P8EvalRunSummary={runId:'run-p8-agent_loop-broken-v0',domain:'AGENT_LOOP',datasetId:'agent-loop-safety-v1',datasetVersion:'1.0.0',projectId:'project-1',variantId:'p8-broken-v0',status:'COMPLETED',startedAt:'x',completedAt:'x',metrics}
     const snapshot:P8EvalSnapshot={cases:[testCase],runs:[run],selectedRun:run,observations:[],failures:[]}
     const html=renderToStaticMarkup(<P8EvalView snapshot={snapshot} domain="AGENT_LOOP" variantId="p8-broken-v0" busy={false} error={null}/>)
-    for(const label of ['Success','Replan','Max step','Max tool','Token budget','Cost budget','Timeout','Usage complete','Scope blocked','Critical tool safe'])expect(html).toContain(label)
+    for(const label of ['Success','Replan','Max step','Max tool','Token budget','Cost budget','Timeout','Usage accounting gate','Scope blocked','Critical tool safe'])expect(html).toContain(label)
   })
 })
