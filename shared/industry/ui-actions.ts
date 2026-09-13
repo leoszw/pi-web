@@ -11,6 +11,17 @@ export type UiActionType =
   | 'error_resolution'
 
 export type UiActionPrimitive = string | number | boolean | null
+export type UiActionSortDirection = 'asc' | 'desc'
+
+export interface UiActionTableSort {
+  key: string
+  direction: UiActionSortDirection
+}
+
+export interface UiActionTableFilter {
+  key: string
+  value: string
+}
 
 export interface UiActionEnvelope<TPayload = UiActionPayload> {
   schemaVersion: 'ui-action-v1'
@@ -95,6 +106,10 @@ export interface UiActionTablePayload {
     previousCursor?: string
     totalRows: number
   }
+  query: {
+    sort?: UiActionTableSort
+    filters: readonly UiActionTableFilter[]
+  }
   sortAllowlist: readonly string[]
   filterAllowlist: readonly string[]
   selectedRowIds: readonly string[]
@@ -142,18 +157,6 @@ export type UiActionPayload =
 
 export interface UiActionPresentedEventPayload {
   action: UiActionEnvelope
-}
-
-export type UiActionSortDirection = 'asc' | 'desc'
-
-export interface UiActionTableSort {
-  key: string
-  direction: UiActionSortDirection
-}
-
-export interface UiActionTableFilter {
-  key: string
-  value: string
 }
 
 export type UiActionInteraction =
