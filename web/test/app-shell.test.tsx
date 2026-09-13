@@ -1,7 +1,14 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { AppShell } from '../src/app/AppShell'
-import { resolveAppRoute, retrievalRunIdFromPath, retrievalRunPath, routePath } from '../src/app/routes'
+import {
+  mutationOperationIdFromPath,
+  mutationOperationPath,
+  resolveAppRoute,
+  retrievalRunIdFromPath,
+  retrievalRunPath,
+  routePath,
+} from '../src/app/routes'
 
 describe('AppShell routing', () => {
   it('keeps root and chat paths on the existing coding chat', () => {
@@ -17,6 +24,25 @@ describe('AppShell routing', () => {
     )
     expect(html).toContain('Industry Workspace sentinel')
     expect(html).not.toContain('Coding chat sentinel')
+  })
+
+  it('routes Mutation Center list, detail, and reconciliation paths', () => {
+    expect(resolveAppRoute('/industry/mutations')).toBe('industry-mutations')
+    expect(routePath('industry-mutations')).toBe('/industry/mutations')
+    expect(resolveAppRoute('/industry/mutations/reconciliation')).toBe('industry-mutation-reconciliation')
+    expect(routePath('industry-mutation-reconciliation')).toBe('/industry/mutations/reconciliation')
+
+    const detailPath = mutationOperationPath('mutation project/1')
+    expect(detailPath).toBe('/industry/mutations/mutation%20project%2F1')
+    expect(resolveAppRoute(detailPath)).toBe('industry-mutation-detail')
+    expect(mutationOperationIdFromPath(detailPath)).toBe('mutation project/1')
+
+    const listHtml = renderToStaticMarkup(<AppShell initialPath="/industry/mutations" mutationCenter={<div>Mutation Center sentinel</div>} />)
+    expect(listHtml).toContain('Mutation Center sentinel')
+    const detailHtml = renderToStaticMarkup(<AppShell initialPath={detailPath} mutationCenter={<div>Mutation detail sentinel</div>} />)
+    expect(detailHtml).toContain('Mutation detail sentinel')
+    const reconciliationHtml = renderToStaticMarkup(<AppShell initialPath="/industry/mutations/reconciliation" mutationCenter={<div>Reconciliation sentinel</div>} />)
+    expect(reconciliationHtml).toContain('Reconciliation sentinel')
   })
 
   it('routes /industry/eval to the evaluation overview slot', () => {
