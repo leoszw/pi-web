@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { EVAL_API_VERSION } from '../../../../shared/industry/eval/common'
 import type { EvalVariantSummary } from '../../../../shared/industry/eval/common'
 import type { CreateIntentDraftCaseRequest, EvalDatasetSummary, IntentDatasetDetail, IntentEvalCase, IntentName, IntentTurn } from '../../../../shared/industry/eval/datasets'
+import type { RetrievalDomain, RetrievalEvalCase, RetrievalLeakageReport, RetrievalPlaygroundRequest, RetrievalPlaygroundResult } from '../../../../shared/industry/eval/retrieval'
 import type { EvalRunSummary, IntentEvalObservation, IntentPlaygroundRequest, IntentRunComparison, StartIntentRunRequest } from '../../../../shared/industry/eval/runs'
 import type { AuthPrincipal } from '../auth'
 import type { TrustedRequestContext } from '../context'
@@ -64,6 +65,22 @@ export async function handleEvalRoute(options: EvalRouteOptions): Promise<boolea
       requirePermission(options.principal, 'eval.playground')
       const body = await readJsonBody(options.request, options.bodyLimitBytes)
       return sendData(options.response, await options.client.playgroundIntent(options.context, parsePlaygroundRequest(body)))
+    }
+
+    if (path === '/api/industry/v1/eval/retrieval/cases' && options.request.method === 'GET') {
+      requirePermission(options.principal, 'eval.read')
+      return sendData(options.response, await options.client.listRetrievalCases(options.context))
+    }
+
+    if (path === '/api/industry/v1/eval/playground/retrieval' && options.request.method === 'POST') {
+      requirePermission(options.principal, 'eval.playground')
+      const body = await readJsonBody(options.request, options.bodyLimitBytes)
+      return sendData(options.response, await options.client.playgroundRetrieval(options.context, parseRetrievalPlaygroundRequest(body)))
+    }
+
+    if (path === '/api/industry/v1/eval/retrieval/leakage' && options.request.method === 'GET') {
+      requirePermission(options.principal, 'eval.read')
+      return sendData(options.response, await options.client.getRetrievalLeakageReport(options.context))
     }
 
     if (path === '/api/industry/v1/eval/runs' && options.request.method === 'GET') {
@@ -138,6 +155,21 @@ function parsePlaygroundRequest(input: unknown): IntentPlaygroundRequest {
   if (!Array.isArray(record.previousTurns)) throw new RequestBodyError('INVALID_JSON', 'previousTurns must be an array', 400)
   const previousTurns = record.previousTurns.map((item, index) => parseTurn(item, index))
   return { query, previousTurns, variantId }
+}
+
+function parseRetrievalPlaygroundRequest(input: unknown): RetrievalPlaygroundRequest {
+  const record = requireRecord(input)
+  assertOnlyKeys(record, ['query', 'domain', 'variantId'])
+  return {
+    query: requireNonEmptyString(record.query, 'query'),
+    domain: parseRetrievalDomain(record.domain),
+    variantId: requireNonEmptyString(record.variantId, 'variantId'),
+  }
+}
+
+function parseRetrievalDomain(value: unknown): RetrievalDomain {
+  if (value === 'ENGINEERING' || value === 'BOQ') return value
+  throw new RequestBodyError('INVALID_JSON', 'domain must be ENGINEERING or BOQ', 400)
 }
 
 function parseCreateDraftCaseRequest(input: unknown): CreateIntentDraftCaseRequest {
@@ -278,6 +310,9 @@ function sendData(
     | readonly EvalRunSummary[]
     | readonly IntentEvalObservation[]
     | IntentRunComparison
+    | readonly RetrievalEvalCase[]
+    | RetrievalPlaygroundResult
+    | RetrievalLeakageReport
     | Awaited<ReturnType<EvaluationClient['playgroundIntent']>>,
   statusCode = 200,
 ): true {
