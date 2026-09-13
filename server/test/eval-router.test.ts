@@ -4,6 +4,7 @@ import test from 'node:test'
 import { MockPrincipalProvider, type AuthPrincipal } from '../src/industry/auth'
 import { MockIndustryAgentClient } from '../src/industry/clients/mock-industry-agent-client'
 import { IndustryContextService } from '../src/industry/context'
+import '../src/industry/eval/mock-evaluation-client-retrieval'
 import { MockEvaluationClient } from '../src/industry/eval/mock-evaluation-client'
 import { createIndustryRouter } from '../src/industry/router'
 
@@ -60,6 +61,15 @@ function jsonHeaders() {
   return { 'content-type': 'application/json', origin: 'http://127.0.0.1' }
 }
 
+async function selectProject(baseUrl: string): Promise<void> {
+  const selected = await fetch(`${baseUrl}/api/industry/v1/context/project`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify({ projectId: 'project-1' }),
+  })
+  assert.equal(selected.status, 200)
+}
+
 test('eval read endpoints require eval.read', async () => {
   await withServer(makeRouter([]), async (baseUrl) => {
     const denied = await fetch(`${baseUrl}/api/industry/v1/eval/datasets`)
@@ -79,12 +89,7 @@ test('eval read endpoints require eval.read', async () => {
 
 test('intent playground rejects scope injection and uses server-selected project', async () => {
   await withServer(makeRouter(['eval.read', 'eval.playground']), async (baseUrl) => {
-    const selected = await fetch(`${baseUrl}/api/industry/v1/context/project`, {
-      method: 'POST',
-      headers: jsonHeaders(),
-      body: JSON.stringify({ projectId: 'project-1' }),
-    })
-    assert.equal(selected.status, 200)
+    await selectProject(baseUrl)
 
     const injected = await fetch(`${baseUrl}/api/industry/v1/eval/playground/intent`, {
       method: 'POST',
@@ -111,6 +116,66 @@ test('intent playground rejects scope injection and uses server-selected project
     const body = await valid.json() as { data: { primaryIntent: string; semanticFrame: { projectId: string | null } } }
     assert.equal(body.data.primaryIntent, 'QUERY_BOQ')
     assert.equal(body.data.semanticFrame.projectId, 'project-1')
+  })
+})
+
+test('retrieval playground rejects scope injection and keeps hard-filtered candidates in selected project', async () => {
+  await withServer(makeRouter(['eval.read', 'eval.playground']), async (baseUrl) => {
+    await selectProject(baseUrl)
+
+    const injected = await fetch(`${baseUrl}/api/industry/v1/eval/playground/retrieval`, {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({
+        query: 'K12+300到K12+800左幅有哪些路基工程部位',
+        domain: 'ENGINEERING',
+        variantId: 'retrieval-stable-v1',
+        projectId: 'attacker-project',
+      }),
+    })
+    assert.equal(injected.status, 400)
+
+    const valid = await fetch(`${baseUrl}/api/industry/v1/eval/playground/retrieval`, {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({
+        query: 'K12+300到K12+800左幅有哪些路基工程部位',
+        domain: 'ENGINEERING',
+        variantId: 'retrieval-stable-v1',
+      }),
+    })
+    assert.equal(valid.status, 200)
+    const body = await valid.json() as {
+      data: {
+        queryContext: { projectId: string }
+        stages: Array<{ stage: string; candidates: Array<{ projectId: string }> }>
+      }
+    }
+    assert.equal(body.data.queryContext.projectId, 'project-1')
+    for (const stage of body.data.stages) {
+      assert.equal(stage.candidates.every((candidate) => candidate.projectId === 'project-1'), true, stage.stage)
+    }
+  })
+})
+
+test('retrieval cases and leakage report require eval.read and active project', async () => {
+  await withServer(makeRouter(['eval.read']), async (baseUrl) => {
+    const missingProject = await fetch(`${baseUrl}/api/industry/v1/eval/retrieval/cases`)
+    assert.equal(missingProject.status, 409)
+    const missingBody = await missingProject.json() as { error: { code: string } }
+    assert.equal(missingBody.error.code, 'EVAL_PROJECT_REQUIRED')
+
+    await selectProject(baseUrl)
+    const cases = await fetch(`${baseUrl}/api/industry/v1/eval/retrieval/cases`)
+    assert.equal(cases.status, 200)
+    const casesBody = await cases.json() as { data: Array<{ domain: string; queryContext: { projectId: string } }> }
+    assert.deepEqual(casesBody.data.map((item) => item.domain).sort(), ['BOQ', 'ENGINEERING'])
+    assert.equal(casesBody.data.every((item) => item.queryContext.projectId === 'project-1'), true)
+
+    const leakage = await fetch(`${baseUrl}/api/industry/v1/eval/retrieval/leakage`)
+    assert.equal(leakage.status, 200)
+    const leakageBody = await leakage.json() as { data: { releaseHoldoutContaminated: boolean } }
+    assert.equal(leakageBody.data.releaseHoldoutContaminated, true)
   })
 })
 
@@ -154,7 +219,6 @@ test('seeded baseline and candidate can be compared on the same dataset fingerpr
     assert.deepEqual(body.data.regressedCaseIds, [])
   })
 })
-
 
 test('saving a playground result requires dataset edit permission and remains Draft', async () => {
   const body = {
