@@ -14,6 +14,7 @@ export const RETRIEVAL_STAGE_ORDER = [
 export type RetrievalStage = typeof RETRIEVAL_STAGE_ORDER[number]
 export type RetrievalDomain = 'ENGINEERING' | 'BOQ'
 export type RetrievalDatasetSplit = 'DEV' | 'REGRESSION' | 'RELEASE_HOLDOUT'
+export type RetrievalComparisonType = 'EMBEDDING' | 'RERANKER' | 'CONFIG'
 
 export interface RetrievalQueryContext {
   projectId: string
@@ -114,6 +115,55 @@ export interface RetrievalMetricsSummary {
   wrongEntityHighConfidenceRate: number
 }
 
+export interface StartRetrievalRunRequest {
+  datasetId: string
+  variantId: string
+}
+
+export interface RetrievalRunSummary {
+  runId: string
+  runType: 'RETRIEVAL'
+  datasetId: string
+  datasetVersion: string
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+  environment: 'LOCAL' | 'DEV' | 'STAGING' | 'PRODUCTION'
+  variantId: string
+  projectId: string
+  startedAt: string
+  completedAt?: string
+  metrics?: RetrievalMetricsSummary
+}
+
+export interface RetrievalEvalObservation {
+  schemaVersion: 'eval-observation-v1'
+  observationId: string
+  runId: string
+  caseId: string
+  domain: RetrievalDomain
+  query: string
+  relevantEntityIds: readonly string[]
+  finalCandidates: readonly RetrievalCandidate[]
+  relevantRanks: readonly number[]
+  hitAt1: boolean
+  hitAt10: boolean
+  reciprocalRank: number
+  averagePrecision: number
+  ndcgAt10: number
+  zeroResult: boolean
+  crossProjectLeakage: boolean
+  crossAlignmentConflict: boolean
+  criticalSpecConflict: boolean
+  wrongEntityHighConfidence: boolean
+  traceId: string
+}
+
+export interface RetrievalMetricDelta {
+  metric: keyof Omit<RetrievalMetricsSummary, 'recallAtK'> | 'recallAt1' | 'recallAt5' | 'recallAt10' | 'recallAt20' | 'recallAt50'
+  baseline: number
+  candidate: number
+  delta: number
+}
+
 export interface RetrievalRankMovement {
   caseId: string
   entityId: string
@@ -138,11 +188,14 @@ export interface PairedComparisonStats {
 export interface RetrievalRunComparison {
   baselineRunId: string
   candidateRunId: string
-  comparisonType: 'EMBEDDING' | 'RERANKER' | 'CONFIG'
+  comparisonType: RetrievalComparisonType
+  metricDeltas: readonly RetrievalMetricDelta[]
   improvedCaseIds: readonly string[]
   regressedCaseIds: readonly string[]
   rankMovements: readonly RetrievalRankMovement[]
   pairedStats: PairedComparisonStats
+  deterministicSafetyRegression: boolean
+  safetyRegressionReasons: readonly string[]
 }
 
 export interface RetrievalLeakageFinding {
