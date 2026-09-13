@@ -10,6 +10,7 @@ import './industry/eval/mock-evaluation-client-mutation'
 import './industry/eval/mock-evaluation-client-retrieval'
 import { MockEvaluationClient } from './industry/eval/mock-evaluation-client'
 import { createIndustryRouter } from './industry/router'
+import './industry/trace/mock-industry-agent-client-retrieval-debug'
 import { parseAllowedOrigins } from './security/origin'
 import { createRequestHandler } from './static'
 
