@@ -1,5 +1,6 @@
 import type { AuthorizedProject } from '../../../../shared/industry/common'
 import type {
+  CreateConversationRequest,
   IndustryConversation,
   IndustryEventBatch,
   SendConversationMessageRequest,
@@ -15,7 +16,7 @@ export interface IndustryAgentHealth {
 export interface IndustryAgentClient {
   getHealth(context: TrustedRequestContext): Promise<IndustryAgentHealth>
   listAuthorizedProjects(principal: AuthPrincipal): Promise<readonly AuthorizedProject[]>
-  createConversation(context: TrustedRequestContext, requestId: string): Promise<IndustryConversation>
+  createConversation(context: TrustedRequestContext, request: CreateConversationRequest, requestId: string): Promise<IndustryConversation>
   getConversation(context: TrustedRequestContext, conversationId: string): Promise<IndustryConversation>
   sendConversationMessage(
     context: TrustedRequestContext,
