@@ -38,6 +38,16 @@ describe('AppShell routing', () => {
     expect(html).toContain('Intent Lab sentinel')
   })
 
+  it('routes retrieval playground aliases to the Retrieval Lab slot', () => {
+    expect(resolveAppRoute('/industry/eval/playground/retrieval')).toBe('industry-eval-retrieval')
+    expect(resolveAppRoute('/industry/eval/retrieval')).toBe('industry-eval-retrieval')
+    expect(routePath('industry-eval-retrieval')).toBe('/industry/eval/playground/retrieval')
+    const html = renderToStaticMarkup(
+      <AppShell initialPath="/industry/eval/playground/retrieval" retrievalLab={<div>Retrieval Lab sentinel</div>} />,
+    )
+    expect(html).toContain('Retrieval Lab sentinel')
+  })
+
   it('renders the coding chat slot for /chat', () => {
     const html = renderToStaticMarkup(
       <AppShell initialPath="/chat" codingChat={<div>Coding chat sentinel</div>} />,
