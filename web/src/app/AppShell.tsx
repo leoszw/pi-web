@@ -7,6 +7,7 @@ import { RetrievalLabPage } from '../features/eval/RetrievalLabPage'
 import { RetrievalRunPage } from '../features/eval/RetrievalRunPage'
 import { IndustryWorkspacePage } from '../features/industry-workspace/IndustryWorkspacePage'
 import { MutationCenterPage } from '../features/mutation-center/MutationCenterPage'
+import { RetrievalDebugPage } from '../features/trace/RetrievalDebugPage'
 import { TracePage } from '../features/trace/TracePage'
 import {
   isEvaluationRoute,
@@ -15,6 +16,7 @@ import {
   mutationEvalRunIdFromPath,
   mutationOperationIdFromPath,
   resolveAppRoute,
+  retrievalDebugTraceIdFromPath,
   retrievalRunIdFromPath,
   routePath,
   traceIdFromPath,
@@ -27,6 +29,7 @@ export interface AppShellProps {
   codingChat?: ReactNode
   industryWorkspace?: ReactNode
   traceExplorer?: ReactNode
+  retrievalDebug?: ReactNode
   mutationCenter?: ReactNode
   evalOverview?: ReactNode
   intentLab?: ReactNode
@@ -35,10 +38,11 @@ export interface AppShellProps {
   mutationEval?: ReactNode
 }
 
-export function AppShell({ initialPath, codingChat, industryWorkspace, traceExplorer, mutationCenter, evalOverview, intentLab, retrievalLab, retrievalRun, mutationEval }: AppShellProps) {
+export function AppShell({ initialPath, codingChat, industryWorkspace, traceExplorer, retrievalDebug, mutationCenter, evalOverview, intentLab, retrievalLab, retrievalRun, mutationEval }: AppShellProps) {
   const [route, setRoute] = useState<AppRoute>(() => resolveAppRoute(initialPath ?? currentPath()))
   const pathname = initialPath ?? currentPath()
   const retrievalRunId = retrievalRunIdFromPath(pathname)
+  const retrievalDebugTraceId = retrievalDebugTraceIdFromPath(pathname)
   const mutationEvalRunId = mutationEvalRunIdFromPath(pathname)
   const mutationOperationId = mutationOperationIdFromPath(pathname)
   const traceId = traceIdFromPath(pathname)
@@ -71,12 +75,14 @@ export function AppShell({ initialPath, codingChat, industryWorkspace, traceExpl
         <AppContent
           route={route}
           traceId={traceId}
+          retrievalDebugTraceId={retrievalDebugTraceId}
           retrievalRunId={retrievalRunId}
           mutationEvalRunId={mutationEvalRunId}
           mutationOperationId={mutationOperationId}
           codingChat={codingChat}
           industryWorkspace={industryWorkspace}
           traceExplorer={traceExplorer}
+          retrievalDebug={retrievalDebug}
           mutationCenter={mutationCenter}
           evalOverview={evalOverview}
           intentLab={intentLab}
@@ -92,12 +98,14 @@ export function AppShell({ initialPath, codingChat, industryWorkspace, traceExpl
 function AppContent({
   route,
   traceId,
+  retrievalDebugTraceId,
   retrievalRunId,
   mutationEvalRunId,
   mutationOperationId,
   codingChat,
   industryWorkspace,
   traceExplorer,
+  retrievalDebug,
   mutationCenter,
   evalOverview,
   intentLab,
@@ -107,12 +115,14 @@ function AppContent({
 }: {
   route: AppRoute
   traceId: string | null
+  retrievalDebugTraceId: string | null
   retrievalRunId: string | null
   mutationEvalRunId: string | null
   mutationOperationId: string | null
   codingChat?: ReactNode
   industryWorkspace?: ReactNode
   traceExplorer?: ReactNode
+  retrievalDebug?: ReactNode
   mutationCenter?: ReactNode
   evalOverview?: ReactNode
   intentLab?: ReactNode
@@ -130,6 +140,7 @@ function AppContent({
   if (route === 'industry-eval-retrieval') return retrievalLab ?? <RetrievalLabPage />
   if (route === 'industry-eval-intent') return intentLab ?? <IntentLabPage />
   if (route === 'industry-eval') return evalOverview ?? <EvalOverviewPage />
+  if (route === 'industry-retrieval-debug' && retrievalDebugTraceId !== null) return retrievalDebug ?? <RetrievalDebugPage traceId={retrievalDebugTraceId} />
   if (route === 'industry-trace-detail' && traceId !== null) return traceExplorer ?? <TracePage traceId={traceId} />
   if (route === 'industry-traces') return traceExplorer ?? <TracePage />
   if (route === 'industry-mutation-detail' && mutationOperationId !== null) {
