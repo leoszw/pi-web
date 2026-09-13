@@ -6,7 +6,7 @@ import type { PrincipalProvider } from './auth'
 import { IndustryAgentClientError, type IndustryAgentClient } from './clients/industry-agent-client'
 import { handleConversationRoute } from './conversation-router'
 import { IndustryContextError, IndustryContextService } from './context'
-import type { EvaluationClient } from './eval/evaluation-client'
+import { EvaluationClientError, type EvaluationClient } from './eval/evaluation-client'
 import { handleP7EvalRoute } from './eval/p7-router'
 import { handleP8EvalRoute } from './eval/p8-router'
 import { handleP9EvalRoute } from './eval/p9-router'
@@ -65,8 +65,8 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
     } catch (error) {
       if (error instanceof IndustryContextError) { sendError(response,{requestId,code:error.code,message:error.message,retryable:false,resolution:{type:'reselect_project'}},error.statusCode); return true }
       if (error instanceof IndustryAgentClientError) { sendError(response,{requestId,code:error.code,message:error.message,retryable:false,...(error.code==='MUTATION_COMMIT_FINALIZATION_FAILED'?{resolution:{type:'open_reconciliation' as const}}:{})},error.statusCode); return true }
+      if (error instanceof EvaluationClientError) { sendError(response,{requestId,code:error.code,message:error.message,retryable:false},error.statusCode); return true }
       if (error instanceof RequestBodyError) { sendError(response,{requestId,code:error.code,message:error.message,retryable:false},error.statusCode); return true }
-      if (error instanceof Error && 'statusCode' in error && 'code' in error && typeof (error as {statusCode?:unknown}).statusCode === 'number' && typeof (error as {code?:unknown}).code === 'string') { const typed=error as Error & {statusCode:number;code:string}; sendError(response,{requestId,code:typed.code,message:typed.message,retryable:false},typed.statusCode); return true }
       sendError(response,{requestId,code:'INDUSTRY_INTERNAL_ERROR',message:'industry control plane request failed',retryable:false,resolution:{type:'contact_admin'}},500); return true
     }
   }
