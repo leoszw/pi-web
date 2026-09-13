@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { AppShell } from '../src/app/AppShell'
-import { resolveAppRoute, routePath } from '../src/app/routes'
+import { resolveAppRoute, retrievalRunIdFromPath, retrievalRunPath, routePath } from '../src/app/routes'
 
 describe('AppShell routing', () => {
   it('keeps root and chat paths on the existing coding chat', () => {
@@ -46,6 +46,17 @@ describe('AppShell routing', () => {
       <AppShell initialPath="/industry/eval/playground/retrieval" retrievalLab={<div>Retrieval Lab sentinel</div>} />,
     )
     expect(html).toContain('Retrieval Lab sentinel')
+  })
+
+  it('routes retrieval run detail with safe run id decoding', () => {
+    const path = retrievalRunPath('run candidate/2')
+    expect(path).toBe('/industry/eval/runs/run%20candidate%2F2/retrieval')
+    expect(resolveAppRoute(path)).toBe('industry-eval-retrieval-run')
+    expect(retrievalRunIdFromPath(path)).toBe('run candidate/2')
+    const html = renderToStaticMarkup(
+      <AppShell initialPath={path} retrievalRun={<div>Retrieval run sentinel</div>} />,
+    )
+    expect(html).toContain('Retrieval run sentinel')
   })
 
   it('renders the coding chat slot for /chat', () => {
