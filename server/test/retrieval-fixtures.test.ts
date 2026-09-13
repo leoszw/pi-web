@@ -22,12 +22,14 @@ test('playground fixture exposes every required retrieval stage in order', () =>
   assert.equal(result.queryContext.chainageEnd, 12800)
 })
 
-test('hard filters remove cross-project candidates before ranking', () => {
+test('hard filters remove cross-project candidates permanently before ranking', () => {
   const result = buildRetrievalPlaygroundFixture('retrieval-engineering-001')
   const hardFilters = result.stages.find((stage) => stage.stage === 'HARD_FILTERS')
   assert.ok(hardFilters)
   assert.deepEqual(hardFilters.removedEntityIds, ['eng-cross-project-001'])
-  assert.equal(hardFilters.candidates.some((candidate) => candidate.projectId !== 'project-demo-001'), false)
+  for (const stage of result.stages.filter((item) => item.stage !== 'SEMANTIC_PARSE')) {
+    assert.equal(stage.candidates.some((candidate) => candidate.projectId !== 'project-demo-001'), false, `${stage.stage} reintroduced cross-project data`)
+  }
 })
 
 test('final stage keeps hard negatives inspectable with explicit scores and reasons', () => {
