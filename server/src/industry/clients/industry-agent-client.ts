@@ -28,7 +28,9 @@ import type {
   MutationReconciliationList,
   RejectMutationRequest,
 } from '../../../../shared/industry/mutation'
+import type { ReportArtifact, ReportDownloadGrant } from '../../../../shared/industry/report'
 import type { RetrievalDebugResult } from '../../../../shared/industry/retrieval-debug'
+import type { SandboxRun, StartSandboxRunRequest } from '../../../../shared/industry/sandbox'
 import type {
   TraceAccessProfile,
   TraceDetail,
@@ -51,36 +53,14 @@ export interface IndustryAgentClient {
   listAuthorizedProjects(principal: AuthPrincipal): Promise<readonly AuthorizedProject[]>
   createConversation(context: TrustedRequestContext, request: CreateConversationRequest, requestId: string): Promise<IndustryConversation>
   getConversation(context: TrustedRequestContext, conversationId: string): Promise<IndustryConversation>
-  sendConversationMessage(
-    context: TrustedRequestContext,
-    conversationId: string,
-    request: SendConversationMessageRequest,
-    requestId: string,
-  ): Promise<IndustryConversation>
-  interactWithUiAction(
-    context: TrustedRequestContext,
-    conversationId: string,
-    actionId: string,
-    request: UiActionInteractionRequest,
-    requestId: string,
-  ): Promise<UiActionInteractionResult>
+  sendConversationMessage(context: TrustedRequestContext, conversationId: string, request: SendConversationMessageRequest, requestId: string): Promise<IndustryConversation>
+  interactWithUiAction(context: TrustedRequestContext, conversationId: string, actionId: string, request: UiActionInteractionRequest, requestId: string): Promise<UiActionInteractionResult>
   abortConversation(context: TrustedRequestContext, conversationId: string, requestId: string): Promise<IndustryConversation>
   getConversationEvents(context: TrustedRequestContext, conversationId: string, afterSequenceNo: number): Promise<IndustryEventBatch>
   listMutations(context: TrustedRequestContext): Promise<readonly MutationOperation[]>
   getMutation(context: TrustedRequestContext, operationId: string): Promise<MutationOperation>
-  confirmMutation(
-    context: TrustedRequestContext,
-    operationId: string,
-    request: ConfirmMutationRequest,
-    idempotencyKey: string,
-    requestId: string,
-  ): Promise<MutationOperation>
-  rejectMutation(
-    context: TrustedRequestContext,
-    operationId: string,
-    request: RejectMutationRequest,
-    requestId: string,
-  ): Promise<MutationOperation>
+  confirmMutation(context: TrustedRequestContext, operationId: string, request: ConfirmMutationRequest, idempotencyKey: string, requestId: string): Promise<MutationOperation>
+  rejectMutation(context: TrustedRequestContext, operationId: string, request: RejectMutationRequest, requestId: string): Promise<MutationOperation>
   getMutationAudit(context: TrustedRequestContext, operationId: string): Promise<MutationAuditTrail>
   listMutationReconciliation(context: TrustedRequestContext): Promise<MutationReconciliationList>
   listTraces(context: TrustedRequestContext): Promise<readonly TraceSummary[]>
@@ -99,15 +79,16 @@ export interface IndustryAgentClient {
   listMultimodalAnalyses(context: TrustedRequestContext): Promise<readonly MultimodalAnalysis[]>
   createMultimodalAnalysis(context: TrustedRequestContext, request: CreateMultimodalAnalysisRequest): Promise<MultimodalAnalysis>
   getMultimodalAnalysis(context: TrustedRequestContext, analysisId: string): Promise<MultimodalAnalysis>
-  reviewMultimodalObservation(
-    context: TrustedRequestContext,
-    analysisId: string,
-    observationId: string,
-    request: ReviewMultimodalObservationRequest,
-  ): Promise<MultimodalAnalysis>
+  reviewMultimodalObservation(context: TrustedRequestContext, analysisId: string, observationId: string, request: ReviewMultimodalObservationRequest): Promise<MultimodalAnalysis>
   listAgentLoopRuns(context: TrustedRequestContext): Promise<readonly AgentLoopRun[]>
   startAgentLoopRun(context: TrustedRequestContext, request: StartAgentLoopRunRequest): Promise<AgentLoopRun>
   getAgentLoopRun(context: TrustedRequestContext, runId: string): Promise<AgentLoopRun>
+  listReports(context: TrustedRequestContext): Promise<readonly ReportArtifact[]>
+  getReport(context: TrustedRequestContext, reportId: string): Promise<ReportArtifact>
+  createReportDownloadGrant(context: TrustedRequestContext, reportId: string): Promise<ReportDownloadGrant>
+  listSandboxRuns(context: TrustedRequestContext): Promise<readonly SandboxRun[]>
+  startSandboxRun(context: TrustedRequestContext, request: StartSandboxRunRequest): Promise<SandboxRun>
+  getSandboxRun(context: TrustedRequestContext, runId: string): Promise<SandboxRun>
 }
 
 export class IndustryAgentClientError extends Error {
