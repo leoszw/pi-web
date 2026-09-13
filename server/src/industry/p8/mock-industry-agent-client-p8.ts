@@ -54,11 +54,15 @@ MockIndustryAgentClient.prototype.reviewMultimodalObservation = async function r
   if (request.selectedEntityId !== undefined && !candidateIds.has(request.selectedEntityId)) throw new IndustryAgentClientError('MULTIMODAL_ENTITY_NOT_ALLOWED', 'selected entity is outside the server-issued candidates', 400)
   const allowedFields = new Set(observation.fields.map((field) => field.name))
   for (const key of Object.keys(request.correctedFields ?? {})) if (!allowedFields.has(key)) throw new IndustryAgentClientError('MULTIMODAL_FIELD_NOT_ALLOWED', 'corrected field is not present in the observation schema', 400)
+  if (request.decision === 'ACCEPT' && request.correctedFields !== undefined) throw new IndustryAgentClientError('MULTIMODAL_REVIEW_INVALID', 'ACCEPT cannot mutate fields', 400)
+  if (request.decision === 'REJECT' && (request.correctedFields !== undefined || request.selectedEntityId !== undefined)) throw new IndustryAgentClientError('MULTIMODAL_REVIEW_INVALID', 'REJECT cannot mutate fields or entity selection', 400)
+  if (request.decision === 'CORRECT' && request.correctedFields === undefined && request.selectedEntityId === undefined) throw new IndustryAgentClientError('MULTIMODAL_REVIEW_INVALID', 'CORRECT requires a field correction or entity selection', 400)
+  const corrections = request.decision === 'CORRECT' ? request.correctedFields ?? {} : {}
   const updated: MultimodalObservation = {
     ...observation,
-    selectedEntityId: request.selectedEntityId ?? observation.selectedEntityId,
-    fields: observation.fields.map((field) => request.correctedFields?.[field.name] === undefined ? field : { ...field, value: request.correctedFields[field.name]!, confidence: 1, missing: false }),
-    missingFields: observation.missingFields.filter((name) => request.correctedFields?.[name] === undefined),
+    selectedEntityId: request.decision === 'REJECT' ? observation.selectedEntityId : request.selectedEntityId ?? observation.selectedEntityId,
+    fields: observation.fields.map((field) => corrections[field.name] === undefined ? field : { ...field, value: corrections[field.name]!, confidence: 1, missing: false }),
+    missingFields: observation.missingFields.filter((name) => corrections[name] === undefined),
     reviewStatus: request.decision === 'ACCEPT' ? 'ACCEPTED' : request.decision === 'CORRECT' ? 'CORRECTED' : 'REJECTED',
     ...(request.note === undefined ? {} : { reviewNote: request.note }),
   }
@@ -133,43 +137,92 @@ function seedLoops(store: Map<string, AgentLoopRun>, projectId: string): void {
 
 function buildLoopRun(runId: string, projectId: string, goal: string, budget: AgentLoopBudget, scenario: NonNullable<StartAgentLoopRunRequest['scenario']>): AgentLoopRun {
   const started = '2026-09-13T07:35:00.000Z'
-  const step = (sequenceNo: number, phase: AgentLoopStep['phase'], title: string, detail: string, overrides: Partial<AgentLoopStep> = {}): AgentLoopStep => ({ sequenceNo, phase, status: 'OK', title, detail, tokenUsage: 80, costUsd: 0.01, startedAt: new Date(Date.parse(started) + sequenceNo * 100).toISOString(), completedAt: new Date(Date.parse(started) + sequenceNo * 100 + 75).toISOString(), ...overrides })
-  let steps: AgentLoopStep[]
-  let terminationReason: AgentLoopRun['terminationReason'] = 'SUCCESS'
+  const makeStep = (sequenceNo: number, phase: AgentLoopStep['phase'], title: string, detail: string, overrides: Partial<AgentLoopStep> = {}): AgentLoopStep => ({ sequenceNo, phase, status: 'OK', title, detail, tokenUsage: 80, costUsd: 0.01, startedAt: new Date(Date.parse(started) + sequenceNo * 100).toISOString(), completedAt: new Date(Date.parse(started) + sequenceNo * 100 + 75).toISOString(), ...overrides })
+  let intendedSteps: AgentLoopStep[]
+  let intendedReason: AgentLoopRun['terminationReason'] = 'SUCCESS'
   if (scenario === 'REPLAN') {
-    steps = [step(1,'PLAN','Plan','query then verify'), step(2,'ACT','Act','query_boq',{toolName:'query_boq'}), step(3,'VERIFY','Verify','spec mismatch found',{status:'ERROR'}), step(4,'REPLAN','Replan','tighten specification'), step(5,'ACT','Act','query_boq',{toolName:'query_boq'}), step(6,'VERIFY','Verify','candidate verified'), step(7,'TERMINATE','Terminate','goal satisfied')]
+    intendedSteps = [makeStep(1,'PLAN','Plan','query then verify'), makeStep(2,'ACT','Act','query_boq',{toolName:'query_boq'}), makeStep(3,'VERIFY','Verify','spec mismatch found',{status:'ERROR'}), makeStep(4,'REPLAN','Replan','tighten specification'), makeStep(5,'ACT','Act','query_boq',{toolName:'query_boq'}), makeStep(6,'VERIFY','Verify','candidate verified'), makeStep(7,'TERMINATE','Terminate','goal satisfied')]
   } else if (scenario === 'CRITICAL_TOOL') {
-    terminationReason = 'CRITICAL_TOOL_CONFIRMATION_REQUIRED'
-    steps = [step(1,'PLAN','Plan','mutation requires confirmation'), step(2,'ACT','Critical tool blocked','update_boq_owner',{status:'BLOCKED',toolName:'update_boq_owner',toolCritical:true}), step(3,'TERMINATE','Terminate','explicit user confirmation required')]
+    intendedReason = 'CRITICAL_TOOL_CONFIRMATION_REQUIRED'
+    intendedSteps = [makeStep(1,'PLAN','Plan','mutation requires confirmation'), makeStep(2,'ACT','Critical tool blocked','update_boq_owner',{status:'BLOCKED',toolName:'update_boq_owner',toolCritical:true}), makeStep(3,'TERMINATE','Terminate','explicit user confirmation required')]
   } else if (scenario === 'MAX_STEPS') {
-    terminationReason = 'MAX_STEPS'
-    steps = boundedStepSequence(budget.maxSteps, step)
+    intendedReason = 'MAX_STEPS'
+    intendedSteps = boundedStepSequence(budget.maxSteps, makeStep)
   } else if (scenario === 'MAX_TOOLS') {
-    terminationReason = 'MAX_TOOLS'
-    const toolSteps = Array.from({ length: budget.maxTools }, (_, index) => step(index + 2, 'ACT', 'Act', `tool ${index + 1} within budget`, { toolName: 'query' }))
-    steps = [step(1,'PLAN','Plan','bounded tools'), ...toolSteps, step(toolSteps.length + 2,'TERMINATE','Terminate','max tools reached')]
+    intendedReason = 'MAX_TOOLS'
+    const toolSteps = Array.from({ length: budget.maxTools }, (_, index) => makeStep(index + 2, 'ACT', 'Act', `tool ${index + 1} within budget`, { toolName: 'query' }))
+    intendedSteps = [makeStep(1,'PLAN','Plan','bounded tools'), ...toolSteps, makeStep(toolSteps.length + 2,'TERMINATE','Terminate','max tools reached')]
   } else if (scenario === 'TOKEN_COST') {
-    terminationReason = budget.maxTokens <= 100 ? 'TOKEN_BUDGET' : 'COST_BUDGET'
-    steps = [step(1,'PLAN','Plan','budgeted execution'), step(2,'TERMINATE','Terminate','token/cost budget reached')]
+    if (budget.maxTokens <= 100) {
+      intendedReason = 'TOKEN_BUDGET'
+      intendedSteps = [makeStep(1,'PLAN','Plan','consume token budget',{tokenUsage:budget.maxTokens,costUsd:Math.min(0.01,budget.maxCostUsd)}), makeStep(2,'TERMINATE','Terminate','token budget reached',{tokenUsage:0,costUsd:0})]
+    } else {
+      intendedReason = 'COST_BUDGET'
+      intendedSteps = [makeStep(1,'PLAN','Plan','consume cost budget',{tokenUsage:Math.min(80,budget.maxTokens),costUsd:budget.maxCostUsd}), makeStep(2,'TERMINATE','Terminate','cost budget reached',{tokenUsage:0,costUsd:0})]
+    }
   } else if (scenario === 'TIMEOUT') {
-    terminationReason = 'TIMEOUT'; steps = [step(1,'PLAN','Plan','bounded execution'), step(2,'TERMINATE','Terminate','timeout reached')]
+    intendedReason = 'TIMEOUT'; intendedSteps = [makeStep(1,'PLAN','Plan','bounded execution'), makeStep(2,'TERMINATE','Terminate','timeout reached')]
   } else if (scenario === 'USAGE_INCOMPLETE') {
-    terminationReason = 'USAGE_INCOMPLETE'; steps = [step(1,'PLAN','Plan','usage accounting required'), step(2,'TERMINATE','Terminate','usage incomplete')]
+    intendedReason = 'USAGE_INCOMPLETE'; intendedSteps = [makeStep(1,'PLAN','Plan','usage accounting required'), makeStep(2,'TERMINATE','Terminate','usage incomplete')]
   } else if (scenario === 'SCOPE_INJECTION') {
-    terminationReason = 'SCOPE_INJECTION_BLOCKED'; steps = [step(1,'PLAN','Plan','query current project'), step(2,'ACT','Scope injection blocked','browser/model projectId ignored',{status:'BLOCKED',toolName:'query_tasks',scopeInjectionBlocked:true}), step(3,'TERMINATE','Terminate','unsafe scope rejected')]
+    intendedReason = 'SCOPE_INJECTION_BLOCKED'; intendedSteps = [makeStep(1,'PLAN','Plan','query current project'), makeStep(2,'ACT','Scope injection blocked','browser/model projectId ignored',{status:'BLOCKED',toolName:'query_tasks',scopeInjectionBlocked:true}), makeStep(3,'TERMINATE','Terminate','unsafe scope rejected')]
   } else {
-    steps = [step(1,'PLAN','Plan','query and summarize'), step(2,'ACT','Act','query_engineering_position',{toolName:'query_engineering_position'}), step(3,'VERIFY','Verify','results satisfy goal'), step(4,'TERMINATE','Terminate','goal satisfied')]
+    intendedSteps = [makeStep(1,'PLAN','Plan','query and summarize'), makeStep(2,'ACT','Act','query_engineering_position',{toolName:'query_engineering_position'}), makeStep(3,'VERIFY','Verify','results satisfy goal'), makeStep(4,'TERMINATE','Terminate','goal satisfied')]
   }
+  const bounded = enforceBudgets(intendedSteps, intendedReason, budget, makeStep)
+  const steps = bounded.steps
+  const terminationReason = bounded.reason
+  const totalTokens = steps.reduce((sum, item) => sum + item.tokenUsage, 0)
+  const costUsd = Number(steps.reduce((sum, item) => sum + item.costUsd, 0).toFixed(4))
   const toolCalls = steps.filter((item) => item.toolName !== undefined).length
-  const rawTokens = steps.reduce((sum, item) => sum + item.tokenUsage, 0)
-  const totalTokens = scenario === 'TOKEN_COST' ? budget.maxTokens : Math.min(rawTokens, budget.maxTokens)
-  const rawCost = Number(steps.reduce((sum, item) => sum + item.costUsd, 0).toFixed(4))
-  const costUsd = scenario === 'TOKEN_COST' && terminationReason === 'COST_BUDGET' ? budget.maxCostUsd : Math.min(rawCost, budget.maxCostUsd)
-  const elapsedMs = scenario === 'TIMEOUT' ? budget.timeoutMs : Math.min(Math.max(steps.length * 100, 1), budget.timeoutMs)
+  const elapsedMs = terminationReason === 'TIMEOUT' && bounded.budgetTriggered === false ? budget.timeoutMs : Math.min(Math.max(steps.length * 100, 1), budget.timeoutMs)
   const inputTokens = Math.floor(totalTokens * 0.7)
   const usage = { steps: steps.length, toolCalls, inputTokens, outputTokens: totalTokens - inputTokens, totalTokens, costUsd, elapsedMs, complete: scenario !== 'USAGE_INCOMPLETE' }
   const status: AgentLoopRun['status'] = terminationReason === 'SUCCESS' ? 'COMPLETED' : 'TERMINATED'
   return { runId, projectId, goal, status, budget: { ...budget }, usage, steps, terminationReason, traceId: `trace-${runId}`, createdAt: started, completedAt: new Date(Date.parse(started) + elapsedMs).toISOString() }
+}
+
+function enforceBudgets(
+  intendedSteps: readonly AgentLoopStep[],
+  intendedReason: AgentLoopRun['terminationReason'],
+  budget: AgentLoopBudget,
+  makeStep: (sequenceNo: number, phase: AgentLoopStep['phase'], title: string, detail: string, overrides?: Partial<AgentLoopStep>) => AgentLoopStep,
+): { steps: AgentLoopStep[]; reason: AgentLoopRun['terminationReason']; budgetTriggered: boolean } {
+  const work = intendedSteps.filter((item) => item.phase !== 'TERMINATE')
+  const rows: AgentLoopStep[] = []
+  let tools = 0
+  let tokens = 0
+  let cost = 0
+  let reason = intendedReason
+  let budgetTriggered = false
+  for (const candidate of work) {
+    if (rows.length >= budget.maxSteps - 1) { reason = 'MAX_STEPS'; budgetTriggered = true; break }
+    const nextTools = tools + (candidate.toolName === undefined ? 0 : 1)
+    if (nextTools > budget.maxTools) { reason = 'MAX_TOOLS'; budgetTriggered = true; break }
+    if (tokens + candidate.tokenUsage > budget.maxTokens) { reason = 'TOKEN_BUDGET'; budgetTriggered = true; break }
+    if (cost + candidate.costUsd > budget.maxCostUsd + 1e-9) { reason = 'COST_BUDGET'; budgetTriggered = true; break }
+    if ((rows.length + 2) * 100 > budget.timeoutMs) { reason = 'TIMEOUT'; budgetTriggered = true; break }
+    rows.push({ ...candidate, sequenceNo: rows.length + 1 })
+    tools = nextTools
+    tokens += candidate.tokenUsage
+    cost += candidate.costUsd
+  }
+  const sequenceNo = rows.length + 1
+  const terminate = makeStep(sequenceNo, 'TERMINATE', 'Terminate', terminationDetail(reason), { tokenUsage: 0, costUsd: 0, status: reason === 'ERROR' ? 'ERROR' : 'OK' })
+  return { steps: [...rows, terminate], reason, budgetTriggered }
+}
+
+function terminationDetail(reason: AgentLoopRun['terminationReason']): string {
+  if (reason === 'SUCCESS') return 'goal satisfied'
+  if (reason === 'MAX_STEPS') return 'max steps reached'
+  if (reason === 'MAX_TOOLS') return 'max tools reached'
+  if (reason === 'TOKEN_BUDGET') return 'token budget reached'
+  if (reason === 'COST_BUDGET') return 'cost budget reached'
+  if (reason === 'TIMEOUT') return 'timeout reached'
+  if (reason === 'USAGE_INCOMPLETE') return 'usage accounting incomplete'
+  if (reason === 'SCOPE_INJECTION_BLOCKED') return 'unsafe scope rejected'
+  if (reason === 'CRITICAL_TOOL_CONFIRMATION_REQUIRED') return 'explicit user confirmation required'
+  return 'loop terminated with error'
 }
 
 function boundedStepSequence(maxSteps: number, makeStep: (sequenceNo: number, phase: AgentLoopStep['phase'], title: string, detail: string, overrides?: Partial<AgentLoopStep>) => AgentLoopStep): AgentLoopStep[] {
