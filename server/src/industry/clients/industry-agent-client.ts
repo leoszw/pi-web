@@ -1,52 +1,20 @@
 import type { AuthorizedProject } from '../../../../shared/industry/common'
-import type {
-  AgentLoopRun,
-  StartAgentLoopRunRequest,
-} from '../../../../shared/industry/agent-loop'
-import type {
-  CreateConversationRequest,
-  IndustryConversation,
-  IndustryEventBatch,
-  SendConversationMessageRequest,
-} from '../../../../shared/industry/conversation'
-import type {
-  KnowledgeChunk,
-  KnowledgeDocument,
-  KnowledgeIngestion,
-  KnowledgeUploadOptions,
-  KnowledgeUploadRequest,
-} from '../../../../shared/industry/knowledge'
-import type {
-  CreateMultimodalAnalysisRequest,
-  MultimodalAnalysis,
-  ReviewMultimodalObservationRequest,
-} from '../../../../shared/industry/multimodal'
-import type {
-  ConfirmMutationRequest,
-  MutationAuditTrail,
-  MutationOperation,
-  MutationReconciliationList,
-  RejectMutationRequest,
-} from '../../../../shared/industry/mutation'
+import type { AgentLoopRun, StartAgentLoopRunRequest } from '../../../../shared/industry/agent-loop'
+import type { CreateConversationRequest, IndustryConversation, IndustryEventBatch, SendConversationMessageRequest } from '../../../../shared/industry/conversation'
+import type { KnowledgeChunk, KnowledgeDocument, KnowledgeIngestion, KnowledgeUploadOptions, KnowledgeUploadRequest } from '../../../../shared/industry/knowledge'
+import type { CreateMultimodalAnalysisRequest, MultimodalAnalysis, ReviewMultimodalObservationRequest } from '../../../../shared/industry/multimodal'
+import type { ConfirmMutationRequest, MutationAuditTrail, MutationOperation, MutationReconciliationList, RejectMutationRequest } from '../../../../shared/industry/mutation'
+import type { OperationsReadiness } from '../../../../shared/industry/operations'
 import type { ReportArtifact, ReportDownloadGrant } from '../../../../shared/industry/report'
 import type { RetrievalDebugResult } from '../../../../shared/industry/retrieval-debug'
+import type { CreateRuntimeConfigDraftRequest, RuntimeConfigDraft, RuntimeInventory } from '../../../../shared/industry/runtime'
 import type { SandboxRun, StartSandboxRunRequest } from '../../../../shared/industry/sandbox'
-import type {
-  TraceAccessProfile,
-  TraceDetail,
-  TraceStats,
-  TraceSummary,
-  TraceTimelineEvent,
-  TraceTree,
-} from '../../../../shared/industry/trace'
+import type { TraceAccessProfile, TraceDetail, TraceStats, TraceSummary, TraceTimelineEvent, TraceTree } from '../../../../shared/industry/trace'
 import type { UiActionInteractionRequest, UiActionInteractionResult } from '../../../../shared/industry/ui-actions'
 import type { AuthPrincipal } from '../auth'
 import type { TrustedRequestContext } from '../context'
 
-export interface IndustryAgentHealth {
-  status: 'ok'
-  adapter: 'mock'
-}
+export interface IndustryAgentHealth { status: 'ok'; adapter: 'mock' }
 
 export interface IndustryAgentClient {
   getHealth(context: TrustedRequestContext): Promise<IndustryAgentHealth>
@@ -89,16 +57,18 @@ export interface IndustryAgentClient {
   listSandboxRuns(context: TrustedRequestContext): Promise<readonly SandboxRun[]>
   startSandboxRun(context: TrustedRequestContext, request: StartSandboxRunRequest): Promise<SandboxRun>
   getSandboxRun(context: TrustedRequestContext, runId: string): Promise<SandboxRun>
+  getRuntimeInventory(context: TrustedRequestContext): Promise<RuntimeInventory>
+  listRuntimeConfigDrafts(context: TrustedRequestContext): Promise<readonly RuntimeConfigDraft[]>
+  createRuntimeConfigDraft(context: TrustedRequestContext, request: CreateRuntimeConfigDraftRequest): Promise<RuntimeConfigDraft>
+  getRuntimeConfigDraft(context: TrustedRequestContext, draftId: string): Promise<RuntimeConfigDraft>
+  validateRuntimeConfigDraft(context: TrustedRequestContext, draftId: string): Promise<RuntimeConfigDraft>
+  saveRuntimeConfigDraft(context: TrustedRequestContext, draftId: string): Promise<RuntimeConfigDraft>
+  evaluateRuntimeConfigDraft(context: TrustedRequestContext, draftId: string): Promise<RuntimeConfigDraft>
+  getOperationsReadiness(context: TrustedRequestContext): Promise<OperationsReadiness>
 }
 
 export class IndustryAgentClientError extends Error {
   readonly code: string
   readonly statusCode: number
-
-  constructor(code: string, message: string, statusCode: number) {
-    super(message)
-    this.name = 'IndustryAgentClientError'
-    this.code = code
-    this.statusCode = statusCode
-  }
+  constructor(code: string, message: string, statusCode: number) { super(message); this.name = 'IndustryAgentClientError'; this.code = code; this.statusCode = statusCode }
 }
