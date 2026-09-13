@@ -1,6 +1,8 @@
 import type { IncomingMessage, Server } from 'node:http'
 import { WebSocket, WebSocketServer } from 'ws'
 import type { PiWebMode } from '../../shared/industry/common'
+import type { PrincipalProvider } from './industry/auth'
+import { isOriginAllowed } from './security/origin'
 import { RpcClient } from './rpc-client'
 import { readModelsConfig, saveModelsConfig, validateModelsConfig } from './models-config'
 import { redactModelsConfigForControlPlane } from './industry/models-config-security'
@@ -18,11 +20,33 @@ export interface BridgeOptions {
   piCommand: string[]
   piCwd: string
   mode?: PiWebMode
+  allowedOrigins?: ReadonlySet<string>
+  principalProvider?: PrincipalProvider
 }
 
 export function attachBridge(options: BridgeOptions): WebSocketServer {
   const mode = options.mode ?? 'local'
-  const wss = new WebSocketServer({ server: options.server, path: '/ws' })
+  if (mode === 'control-plane' && (options.allowedOrigins === undefined || options.principalProvider === undefined)) {
+    throw new Error('control-plane bridge requires allowedOrigins and principalProvider')
+  }
+  const wss = new WebSocketServer({
+    server: options.server,
+    path: '/ws',
+    verifyClient: mode === 'control-plane'
+      ? (info, done) => {
+          const allowedOrigins = options.allowedOrigins!
+          const principalProvider = options.principalProvider!
+          if (!isOriginAllowed(info.req, allowedOrigins)) {
+            done(false, 403, 'Forbidden')
+            return
+          }
+          void principalProvider.getPrincipal(info.req).then((principal) => {
+            const allowed = principal.permissions.includes('coding.admin') || principal.permissions.includes('coding.chat')
+            done(allowed, allowed ? undefined : 403, allowed ? undefined : 'Forbidden')
+          }).catch(() => done(false, 401, 'Unauthorized'))
+        }
+      : undefined,
+  })
   wss.on('error', (error) => {
     console.error('[bridge] server error:', error)
   })
