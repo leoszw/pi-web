@@ -2,6 +2,7 @@ import { useEffect, useState, type MouseEvent, type ReactNode } from 'react'
 import CodingChatApp from '../App'
 import { EvalOverviewPage } from '../features/eval/EvalOverviewPage'
 import { IntentLabPage } from '../features/eval/IntentLabPage'
+import { MutationEvalPage } from '../features/eval/MutationEvalPage'
 import { RetrievalLabPage } from '../features/eval/RetrievalLabPage'
 import { RetrievalRunPage } from '../features/eval/RetrievalRunPage'
 import { IndustryWorkspacePage } from '../features/industry-workspace/IndustryWorkspacePage'
@@ -9,6 +10,7 @@ import { MutationCenterPage } from '../features/mutation-center/MutationCenterPa
 import {
   isEvaluationRoute,
   isMutationRoute,
+  mutationEvalRunIdFromPath,
   mutationOperationIdFromPath,
   resolveAppRoute,
   retrievalRunIdFromPath,
@@ -26,12 +28,14 @@ export interface AppShellProps {
   intentLab?: ReactNode
   retrievalLab?: ReactNode
   retrievalRun?: ReactNode
+  mutationEval?: ReactNode
 }
 
-export function AppShell({ initialPath, codingChat, industryWorkspace, mutationCenter, evalOverview, intentLab, retrievalLab, retrievalRun }: AppShellProps) {
+export function AppShell({ initialPath, codingChat, industryWorkspace, mutationCenter, evalOverview, intentLab, retrievalLab, retrievalRun, mutationEval }: AppShellProps) {
   const [route, setRoute] = useState<AppRoute>(() => resolveAppRoute(initialPath ?? currentPath()))
   const pathname = initialPath ?? currentPath()
   const retrievalRunId = retrievalRunIdFromPath(pathname)
+  const mutationEvalRunId = mutationEvalRunIdFromPath(pathname)
   const mutationOperationId = mutationOperationIdFromPath(pathname)
 
   useEffect(() => {
@@ -61,6 +65,7 @@ export function AppShell({ initialPath, codingChat, industryWorkspace, mutationC
         <AppContent
           route={route}
           retrievalRunId={retrievalRunId}
+          mutationEvalRunId={mutationEvalRunId}
           mutationOperationId={mutationOperationId}
           codingChat={codingChat}
           industryWorkspace={industryWorkspace}
@@ -69,6 +74,7 @@ export function AppShell({ initialPath, codingChat, industryWorkspace, mutationC
           intentLab={intentLab}
           retrievalLab={retrievalLab}
           retrievalRun={retrievalRun}
+          mutationEval={mutationEval}
         />
       </div>
     </div>
@@ -78,6 +84,7 @@ export function AppShell({ initialPath, codingChat, industryWorkspace, mutationC
 function AppContent({
   route,
   retrievalRunId,
+  mutationEvalRunId,
   mutationOperationId,
   codingChat,
   industryWorkspace,
@@ -86,9 +93,11 @@ function AppContent({
   intentLab,
   retrievalLab,
   retrievalRun,
+  mutationEval,
 }: {
   route: AppRoute
   retrievalRunId: string | null
+  mutationEvalRunId: string | null
   mutationOperationId: string | null
   codingChat?: ReactNode
   industryWorkspace?: ReactNode
@@ -97,7 +106,12 @@ function AppContent({
   intentLab?: ReactNode
   retrievalLab?: ReactNode
   retrievalRun?: ReactNode
+  mutationEval?: ReactNode
 }) {
+  if (route === 'industry-eval-mutation-run' && mutationEvalRunId !== null) {
+    return mutationEval ?? <MutationEvalPage runId={mutationEvalRunId} />
+  }
+  if (route === 'industry-eval-mutation') return mutationEval ?? <MutationEvalPage />
   if (route === 'industry-eval-retrieval-run' && retrievalRunId !== null) {
     return retrievalRun ?? <RetrievalRunPage runId={retrievalRunId} />
   }
@@ -107,9 +121,7 @@ function AppContent({
   if (route === 'industry-mutation-detail' && mutationOperationId !== null) {
     return mutationCenter ?? <MutationCenterPage mode="detail" operationId={mutationOperationId} />
   }
-  if (route === 'industry-mutation-reconciliation') {
-    return mutationCenter ?? <MutationCenterPage mode="reconciliation" />
-  }
+  if (route === 'industry-mutation-reconciliation') return mutationCenter ?? <MutationCenterPage mode="reconciliation" />
   if (route === 'industry-mutations') return mutationCenter ?? <MutationCenterPage mode="list" />
   if (route === 'industry') return industryWorkspace ?? <IndustryWorkspacePage />
   return codingChat ?? <CodingChatApp />
