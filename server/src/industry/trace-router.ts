@@ -27,11 +27,18 @@ export async function handleTraceRoute(options: TraceRouteOptions): Promise<bool
       return sendData(options.response, { traces: await options.client.listTraces(options.context) })
     }
 
+    const retrievalDebugMatch = path.match(/^\/api\/industry\/v1\/traces\/([^/]+)\/retrieval-debug$/u)
+    if (retrievalDebugMatch !== null && options.request.method === 'GET') {
+      requirePermission(options.principal, 'trace.read.debug')
+      return sendData(options.response, await options.client.getRetrievalDebug(options.context, decodeSegment(retrievalDebugMatch[1])))
+    }
+
     const timelineMatch = path.match(/^\/api\/industry\/v1\/traces\/([^/]+)\/timeline$/u)
     if (timelineMatch !== null && options.request.method === 'GET') {
+      const traceId = decodeSegment(timelineMatch[1])
       return sendData(options.response, {
-        traceId: decodeSegment(timelineMatch[1]),
-        events: await options.client.getTraceTimeline(options.context, decodeSegment(timelineMatch[1]), access),
+        traceId,
+        events: await options.client.getTraceTimeline(options.context, traceId, access),
       })
     }
 
@@ -68,7 +75,7 @@ export function accessProfile(principal: AuthPrincipal): TraceAccessProfile {
   }
 }
 
-function requirePermission(principal: AuthPrincipal, permission: 'trace.read.basic'): void {
+function requirePermission(principal: AuthPrincipal, permission: 'trace.read.basic' | 'trace.read.debug'): void {
   if (hasPermission(principal, permission)) return
   throw new TraceAccessError('TRACE_ACCESS_DENIED', `missing permission: ${permission}`, 403)
 }
