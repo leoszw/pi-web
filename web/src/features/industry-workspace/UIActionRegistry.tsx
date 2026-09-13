@@ -39,13 +39,13 @@ function UIActionBody({ action }: { action: UiActionEnvelope }) {
 
 function EntityPicker({ payload }: { payload: EntityPickerPayload }) {
   return <div><h4>{payload.title}</h4><p>{payload.entityType} · {payload.multi ? 'multi' : 'single'}</p>{payload.options.map((option) => (
-    <label key={option.id} className="ui-action-option"><input type={payload.multi ? 'checkbox' : 'radio'} readOnly checked={payload.selectedEntityIds.includes(option.id)} /><span><strong>{option.label}</strong>{option.description === undefined ? null : <small>{option.description}</small>}</span></label>
+    <label key={option.id} className="ui-action-option"><input type={payload.multi ? 'checkbox' : 'radio'} defaultChecked={payload.selectedEntityIds.includes(option.id)} /><span><strong>{option.label}</strong>{option.description === undefined ? null : <small>{option.description}</small>}</span></label>
   ))}</div>
 }
 
 function FormView({ payload, editable }: { payload: FormPayload; editable: boolean }) {
   return <div><h4>{payload.title}</h4><div className="ui-action-fields">{payload.fields.map((field) => (
-    <label key={field.key}>{field.label}<input readOnly={!editable || field.readOnly === true} value={field.value === null ? '' : String(field.value)} /></label>
+    <label key={field.key}>{field.label}<input readOnly={!editable || field.readOnly === true} defaultValue={field.value === null ? '' : String(field.value)} /></label>
   ))}</div><button type="button" disabled>{payload.submitLabel}</button></div>
 }
 
@@ -55,16 +55,16 @@ function EditableFormView({ payload }: { payload: EditableFormPayload }) {
 
 function TableView({ payload }: { payload: UiActionTablePayload }) {
   return <div><h4>{payload.title}</h4><div className="ui-action-table-wrap"><table><thead><tr><th>Select</th>{payload.columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead><tbody>{payload.rows.map((row) => (
-    <tr key={row.rowId}><td><input type="checkbox" readOnly checked={payload.selectedRowIds.includes(row.rowId)} /></td>{payload.columns.map((column) => <td key={column.key}>{String(row.cells[column.key] ?? '')}</td>)}</tr>
-  ))}</tbody></table></div><div className="ui-action-meta"><span>cursor <code>{payload.pagination.stableCursor}</code></span><span>next <code>{payload.pagination.nextCursor ?? '—'}</code></span><span>sort: {payload.sortAllowlist.join(', ')}</span><span>filter: {payload.filterAllowlist.join(', ')}</span><span>export <code>{payload.exportSnapshotRef}</code></span></div></div>
+    <tr key={row.rowId}><td><input type="checkbox" defaultChecked={payload.selectedRowIds.includes(row.rowId)} /></td>{payload.columns.map((column) => <td key={column.key}>{String(row.cells[column.key] ?? '')}</td>)}</tr>
+  ))}</tbody></table></div><div className="ui-action-meta"><span>server cursor <code>{payload.pagination.stableCursor}</code></span><span>next <code>{payload.pagination.nextCursor ?? '—'}</code></span><span>sort allowlist: {payload.sortAllowlist.join(', ')}</span><span>filter allowlist: {payload.filterAllowlist.join(', ')}</span><span>export <code>{payload.exportSnapshotRef}</code></span></div></div>
 }
 
 function MultiSelectView({ payload }: { payload: MultiSelectPayload }) {
-  return <div><h4>{payload.title}</h4>{payload.options.map((option) => <label key={option.id} className="ui-action-option"><input type="checkbox" readOnly checked={payload.selectedIds.includes(option.id)} />{option.label}</label>)}</div>
+  return <div><h4>{payload.title}</h4>{payload.options.map((option) => <label key={option.id} className="ui-action-option"><input type="checkbox" defaultChecked={payload.selectedIds.includes(option.id)} />{option.label}</label>)}</div>
 }
 
 function DatePickerView({ payload }: { payload: DatePickerPayload }) {
-  return <div><h4>{payload.title}</h4><input type="date" readOnly value={payload.value ?? ''} min={payload.min} max={payload.max} /></div>
+  return <div><h4>{payload.title}</h4><input type="date" defaultValue={payload.value ?? ''} min={payload.min} max={payload.max} /></div>
 }
 
 function DiffView({ payload }: { payload: DiffPayload }) {
