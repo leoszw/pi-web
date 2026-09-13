@@ -5,23 +5,34 @@ import { IntentLabPage } from '../features/eval/IntentLabPage'
 import { RetrievalLabPage } from '../features/eval/RetrievalLabPage'
 import { RetrievalRunPage } from '../features/eval/RetrievalRunPage'
 import { IndustryWorkspacePage } from '../features/industry-workspace/IndustryWorkspacePage'
-import { isIndustryRoute, resolveAppRoute, retrievalRunIdFromPath, routePath, type AppRoute } from './routes'
+import { MutationCenterPage } from '../features/mutation-center/MutationCenterPage'
+import {
+  isEvaluationRoute,
+  isMutationRoute,
+  mutationOperationIdFromPath,
+  resolveAppRoute,
+  retrievalRunIdFromPath,
+  routePath,
+  type AppRoute,
+} from './routes'
 import './app-shell.css'
 
 export interface AppShellProps {
   initialPath?: string
   codingChat?: ReactNode
   industryWorkspace?: ReactNode
+  mutationCenter?: ReactNode
   evalOverview?: ReactNode
   intentLab?: ReactNode
   retrievalLab?: ReactNode
   retrievalRun?: ReactNode
 }
 
-export function AppShell({ initialPath, codingChat, industryWorkspace, evalOverview, intentLab, retrievalLab, retrievalRun }: AppShellProps) {
+export function AppShell({ initialPath, codingChat, industryWorkspace, mutationCenter, evalOverview, intentLab, retrievalLab, retrievalRun }: AppShellProps) {
   const [route, setRoute] = useState<AppRoute>(() => resolveAppRoute(initialPath ?? currentPath()))
   const pathname = initialPath ?? currentPath()
   const retrievalRunId = retrievalRunIdFromPath(pathname)
+  const mutationOperationId = mutationOperationIdFromPath(pathname)
 
   useEffect(() => {
     if (initialPath !== undefined) return undefined
@@ -43,14 +54,17 @@ export function AppShell({ initialPath, codingChat, industryWorkspace, evalOverv
       <nav className="app-shell__nav" aria-label="主导航">
         <a href="/chat" data-active={route === 'chat'} onClick={navigate('chat')}>Coding Chat</a>
         <a href="/industry" data-active={route === 'industry'} onClick={navigate('industry')}>Industry Agent</a>
-        <a href="/industry/eval" data-active={isIndustryRoute(route) && route !== 'industry'} onClick={navigate('industry-eval')}>Evaluation</a>
+        <a href="/industry/mutations" data-active={isMutationRoute(route)} onClick={navigate('industry-mutations')}>Mutation Center</a>
+        <a href="/industry/eval" data-active={isEvaluationRoute(route)} onClick={navigate('industry-eval')}>Evaluation</a>
       </nav>
       <div className="app-shell__content">
         <AppContent
           route={route}
           retrievalRunId={retrievalRunId}
+          mutationOperationId={mutationOperationId}
           codingChat={codingChat}
           industryWorkspace={industryWorkspace}
+          mutationCenter={mutationCenter}
           evalOverview={evalOverview}
           intentLab={intentLab}
           retrievalLab={retrievalLab}
@@ -64,8 +78,10 @@ export function AppShell({ initialPath, codingChat, industryWorkspace, evalOverv
 function AppContent({
   route,
   retrievalRunId,
+  mutationOperationId,
   codingChat,
   industryWorkspace,
+  mutationCenter,
   evalOverview,
   intentLab,
   retrievalLab,
@@ -73,8 +89,10 @@ function AppContent({
 }: {
   route: AppRoute
   retrievalRunId: string | null
+  mutationOperationId: string | null
   codingChat?: ReactNode
   industryWorkspace?: ReactNode
+  mutationCenter?: ReactNode
   evalOverview?: ReactNode
   intentLab?: ReactNode
   retrievalLab?: ReactNode
@@ -86,6 +104,13 @@ function AppContent({
   if (route === 'industry-eval-retrieval') return retrievalLab ?? <RetrievalLabPage />
   if (route === 'industry-eval-intent') return intentLab ?? <IntentLabPage />
   if (route === 'industry-eval') return evalOverview ?? <EvalOverviewPage />
+  if (route === 'industry-mutation-detail' && mutationOperationId !== null) {
+    return mutationCenter ?? <MutationCenterPage mode="detail" operationId={mutationOperationId} />
+  }
+  if (route === 'industry-mutation-reconciliation') {
+    return mutationCenter ?? <MutationCenterPage mode="reconciliation" />
+  }
+  if (route === 'industry-mutations') return mutationCenter ?? <MutationCenterPage mode="list" />
   if (route === 'industry') return industryWorkspace ?? <IndustryWorkspacePage />
   return codingChat ?? <CodingChatApp />
 }
