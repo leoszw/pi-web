@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import type {
   RetrievalCandidate,
+  RetrievalComparisonType,
   RetrievalDomain,
   RetrievalEvalCase,
   RetrievalLeakageReport,
   RetrievalPlaygroundResult,
+  RetrievalRunComparison,
+  RetrievalRunSummary,
   RetrievalStage,
   RetrievalStageSnapshot,
 } from '../../../../shared/industry/eval/retrieval'
@@ -13,6 +16,7 @@ import { createEvaluationApiClient, type EvaluationApiClient } from '../../api/i
 import './eval.css'
 
 const defaultEvaluationClient = createEvaluationApiClient()
+const RETRIEVAL_DATASET_ID = 'retrieval-regression-v1'
 const STAGE_LABELS: Record<RetrievalStage, string> = {
   SEMANTIC_PARSE: 'Semantic Parse',
   HARD_FILTERS: 'Hard Filters',
@@ -29,7 +33,9 @@ const STAGE_LABELS: Record<RetrievalStage, string> = {
 export interface RetrievalLabSnapshot {
   cases: readonly RetrievalEvalCase[]
   leakageReport: RetrievalLeakageReport
+  runs: readonly RetrievalRunSummary[]
   result?: RetrievalPlaygroundResult
+  comparison?: RetrievalRunComparison
 }
 
 export function RetrievalLabPage({
@@ -45,17 +51,24 @@ export function RetrievalLabPage({
   const [query, setQuery] = useState(initialSnapshot?.result?.queryContext.query ?? initialSnapshot?.cases[0]?.queryContext.query ?? '')
   const [variantId, setVariantId] = useState(initialSnapshot?.result?.variantId ?? 'retrieval-stable-v1')
   const [selectedStage, setSelectedStage] = useState<RetrievalStage>('FINAL')
+  const [baselineRunId, setBaselineRunId] = useState(initialSnapshot === undefined ? '' : preferredRunId(initialSnapshot.runs, 'retrieval-stable-v1'))
+  const [candidateRunId, setCandidateRunId] = useState(initialSnapshot === undefined ? '' : preferredRunId(initialSnapshot.runs, 'retrieval-candidate-v2'))
+  const [comparisonType, setComparisonType] = useState<RetrievalComparisonType>('CONFIG')
   const [running, setRunning] = useState(false)
+  const [batchRunning, setBatchRunning] = useState(false)
+  const [comparing, setComparing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (initialSnapshot !== undefined) return undefined
     let cancelled = false
-    void Promise.all([client.listRetrievalCases(), client.getRetrievalLeakageReport()])
-      .then(([cases, leakageReport]) => {
+    void Promise.all([client.listRetrievalCases(), client.getRetrievalLeakageReport(), client.listRetrievalRuns()])
+      .then(([cases, leakageReport, runs]) => {
         if (cancelled) return
         const first = cases[0]
-        setSnapshot({ cases, leakageReport })
+        setSnapshot({ cases, leakageReport, runs })
+        setBaselineRunId(preferredRunId(runs, 'retrieval-stable-v1'))
+        setCandidateRunId(preferredRunId(runs, 'retrieval-candidate-v2'))
         if (first !== undefined) {
           setSelectedCaseId(first.caseId)
           setDomain(first.domain)
@@ -83,6 +96,38 @@ export function RetrievalLabPage({
       setError(messageOf(reason))
     } finally {
       setRunning(false)
+    }
+  }
+
+  async function startBatchRun(): Promise<void> {
+    setBatchRunning(true)
+    setError(null)
+    try {
+      const created = await client.startRetrievalRun({ datasetId: RETRIEVAL_DATASET_ID, variantId })
+      setSnapshot((current) => current === undefined ? current : {
+        ...current,
+        runs: [created, ...current.runs.filter((run) => run.runId !== created.runId)],
+      })
+      if (created.variantId === 'retrieval-stable-v1') setBaselineRunId(created.runId)
+      if (created.variantId === 'retrieval-candidate-v2') setCandidateRunId(created.runId)
+    } catch (reason) {
+      setError(messageOf(reason))
+    } finally {
+      setBatchRunning(false)
+    }
+  }
+
+  async function compareRuns(): Promise<void> {
+    if (baselineRunId === '' || candidateRunId === '') return
+    setComparing(true)
+    setError(null)
+    try {
+      const comparison = await client.compareRetrievalRuns(baselineRunId, candidateRunId, comparisonType)
+      setSnapshot((current) => current === undefined ? current : { ...current, comparison })
+    } catch (reason) {
+      setError(messageOf(reason))
+    } finally {
+      setComparing(false)
     }
   }
 
@@ -123,14 +168,24 @@ export function RetrievalLabPage({
       query={query}
       variantId={variantId}
       selectedStage={selectedStage}
+      baselineRunId={baselineRunId}
+      candidateRunId={candidateRunId}
+      comparisonType={comparisonType}
       running={running}
+      batchRunning={batchRunning}
+      comparing={comparing}
       error={error}
       onDomainChange={changeDomain}
       onCaseSelect={selectCase}
       onQueryChange={setQuery}
       onVariantChange={setVariantId}
       onStageSelect={setSelectedStage}
+      onBaselineRunChange={setBaselineRunId}
+      onCandidateRunChange={setCandidateRunId}
+      onComparisonTypeChange={setComparisonType}
       onSubmit={(event) => void runPlayground(event)}
+      onStartBatch={() => void startBatchRun()}
+      onCompare={() => void compareRuns()}
     />
   )
 }
@@ -142,14 +197,24 @@ export function RetrievalLabView({
   query,
   variantId,
   selectedStage,
+  baselineRunId,
+  candidateRunId,
+  comparisonType,
   running,
+  batchRunning,
+  comparing,
   error,
   onDomainChange = () => undefined,
   onCaseSelect = () => undefined,
   onQueryChange = () => undefined,
   onVariantChange = () => undefined,
   onStageSelect = () => undefined,
+  onBaselineRunChange = () => undefined,
+  onCandidateRunChange = () => undefined,
+  onComparisonTypeChange = () => undefined,
   onSubmit = (event) => event.preventDefault(),
+  onStartBatch = () => undefined,
+  onCompare = () => undefined,
 }: {
   snapshot: RetrievalLabSnapshot
   domain: RetrievalDomain
@@ -157,14 +222,24 @@ export function RetrievalLabView({
   query: string
   variantId: string
   selectedStage: RetrievalStage
+  baselineRunId: string
+  candidateRunId: string
+  comparisonType: RetrievalComparisonType
   running: boolean
+  batchRunning: boolean
+  comparing: boolean
   error: string | null
   onDomainChange?: (domain: RetrievalDomain) => void
   onCaseSelect?: (caseId: string) => void
   onQueryChange?: (query: string) => void
   onVariantChange?: (variantId: string) => void
   onStageSelect?: (stage: RetrievalStage) => void
+  onBaselineRunChange?: (runId: string) => void
+  onCandidateRunChange?: (runId: string) => void
+  onComparisonTypeChange?: (type: RetrievalComparisonType) => void
   onSubmit?: (event: FormEvent<HTMLFormElement>) => void
+  onStartBatch?: () => void
+  onCompare?: () => void
 }) {
   const filteredCases = useMemo(() => snapshot.cases.filter((item) => item.domain === domain), [snapshot.cases, domain])
   const selectedCase = snapshot.cases.find((item) => item.caseId === selectedCaseId)
@@ -227,6 +302,22 @@ export function RetrievalLabView({
           <StageDetail snapshot={selectedSnapshot} />
         </>
       )}
+
+      <BatchRunPanel
+        runs={snapshot.runs}
+        variantId={variantId}
+        baselineRunId={baselineRunId}
+        candidateRunId={candidateRunId}
+        comparisonType={comparisonType}
+        comparison={snapshot.comparison}
+        batchRunning={batchRunning}
+        comparing={comparing}
+        onStartBatch={onStartBatch}
+        onBaselineRunChange={onBaselineRunChange}
+        onCandidateRunChange={onCandidateRunChange}
+        onComparisonTypeChange={onComparisonTypeChange}
+        onCompare={onCompare}
+      />
 
       <LeakagePanel report={snapshot.leakageReport} />
     </main>
@@ -361,6 +452,161 @@ function Score({ value }: { value: number | undefined }) {
   return <td>{value === undefined ? '—' : value.toFixed(4)}</td>
 }
 
+function BatchRunPanel({
+  runs,
+  variantId,
+  baselineRunId,
+  candidateRunId,
+  comparisonType,
+  comparison,
+  batchRunning,
+  comparing,
+  onStartBatch,
+  onBaselineRunChange,
+  onCandidateRunChange,
+  onComparisonTypeChange,
+  onCompare,
+}: {
+  runs: readonly RetrievalRunSummary[]
+  variantId: string
+  baselineRunId: string
+  candidateRunId: string
+  comparisonType: RetrievalComparisonType
+  comparison: RetrievalRunComparison | undefined
+  batchRunning: boolean
+  comparing: boolean
+  onStartBatch: () => void
+  onBaselineRunChange: (runId: string) => void
+  onCandidateRunChange: (runId: string) => void
+  onComparisonTypeChange: (type: RetrievalComparisonType) => void
+  onCompare: () => void
+}) {
+  return (
+    <section className="eval-panel">
+      <div className="eval-panel-heading">
+        <div>
+          <h2>Batch runs & metrics</h2>
+          <p>Formal metric values are returned by the evaluation service. The UI only displays them.</p>
+        </div>
+        <button type="button" disabled={batchRunning} onClick={onStartBatch}>
+          {batchRunning ? 'Running batch…' : `Run ${variantId}`}
+        </button>
+      </div>
+      <RetrievalMetricsTable runs={runs} />
+
+      <div className="eval-compare-controls">
+        <label>Baseline
+          <select value={baselineRunId} onChange={(event) => onBaselineRunChange(event.target.value)}>
+            {runs.map((run) => <option value={run.runId} key={`baseline-${run.runId}`}>{run.variantId} · {run.runId}</option>)}
+          </select>
+        </label>
+        <label>Candidate
+          <select value={candidateRunId} onChange={(event) => onCandidateRunChange(event.target.value)}>
+            {runs.map((run) => <option value={run.runId} key={`candidate-${run.runId}`}>{run.variantId} · {run.runId}</option>)}
+          </select>
+        </label>
+        <label>Compare as
+          <select value={comparisonType} onChange={(event) => onComparisonTypeChange(event.target.value as RetrievalComparisonType)}>
+            <option value="EMBEDDING">Embedding A vs B</option>
+            <option value="RERANKER">Reranker A vs B</option>
+            <option value="CONFIG">Config A vs B</option>
+          </select>
+        </label>
+        <button type="button" disabled={comparing || baselineRunId === '' || candidateRunId === ''} onClick={onCompare}>
+          {comparing ? 'Comparing…' : 'Compare runs'}
+        </button>
+      </div>
+
+      {comparison === undefined ? null : <ComparisonPanel comparison={comparison} />}
+    </section>
+  )
+}
+
+function RetrievalMetricsTable({ runs }: { runs: readonly RetrievalRunSummary[] }) {
+  return (
+    <div className="eval-scroll">
+      <table className="eval-table eval-metrics-wide">
+        <thead><tr>
+          <th>Variant</th><th>Recall@1</th><th>@5</th><th>@10</th><th>@20</th><th>@50</th><th>Hit@1</th>
+          <th>MRR</th><th>MAP</th><th>nDCG@10</th><th>Zero result</th><th>Cross-project</th><th>Cross-alignment</th><th>Critical spec</th><th>Wrong entity HC</th>
+        </tr></thead>
+        <tbody>
+          {runs.map((run) => {
+            const metrics = run.metrics
+            return <tr key={run.runId}>
+              <td><strong>{run.variantId}</strong><br /><code>{run.runId}</code></td>
+              <td>{metricPercent(recallAt(metrics, 1))}</td>
+              <td>{metricPercent(recallAt(metrics, 5))}</td>
+              <td>{metricPercent(recallAt(metrics, 10))}</td>
+              <td>{metricPercent(recallAt(metrics, 20))}</td>
+              <td>{metricPercent(recallAt(metrics, 50))}</td>
+              <td>{metricPercent(metrics?.hitAt1)}</td>
+              <td>{metricNumber(metrics?.mrr)}</td>
+              <td>{metricNumber(metrics?.map)}</td>
+              <td>{metricNumber(metrics?.ndcgAt10)}</td>
+              <td>{metricPercent(metrics?.zeroResultRate)}</td>
+              <td>{metricPercent(metrics?.crossProjectLeakageRate)}</td>
+              <td>{metricPercent(metrics?.crossAlignmentConflictRate)}</td>
+              <td>{metricPercent(metrics?.criticalSpecConflictRate)}</td>
+              <td>{metricPercent(metrics?.wrongEntityHighConfidenceRate)}</td>
+            </tr>
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function ComparisonPanel({ comparison }: { comparison: RetrievalRunComparison }) {
+  const moved = comparison.rankMovements.filter((item) => (item.rankDelta ?? 0) !== 0 || Math.abs(item.scoreDelta ?? 0) > 1e-9)
+  return (
+    <div className="eval-comparison-result">
+      <div className="eval-comparison-summary">
+        <strong>{comparison.comparisonType} comparison</strong>
+        <span>Win / Loss / Tie: {comparison.pairedStats.wins} / {comparison.pairedStats.losses} / {comparison.pairedStats.ties}</span>
+        <span>Sample: {comparison.pairedStats.sampleSize}</span>
+        <span className={comparison.pairedStats.conclusion === 'INCONCLUSIVE' ? 'eval-status-warning' : 'eval-status-ok'}>
+          {comparison.pairedStats.conclusion}
+        </span>
+        {comparison.pairedStats.bootstrap95Ci === undefined ? null : (
+          <span>Bootstrap 95% CI: [{comparison.pairedStats.bootstrap95Ci[0].toFixed(4)}, {comparison.pairedStats.bootstrap95Ci[1].toFixed(4)}]</span>
+        )}
+      </div>
+      {comparison.pairedStats.minimumSampleWarning ? (
+        <p className="eval-status-warning">Minimum sample warning: statistical conclusion remains INCONCLUSIVE.</p>
+      ) : null}
+      {comparison.deterministicSafetyRegression ? (
+        <p className="eval-error">Deterministic safety regression: {comparison.safetyRegressionReasons.join('; ')}</p>
+      ) : (
+        <p className="eval-status-ok">No deterministic safety regression.</p>
+      )}
+      <p>Improved cases: {comparison.improvedCaseIds.join(', ') || '—'} · Regressed cases: {comparison.regressedCaseIds.join(', ') || '—'}</p>
+
+      <h3>Metric deltas</h3>
+      <table className="eval-table">
+        <thead><tr><th>Metric</th><th>Baseline</th><th>Candidate</th><th>Delta</th></tr></thead>
+        <tbody>{comparison.metricDeltas.map((delta) => (
+          <tr key={delta.metric}><td>{delta.metric}</td><td>{delta.baseline.toFixed(4)}</td><td>{delta.candidate.toFixed(4)}</td><td>{signed(delta.delta)}</td></tr>
+        ))}</tbody>
+      </table>
+
+      <h3>Rank / score movement</h3>
+      <div className="eval-scroll">
+        <table className="eval-table">
+          <thead><tr><th>Case</th><th>Entity</th><th>Rank A</th><th>Rank B</th><th>Rank Δ</th><th>Score A</th><th>Score B</th><th>Score Δ</th></tr></thead>
+          <tbody>{moved.map((movement) => (
+            <tr key={`${movement.caseId}:${movement.entityId}`}>
+              <td>{movement.caseId}</td><td><code>{movement.entityId}</code></td>
+              <td>{movement.baselineRank ?? '—'}</td><td>{movement.candidateRank ?? '—'}</td><td>{movement.rankDelta ?? '—'}</td>
+              <td>{movement.baselineScore?.toFixed(4) ?? '—'}</td><td>{movement.candidateScore?.toFixed(4) ?? '—'}</td><td>{movement.scoreDelta === undefined ? '—' : signed(movement.scoreDelta)}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 function LeakagePanel({ report }: { report: RetrievalLeakageReport }) {
   return (
     <section className="eval-panel">
@@ -386,6 +632,26 @@ function LeakagePanel({ report }: { report: RetrievalLeakageReport }) {
       </table>
     </section>
   )
+}
+
+function preferredRunId(runs: readonly RetrievalRunSummary[], variantId: string): string {
+  return runs.find((run) => run.variantId === variantId)?.runId ?? runs[0]?.runId ?? ''
+}
+
+function recallAt(metrics: RetrievalRunSummary['metrics'], k: 1 | 5 | 10 | 20 | 50): number | undefined {
+  return metrics?.recallAtK.find((item) => item.k === k)?.value
+}
+
+function metricPercent(value: number | undefined): string {
+  return value === undefined ? '—' : `${(value * 100).toFixed(1)}%`
+}
+
+function metricNumber(value: number | undefined): string {
+  return value === undefined ? '—' : value.toFixed(4)
+}
+
+function signed(value: number): string {
+  return `${value >= 0 ? '+' : ''}${value.toFixed(4)}`
 }
 
 function messageOf(reason: unknown): string {
