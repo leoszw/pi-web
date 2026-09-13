@@ -68,6 +68,7 @@ test('DataTable fixture preserves 18-digit identifiers and starts with a server-
   assert.equal(typeof payload.rows[0]?.cells.id, 'string')
   assert.deepEqual(payload.sortAllowlist, ['id', 'code', 'quantity'])
   assert.deepEqual(payload.filterAllowlist, ['code', 'name'])
+  assert.deepEqual(payload.query, { filters: [] })
   assert.equal(payload.pagination.totalRows, 5)
   assert.match(payload.pagination.stableCursor, /^mock-table-v1:[a-f0-9]{12}:0$/u)
   assert.match(payload.pagination.nextCursor ?? '', /^mock-table-v1:[a-f0-9]{12}:2$/u)
@@ -88,6 +89,7 @@ test('DataTable interaction performs stable-cursor server pagination and emits r
   }, 'request-table-next')
   const second = result.action.payload as UiActionTablePayload
   assert.deepEqual(second.rows.map((row) => row.rowId), ['123456789012345680', '123456789012345681'])
+  assert.deepEqual(second.query, { filters: [] })
   assert.ok(second.pagination.previousCursor)
   assert.ok(second.pagination.nextCursor)
 
@@ -98,7 +100,7 @@ test('DataTable interaction performs stable-cursor server pagination and emits r
   assert.deepEqual(resumed.events.map((event) => event.sequenceNo), [14, 15])
 })
 
-test('DataTable applies server sort/filter allowlists and invalidates cursors when query shape changes', async () => {
+test('DataTable applies server sort/filter allowlists and persists query shape for reconnect', async () => {
   const fixture = await actionFixture('table')
   const first = fixture.action.payload as UiActionTablePayload
   assert.ok(first.pagination.nextCursor)
@@ -114,6 +116,10 @@ test('DataTable applies server sort/filter allowlists and invalidates cursors wh
   const filteredPayload = filtered.action.payload as UiActionTablePayload
   assert.equal(filteredPayload.pagination.totalRows, 2)
   assert.deepEqual(filteredPayload.rows.map((row) => row.cells.quantity), [128.5, 76.25])
+  assert.deepEqual(filteredPayload.query, {
+    sort: { key: 'quantity', direction: 'desc' },
+    filters: [{ key: 'name', value: 'C30' }],
+  })
 
   await assert.rejects(
     fixture.client.interactWithUiAction(context, fixture.conversationId, fixture.action.actionId, {
@@ -137,6 +143,26 @@ test('DataTable applies server sort/filter allowlists and invalidates cursors wh
       },
     }, 'request-stale-cursor'),
     hasCode('UI_ACTION_CURSOR_MISMATCH'),
+  )
+})
+
+test('DataTable row selection keeps 18-digit IDs as strings across the interaction channel', async () => {
+  const fixture = await actionFixture('table')
+  const result = await fixture.client.interactWithUiAction(context, fixture.conversationId, fixture.action.actionId, {
+    interaction: {
+      kind: 'table_selection',
+      selectedRowIds: ['123456789012345678', '123456789012345680'],
+    },
+  }, 'request-selection')
+  const payload = result.action.payload as UiActionTablePayload
+  assert.deepEqual(payload.selectedRowIds, ['123456789012345678', '123456789012345680'])
+  assert.ok(payload.selectedRowIds.every((id) => typeof id === 'string'))
+
+  await assert.rejects(
+    fixture.client.interactWithUiAction(context, fixture.conversationId, fixture.action.actionId, {
+      interaction: { kind: 'table_selection', selectedRowIds: ['999999999999999999'] },
+    }, 'request-selection-invalid'),
+    hasCode('UI_ACTION_ROW_NOT_FOUND'),
   )
 })
 
