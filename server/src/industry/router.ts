@@ -50,7 +50,7 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
       if (await handleRagEvalRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.evaluationClient,bodyLimitBytes:bodyLimit })) return true
       if (await handleTraceEvalRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.evaluationClient,bodyLimitBytes:bodyLimit })) return true
       if (await handleEvalRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.evaluationClient,bodyLimitBytes:bodyLimit })) return true
-      if (await handleReportRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.client })) return true
+      if (await handleReportRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.client,bodyLimitBytes:bodyLimit })) return true
       if (await handleSandboxRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.client,bodyLimitBytes:bodyLimit })) return true
       if (await handleMultimodalRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.client,bodyLimitBytes:bodyLimit })) return true
       if (await handleAgentLoopRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.client,bodyLimitBytes:bodyLimit })) return true
