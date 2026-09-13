@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { TrustedRequestContext } from '../src/industry/context'
+import '../src/industry/eval/mock-evaluation-client-retrieval'
 import { MockEvaluationClient } from '../src/industry/eval/mock-evaluation-client'
 
 const context: TrustedRequestContext = {
@@ -37,6 +38,40 @@ test('intent playground uses server context project and context-dependent intent
   assert.equal(result.semanticFrame.contextDependent, true)
 })
 
+test('retrieval playground uses trusted project context and keeps all candidates scoped', async () => {
+  const client = new MockEvaluationClient()
+  const result = await client.playgroundRetrieval(context, {
+    query: 'K12+300到K12+800左幅有哪些路基工程部位',
+    domain: 'ENGINEERING',
+    variantId: 'retrieval-stable-v1',
+  })
+  assert.equal(result.queryContext.projectId, 'project-1')
+  assert.equal(result.stages.length, 10)
+  for (const stage of result.stages) {
+    assert.equal(stage.candidates.every((candidate) => candidate.projectId === 'project-1'), true, stage.stage)
+  }
+})
+
+test('retrieval evaluation requires active project context', async () => {
+  const client = new MockEvaluationClient()
+  const withoutProject: TrustedRequestContext = { ...context, projectId: null }
+  await assert.rejects(
+    client.playgroundRetrieval(withoutProject, {
+      query: 'C30混凝土基础对应哪些清单项',
+      domain: 'BOQ',
+      variantId: 'retrieval-stable-v1',
+    }),
+    (error: unknown) => error instanceof Error && 'code' in error && error.code === 'EVAL_PROJECT_REQUIRED',
+  )
+})
+
+test('retrieval leakage report preserves deterministic holdout contamination finding', async () => {
+  const client = new MockEvaluationClient()
+  const report = await client.getRetrievalLeakageReport(context)
+  assert.equal(report.releaseHoldoutContaminated, true)
+  assert.equal(report.findings.some((finding) => finding.severity === 'ERROR'), true)
+})
+
 test('candidate run improves quantity cases and comparison records the delta', async () => {
   const client = new MockEvaluationClient()
   const baseline = await client.getRun(context, 'run-intent-baseline-v1')
@@ -56,7 +91,6 @@ test('wrong mutation intent rate remains zero for both seeded runs', async () =>
     assert.equal(run.metrics?.wrongMutationIntentRate.value, 0)
   }
 })
-
 
 test('playground cases can only be saved as unreviewed Draft cases', async () => {
   const client = new MockEvaluationClient()
