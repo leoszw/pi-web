@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { IndustryApiError, PiWebMode } from '../../../shared/industry/common'
 import { handleAgentLoopRoute } from './agent-loop-router'
-import type { PrincipalProvider } from './auth'
+import type { AuthPrincipal, PrincipalProvider } from './auth'
 import { IndustryAgentClientError, type IndustryAgentClient } from './clients/industry-agent-client'
 import { handleConversationRoute } from './conversation-router'
 import { IndustryContextError, IndustryContextService } from './context'
@@ -51,7 +51,13 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
     if (!isOriginAllowed(request, options.allowedOrigins)) { sendError(response, { requestId, code:'ORIGIN_NOT_ALLOWED', message:'request origin is not allowed', retryable:false },403); return true }
     try {
       assertControlPlaneCsrfSafe(request, options.allowedOrigins)
-      const principal = await options.principalProvider.getPrincipal(request)
+      let principal: AuthPrincipal
+      try {
+        principal = await options.principalProvider.getPrincipal(request)
+      } catch {
+        sendError(response,{requestId,code:'AUTHENTICATION_REQUIRED',message:'control-plane authentication is required',retryable:false,resolution:{type:'reauth'}},401)
+        return true
+      }
       const rateKey = `${principal.tenantId}\u0000${principal.userId}\u0000${principal.sessionId}`
       const write = !['GET','HEAD','OPTIONS'].includes(request.method ?? 'GET')
       const rate = rateLimiter.consume(rateKey, write)
