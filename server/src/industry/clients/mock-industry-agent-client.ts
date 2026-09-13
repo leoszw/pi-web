@@ -16,6 +16,14 @@ import type {
   RejectMutationRequest,
 } from '../../../../shared/industry/mutation'
 import type {
+  TraceAccessProfile,
+  TraceDetail,
+  TraceStats,
+  TraceSummary,
+  TraceTimelineEvent,
+  TraceTree,
+} from '../../../../shared/industry/trace'
+import type {
   UiActionEnvelope,
   UiActionInteractionAcceptedEventPayload,
   UiActionInteractionRequest,
@@ -25,6 +33,7 @@ import type {
 import type { AuthPrincipal } from '../auth'
 import type { TrustedRequestContext } from '../context'
 import { MockMutationStore } from '../mutation/mock-mutation-store'
+import { MockTraceStore } from '../trace/mock-trace-store'
 import {
   applyMockUiActionInteraction,
   buildMockUiActions,
@@ -45,6 +54,7 @@ export class MockIndustryAgentClient implements IndustryAgentClient {
   readonly #projects: readonly MockAuthorizedProject[]
   readonly #conversations = new Map<string, StoredConversation>()
   readonly #mutations = new MockMutationStore()
+  readonly #traces = new MockTraceStore()
 
   constructor(projects: readonly MockAuthorizedProject[]) {
     this.#projects = projects.map((project) => ({ ...project }))
@@ -314,6 +324,30 @@ export class MockIndustryAgentClient implements IndustryAgentClient {
 
   async listMutationReconciliation(context: TrustedRequestContext): Promise<MutationReconciliationList> {
     return this.#mutations.reconciliation(context)
+  }
+
+  async listTraces(context: TrustedRequestContext): Promise<readonly TraceSummary[]> {
+    return this.#traces.list(context)
+  }
+
+  async getTrace(context: TrustedRequestContext, traceId: string, access: TraceAccessProfile): Promise<TraceDetail> {
+    return this.#traces.get(context, traceId, access)
+  }
+
+  async getTraceTimeline(
+    context: TrustedRequestContext,
+    traceId: string,
+    access: TraceAccessProfile,
+  ): Promise<readonly TraceTimelineEvent[]> {
+    return this.#traces.timeline(context, traceId, access)
+  }
+
+  async getTraceTree(context: TrustedRequestContext, traceId: string, access: TraceAccessProfile): Promise<TraceTree> {
+    return this.#traces.tree(context, traceId, access)
+  }
+
+  async getTraceStats(context: TrustedRequestContext, traceId: string): Promise<TraceStats> {
+    return this.#traces.stats(context, traceId)
   }
 
   #requireConversation(context: TrustedRequestContext, conversationId: string): StoredConversation {
