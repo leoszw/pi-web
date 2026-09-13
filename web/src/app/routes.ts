@@ -2,6 +2,8 @@ export type AppRoute =
   | 'chat'
   | 'industry'
   | 'industry-knowledge'
+  | 'industry-multimodal'
+  | 'industry-agent-loop'
   | 'industry-traces'
   | 'industry-trace-detail'
   | 'industry-retrieval-debug'
@@ -22,12 +24,16 @@ export type AppRoute =
   | 'industry-eval-entity'
   | 'industry-eval-tool'
   | 'industry-eval-memory'
+  | 'industry-eval-multimodal'
+  | 'industry-eval-agent-loop'
 
 export function resolveAppRoute(pathname: string): AppRoute {
   if (ragEvalRunIdFromPath(pathname) !== null) return 'industry-eval-rag-run'
   if (traceEvalRunIdFromPath(pathname) !== null) return 'industry-eval-trace-run'
   if (mutationEvalRunIdFromPath(pathname) !== null) return 'industry-eval-mutation-run'
   if (retrievalRunIdFromPath(pathname) !== null) return 'industry-eval-retrieval-run'
+  if (pathname === '/industry/eval/multimodal' || pathname.startsWith('/industry/eval/multimodal/')) return 'industry-eval-multimodal'
+  if (pathname === '/industry/eval/agent-loop' || pathname.startsWith('/industry/eval/agent-loop/')) return 'industry-eval-agent-loop'
   if (pathname === '/industry/eval/normalization' || pathname.startsWith('/industry/eval/normalization/')) return 'industry-eval-normalization'
   if (pathname === '/industry/eval/entity' || pathname.startsWith('/industry/eval/entity/')) return 'industry-eval-entity'
   if (pathname === '/industry/eval/tool' || pathname.startsWith('/industry/eval/tool/')) return 'industry-eval-tool'
@@ -39,6 +45,8 @@ export function resolveAppRoute(pathname: string): AppRoute {
   if (pathname === '/industry/eval/retrieval' || pathname.startsWith('/industry/eval/retrieval/')) return 'industry-eval-retrieval'
   if (pathname === '/industry/eval/intent' || pathname.startsWith('/industry/eval/intent/')) return 'industry-eval-intent'
   if (pathname === '/industry/eval' || pathname.startsWith('/industry/eval/')) return 'industry-eval'
+  if (pathname === '/industry/multimodal' || pathname.startsWith('/industry/multimodal/')) return 'industry-multimodal'
+  if (pathname === '/industry/agent-loop' || pathname.startsWith('/industry/agent-loop/')) return 'industry-agent-loop'
   if (pathname === '/industry/knowledge' || pathname.startsWith('/industry/knowledge/')) return 'industry-knowledge'
   if (retrievalDebugTraceIdFromPath(pathname) !== null) return 'industry-retrieval-debug'
   if (traceIdFromPath(pathname) !== null) return 'industry-trace-detail'
@@ -51,6 +59,8 @@ export function resolveAppRoute(pathname: string): AppRoute {
 }
 
 export function routePath(route: AppRoute): string {
+  if (route === 'industry-eval-multimodal') return '/industry/eval/multimodal'
+  if (route === 'industry-eval-agent-loop') return '/industry/eval/agent-loop'
   if (route === 'industry-eval-normalization') return '/industry/eval/normalization'
   if (route === 'industry-eval-entity') return '/industry/eval/entity'
   if (route === 'industry-eval-tool') return '/industry/eval/tool'
@@ -61,6 +71,8 @@ export function routePath(route: AppRoute): string {
   if (route === 'industry-eval-retrieval-run' || route === 'industry-eval-retrieval') return '/industry/eval/playground/retrieval'
   if (route === 'industry-eval-intent') return '/industry/eval/intent'
   if (route === 'industry-eval') return '/industry/eval'
+  if (route === 'industry-multimodal') return '/industry/multimodal'
+  if (route === 'industry-agent-loop') return '/industry/agent-loop'
   if (route === 'industry-knowledge') return '/industry/knowledge'
   if (route === 'industry-retrieval-debug' || route === 'industry-trace-detail' || route === 'industry-traces') return '/industry/traces'
   if (route === 'industry-mutation-reconciliation') return '/industry/mutations/reconciliation'
