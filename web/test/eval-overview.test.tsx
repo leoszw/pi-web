@@ -16,18 +16,17 @@ const snapshot: EvalOverviewSnapshot = {
 }
 
 describe('EvalOverviewView', () => {
-  it('renders P5 workbench and all current evaluation entry points', () => {
+  it('renders P6 workbench and RAG evaluation entry point', () => {
     const html = renderToStaticMarkup(<EvalOverviewView snapshot={snapshot} />)
-    expect(html).toContain('Evaluation Workbench · P5')
+    expect(html).toContain('Evaluation Workbench · P6')
     expect(html).toContain('Intent Regression v1')
     expect(html).toContain('Production metrics remain owned by pi')
     expect(html).toContain('Open Intent Lab')
     expect(html).toContain('Open Retrieval Lab')
     expect(html).toContain('Open Mutation Eval')
     expect(html).toContain('Open Trace Eval')
-    expect(html).toContain('/industry/eval/trace')
-    expect(html).toContain('Retrieval stages')
-    expect(html).toContain('Mutation safety gates')
-    expect(html).toContain('Trace observability gates')
+    expect(html).toContain('Open RAG Eval')
+    expect(html).toContain('/industry/eval/rag')
+    expect(html).toContain('RAG evidence cases')
   })
 })
