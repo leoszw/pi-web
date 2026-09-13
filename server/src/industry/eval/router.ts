@@ -3,6 +3,14 @@ import type { EVAL_API_VERSION } from '../../../../shared/industry/eval/common'
 import type { EvalVariantSummary } from '../../../../shared/industry/eval/common'
 import type { CreateIntentDraftCaseRequest, EvalDatasetSummary, IntentDatasetDetail, IntentEvalCase, IntentName, IntentTurn } from '../../../../shared/industry/eval/datasets'
 import type {
+  MutationEvalCase,
+  MutationEvalFailureSummary,
+  MutationEvalObservation,
+  MutationEvalRunSummary,
+  MutationEvalVariant,
+  StartMutationEvalRunRequest,
+} from '../../../../shared/industry/eval/mutation'
+import type {
   RetrievalComparisonType,
   RetrievalDomain,
   RetrievalEvalCase,
@@ -108,10 +116,7 @@ export async function handleEvalRoute(options: EvalRouteOptions): Promise<boolea
     const retrievalObservationsMatch = path.match(/^\/api\/industry\/v1\/eval\/retrieval\/runs\/([^/]+)\/observations$/u)
     if (retrievalObservationsMatch !== null && options.request.method === 'GET') {
       requirePermission(options.principal, 'eval.read')
-      return sendData(
-        options.response,
-        await options.client.listRetrievalObservations(options.context, decodeSegment(retrievalObservationsMatch[1])),
-      )
+      return sendData(options.response, await options.client.listRetrievalObservations(options.context, decodeSegment(retrievalObservationsMatch[1])))
     }
 
     const retrievalRunMatch = path.match(/^\/api\/industry\/v1\/eval\/retrieval\/runs\/([^/]+)$/u)
@@ -124,12 +129,41 @@ export async function handleEvalRoute(options: EvalRouteOptions): Promise<boolea
       requirePermission(options.principal, 'eval.read')
       const body = await readJsonBody(options.request, options.bodyLimitBytes)
       const compare = parseRetrievalCompareRequest(body)
-      return sendData(options.response, await options.client.compareRetrievalRuns(
-        options.context,
-        compare.baselineRunId,
-        compare.candidateRunId,
-        compare.comparisonType,
-      ))
+      return sendData(options.response, await options.client.compareRetrievalRuns(options.context, compare.baselineRunId, compare.candidateRunId, compare.comparisonType))
+    }
+
+    if (path === '/api/industry/v1/eval/mutation/cases' && options.request.method === 'GET') {
+      requirePermission(options.principal, 'eval.read')
+      return sendData(options.response, await options.client.listMutationEvalCases(options.context))
+    }
+
+    if (path === '/api/industry/v1/eval/mutation/runs' && options.request.method === 'GET') {
+      requirePermission(options.principal, 'eval.read')
+      return sendData(options.response, await options.client.listMutationEvalRuns(options.context))
+    }
+
+    if (path === '/api/industry/v1/eval/mutation/runs' && options.request.method === 'POST') {
+      requirePermission(options.principal, 'eval.run')
+      const body = await readJsonBody(options.request, options.bodyLimitBytes)
+      return sendData(options.response, await options.client.startMutationEvalRun(options.context, parseStartMutationEvalRunRequest(body)), 201)
+    }
+
+    const mutationFailuresMatch = path.match(/^\/api\/industry\/v1\/eval\/mutation\/runs\/([^/]+)\/failures$/u)
+    if (mutationFailuresMatch !== null && options.request.method === 'GET') {
+      requirePermission(options.principal, 'eval.read')
+      return sendData(options.response, await options.client.listMutationEvalFailures(options.context, decodeSegment(mutationFailuresMatch[1])))
+    }
+
+    const mutationObservationsMatch = path.match(/^\/api\/industry\/v1\/eval\/mutation\/runs\/([^/]+)\/observations$/u)
+    if (mutationObservationsMatch !== null && options.request.method === 'GET') {
+      requirePermission(options.principal, 'eval.read')
+      return sendData(options.response, await options.client.listMutationEvalObservations(options.context, decodeSegment(mutationObservationsMatch[1])))
+    }
+
+    const mutationRunMatch = path.match(/^\/api\/industry\/v1\/eval\/mutation\/runs\/([^/]+)$/u)
+    if (mutationRunMatch !== null && options.request.method === 'GET') {
+      requirePermission(options.principal, 'eval.read')
+      return sendData(options.response, await options.client.getMutationEvalRun(options.context, decodeSegment(mutationRunMatch[1])))
     }
 
     if (path === '/api/industry/v1/eval/runs' && options.request.method === 'GET') {
@@ -159,11 +193,7 @@ export async function handleEvalRoute(options: EvalRouteOptions): Promise<boolea
       requirePermission(options.principal, 'eval.read')
       const body = await readJsonBody(options.request, options.bodyLimitBytes)
       const compare = parseCompareRequest(body)
-      return sendData(options.response, await options.client.compareRuns(
-        options.context,
-        compare.baselineRunId,
-        compare.candidateRunId,
-      ))
+      return sendData(options.response, await options.client.compareRuns(options.context, compare.baselineRunId, compare.candidateRunId))
     }
 
     return false
@@ -176,10 +206,7 @@ export async function handleEvalRoute(options: EvalRouteOptions): Promise<boolea
   }
 }
 
-function requirePermission(
-  principal: AuthPrincipal,
-  permission: 'eval.read' | 'eval.playground' | 'eval.run' | 'eval.dataset.edit',
-): void {
+function requirePermission(principal: AuthPrincipal, permission: 'eval.read' | 'eval.playground' | 'eval.run' | 'eval.dataset.edit'): void {
   if (principal.permissions.includes('eval.admin') || principal.permissions.includes(permission)) return
   throw new EvalAccessError('EVAL_ACCESS_DENIED', `missing permission: ${permission}`, 403)
 }
@@ -232,28 +259,16 @@ function parseCreateDraftCaseRequest(input: unknown): CreateIntentDraftCaseReque
   if (!isIntentName(expectedRecord.primaryIntent)) throw new RequestBodyError('INVALID_JSON', 'expected.primaryIntent is invalid', 400)
   const acceptableIntents = parseIntentArray(expectedRecord.acceptableIntents, 'expected.acceptableIntents')
   const mustNot = parseIntentArray(expectedRecord.mustNot, 'expected.mustNot')
-  if (!acceptableIntents.includes(expectedRecord.primaryIntent)) {
-    throw new RequestBodyError('INVALID_JSON', 'expected.acceptableIntents must include primaryIntent', 400)
-  }
-  if (mustNot.includes(expectedRecord.primaryIntent)) {
-    throw new RequestBodyError('INVALID_JSON', 'expected.mustNot cannot include primaryIntent', 400)
-  }
+  if (!acceptableIntents.includes(expectedRecord.primaryIntent)) throw new RequestBodyError('INVALID_JSON', 'expected.acceptableIntents must include primaryIntent', 400)
+  if (mustNot.includes(expectedRecord.primaryIntent)) throw new RequestBodyError('INVALID_JSON', 'expected.mustNot cannot include primaryIntent', 400)
   const tags = parseStringArray(record.tags, 'tags')
-  if (record.difficulty !== 'NORMAL' && record.difficulty !== 'HARD' && record.difficulty !== 'ADVERSARIAL') {
-    throw new RequestBodyError('INVALID_JSON', 'difficulty is invalid', 400)
-  }
+  if (record.difficulty !== 'NORMAL' && record.difficulty !== 'HARD' && record.difficulty !== 'ADVERSARIAL') throw new RequestBodyError('INVALID_JSON', 'difficulty is invalid', 400)
   if (typeof record.critical !== 'boolean') throw new RequestBodyError('INVALID_JSON', 'critical must be boolean', 400)
-  if (record.notes !== undefined && (typeof record.notes !== 'string' || record.notes.length > 2000)) {
-    throw new RequestBodyError('INVALID_JSON', 'notes must be a string up to 2000 characters', 400)
-  }
+  if (record.notes !== undefined && (typeof record.notes !== 'string' || record.notes.length > 2000)) throw new RequestBodyError('INVALID_JSON', 'notes must be a string up to 2000 characters', 400)
   return {
     query,
     previousTurns,
-    expected: {
-      primaryIntent: expectedRecord.primaryIntent,
-      acceptableIntents,
-      mustNot,
-    },
+    expected: { primaryIntent: expectedRecord.primaryIntent, acceptableIntents, mustNot },
     tags,
     difficulty: record.difficulty,
     critical: record.critical,
@@ -262,51 +277,48 @@ function parseCreateDraftCaseRequest(input: unknown): CreateIntentDraftCaseReque
 }
 
 function parseIntentArray(value: unknown, field: string): IntentName[] {
-  if (!Array.isArray(value) || value.some((item) => !isIntentName(item))) {
-    throw new RequestBodyError('INVALID_JSON', `${field} must be an array of valid intents`, 400)
-  }
+  if (!Array.isArray(value) || value.some((item) => !isIntentName(item))) throw new RequestBodyError('INVALID_JSON', `${field} must be an array of valid intents`, 400)
   return [...new Set(value as IntentName[])]
 }
 
 function parseStringArray(value: unknown, field: string): string[] {
-  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string' || item.trim() === '')) {
-    throw new RequestBodyError('INVALID_JSON', `${field} must be an array of non-empty strings`, 400)
-  }
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string' || item.trim() === '')) throw new RequestBodyError('INVALID_JSON', `${field} must be an array of non-empty strings`, 400)
   return [...new Set(value as string[])].slice(0, 20)
 }
 
 function parseStartRunRequest(input: unknown): StartIntentRunRequest {
   const record = requireRecord(input)
   assertOnlyKeys(record, ['datasetId', 'variantId'])
-  return {
-    datasetId: requireNonEmptyString(record.datasetId, 'datasetId'),
-    variantId: requireNonEmptyString(record.variantId, 'variantId'),
-  }
+  return { datasetId: requireNonEmptyString(record.datasetId, 'datasetId'), variantId: requireNonEmptyString(record.variantId, 'variantId') }
 }
 
 function parseStartRetrievalRunRequest(input: unknown): StartRetrievalRunRequest {
   const record = requireRecord(input)
   assertOnlyKeys(record, ['datasetId', 'variantId'])
+  return { datasetId: requireNonEmptyString(record.datasetId, 'datasetId'), variantId: requireNonEmptyString(record.variantId, 'variantId') }
+}
+
+function parseStartMutationEvalRunRequest(input: unknown): StartMutationEvalRunRequest {
+  const record = requireRecord(input)
+  assertOnlyKeys(record, ['datasetId', 'variantId'])
   return {
     datasetId: requireNonEmptyString(record.datasetId, 'datasetId'),
-    variantId: requireNonEmptyString(record.variantId, 'variantId'),
+    variantId: parseMutationEvalVariant(record.variantId),
   }
+}
+
+function parseMutationEvalVariant(value: unknown): MutationEvalVariant {
+  if (value === 'mutation-unsafe-v0' || value === 'mutation-guarded-v1') return value
+  throw new RequestBodyError('INVALID_JSON', 'variantId must be mutation-unsafe-v0 or mutation-guarded-v1', 400)
 }
 
 function parseCompareRequest(input: unknown): { baselineRunId: string; candidateRunId: string } {
   const record = requireRecord(input)
   assertOnlyKeys(record, ['baselineRunId', 'candidateRunId'])
-  return {
-    baselineRunId: requireNonEmptyString(record.baselineRunId, 'baselineRunId'),
-    candidateRunId: requireNonEmptyString(record.candidateRunId, 'candidateRunId'),
-  }
+  return { baselineRunId: requireNonEmptyString(record.baselineRunId, 'baselineRunId'), candidateRunId: requireNonEmptyString(record.candidateRunId, 'candidateRunId') }
 }
 
-function parseRetrievalCompareRequest(input: unknown): {
-  baselineRunId: string
-  candidateRunId: string
-  comparisonType: RetrievalComparisonType
-} {
+function parseRetrievalCompareRequest(input: unknown): { baselineRunId: string; candidateRunId: string; comparisonType: RetrievalComparisonType } {
   const record = requireRecord(input)
   assertOnlyKeys(record, ['baselineRunId', 'candidateRunId', 'comparisonType'])
   return {
@@ -324,45 +336,30 @@ function parseRetrievalComparisonType(value: unknown): RetrievalComparisonType {
 function parseTurn(input: unknown, index: number): IntentTurn {
   const record = requireRecord(input)
   assertOnlyKeys(record, ['role', 'text', 'resolvedIntent'])
-  if (record.role !== 'user' && record.role !== 'assistant') {
-    throw new RequestBodyError('INVALID_JSON', `previousTurns[${index}].role must be user or assistant`, 400)
-  }
+  if (record.role !== 'user' && record.role !== 'assistant') throw new RequestBodyError('INVALID_JSON', `previousTurns[${index}].role must be user or assistant`, 400)
   const text = requireNonEmptyString(record.text, `previousTurns[${index}].text`)
   if (record.resolvedIntent === undefined) return { role: record.role, text }
-  if (!isIntentName(record.resolvedIntent)) {
-    throw new RequestBodyError('INVALID_JSON', `previousTurns[${index}].resolvedIntent is invalid`, 400)
-  }
+  if (!isIntentName(record.resolvedIntent)) throw new RequestBodyError('INVALID_JSON', `previousTurns[${index}].resolvedIntent is invalid`, 400)
   return { role: record.role, text, resolvedIntent: record.resolvedIntent }
 }
 
 function isIntentName(value: unknown): value is IntentName {
-  return value === 'QUERY_BOQ'
-    || value === 'QUERY_ENGINEERING_POSITION'
-    || value === 'QUERY_QUANTITY'
-    || value === 'RAG_QA'
-    || value === 'MUTATION'
-    || value === 'UNKNOWN'
+  return value === 'QUERY_BOQ' || value === 'QUERY_ENGINEERING_POSITION' || value === 'QUERY_QUANTITY' || value === 'RAG_QA' || value === 'MUTATION' || value === 'UNKNOWN'
 }
 
 function requireRecord(input: unknown): Record<string, unknown> {
-  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-    throw new RequestBodyError('INVALID_JSON', 'request body must be an object', 400)
-  }
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) throw new RequestBodyError('INVALID_JSON', 'request body must be an object', 400)
   return input as Record<string, unknown>
 }
 
 function assertOnlyKeys(record: Record<string, unknown>, allowed: readonly string[]): void {
   const allowedSet = new Set(allowed)
   const unexpected = Object.keys(record).filter((key) => !allowedSet.has(key))
-  if (unexpected.length > 0) {
-    throw new RequestBodyError('INVALID_JSON', `unexpected request fields: ${unexpected.join(', ')}`, 400)
-  }
+  if (unexpected.length > 0) throw new RequestBodyError('INVALID_JSON', `unexpected request fields: ${unexpected.join(', ')}`, 400)
 }
 
 function requireNonEmptyString(value: unknown, field: string): string {
-  if (typeof value !== 'string' || value.trim() === '') {
-    throw new RequestBodyError('INVALID_JSON', `${field} must be a non-empty string`, 400)
-  }
+  if (typeof value !== 'string' || value.trim() === '') throw new RequestBodyError('INVALID_JSON', `${field} must be a non-empty string`, 400)
   return value
 }
 
@@ -394,29 +391,21 @@ function sendData(
     | readonly RetrievalRunSummary[]
     | readonly RetrievalEvalObservation[]
     | RetrievalRunComparison
+    | readonly MutationEvalCase[]
+    | MutationEvalRunSummary
+    | readonly MutationEvalRunSummary[]
+    | readonly MutationEvalObservation[]
+    | readonly MutationEvalFailureSummary[]
     | Awaited<ReturnType<EvaluationClient['playgroundIntent']>>,
   statusCode = 200,
 ): true {
   const body: EvalResponse<typeof data> = { apiVersion: 'eval-api-v1', data }
-  response.writeHead(statusCode, {
-    'content-type': 'application/json; charset=utf-8',
-    'cache-control': 'no-store',
-  })
+  response.writeHead(statusCode, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
   response.end(JSON.stringify(body))
   return true
 }
 
 function sendError(response: ServerResponse, requestId: string, code: string, message: string, statusCode: number): void {
-  response.writeHead(statusCode, {
-    'content-type': 'application/json; charset=utf-8',
-    'cache-control': 'no-store',
-  })
-  response.end(JSON.stringify({
-    error: {
-      requestId,
-      code,
-      message,
-      retryable: false,
-    },
-  }))
+  response.writeHead(statusCode, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+  response.end(JSON.stringify({ error: { requestId, code, message, retryable: false } }))
 }
