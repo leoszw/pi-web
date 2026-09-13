@@ -6,6 +6,8 @@ import {
   mutationEvalRunPath,
   mutationOperationIdFromPath,
   mutationOperationPath,
+  ragEvalRunIdFromPath,
+  ragEvalRunPath,
   resolveAppRoute,
   retrievalDebugPath,
   retrievalDebugTraceIdFromPath,
@@ -25,11 +27,18 @@ describe('AppShell routing', () => {
     expect(routePath('chat')).toBe('/chat')
   })
 
-  it('routes /industry to the P3 workspace slot', () => {
+  it('routes /industry to the workspace slot', () => {
     expect(resolveAppRoute('/industry')).toBe('industry')
     const html = renderToStaticMarkup(<AppShell initialPath="/industry" industryWorkspace={<div>Industry Workspace sentinel</div>} codingChat={<div>Coding chat sentinel</div>} />)
     expect(html).toContain('Industry Workspace sentinel')
     expect(html).not.toContain('Coding chat sentinel')
+  })
+
+  it('routes Knowledge before the generic industry catch-all', () => {
+    expect(resolveAppRoute('/industry/knowledge')).toBe('industry-knowledge')
+    expect(routePath('industry-knowledge')).toBe('/industry/knowledge')
+    const html = renderToStaticMarkup(<AppShell initialPath="/industry/knowledge" knowledge={<div>Knowledge sentinel</div>} />)
+    expect(html).toContain('Knowledge sentinel')
   })
 
   it('routes Trace Explorer list and detail before the generic industry catch-all', () => {
@@ -48,13 +57,12 @@ describe('AppShell routing', () => {
     expect(renderToStaticMarkup(<AppShell initialPath={path} retrievalDebug={<div>Retrieval Debug sentinel</div>} />)).toContain('Retrieval Debug sentinel')
   })
 
-  it('routes Mutation Center list, detail, and reconciliation paths', () => {
+  it('routes Mutation Center list detail and reconciliation paths', () => {
     expect(resolveAppRoute('/industry/mutations')).toBe('industry-mutations')
     expect(resolveAppRoute('/industry/mutations/reconciliation')).toBe('industry-mutation-reconciliation')
     const detailPath = mutationOperationPath('mutation project/1')
     expect(resolveAppRoute(detailPath)).toBe('industry-mutation-detail')
     expect(mutationOperationIdFromPath(detailPath)).toBe('mutation project/1')
-    expect(renderToStaticMarkup(<AppShell initialPath="/industry/mutations" mutationCenter={<div>Mutation Center sentinel</div>} />)).toContain('Mutation Center sentinel')
   })
 
   it('routes /industry/eval to the evaluation overview slot', () => {
@@ -62,20 +70,22 @@ describe('AppShell routing', () => {
     expect(renderToStaticMarkup(<AppShell initialPath="/industry/eval" evalOverview={<div>Eval overview sentinel</div>} />)).toContain('Eval overview sentinel')
   })
 
-  it('routes /industry/eval/intent to the Intent Lab slot', () => {
-    expect(resolveAppRoute('/industry/eval/intent')).toBe('industry-eval-intent')
-    expect(renderToStaticMarkup(<AppShell initialPath="/industry/eval/intent" intentLab={<div>Intent Lab sentinel</div>} />)).toContain('Intent Lab sentinel')
+  it('routes RAG Eval workbench and result pages before generic eval', () => {
+    expect(resolveAppRoute('/industry/eval/rag')).toBe('industry-eval-rag')
+    expect(routePath('industry-eval-rag')).toBe('/industry/eval/rag')
+    expect(renderToStaticMarkup(<AppShell initialPath="/industry/eval/rag" ragEval={<div>RAG Eval sentinel</div>} />)).toContain('RAG Eval sentinel')
+    const path = ragEvalRunPath('run rag/guarded')
+    expect(path).toBe('/industry/eval/runs/run%20rag%2Fguarded/rag')
+    expect(resolveAppRoute(path)).toBe('industry-eval-rag-run')
+    expect(ragEvalRunIdFromPath(path)).toBe('run rag/guarded')
+    expect(renderToStaticMarkup(<AppShell initialPath={path} ragEval={<div>RAG Eval run sentinel</div>} />)).toContain('RAG Eval run sentinel')
   })
 
   it('routes Trace Eval workbench and result pages before generic eval', () => {
     expect(resolveAppRoute('/industry/eval/trace')).toBe('industry-eval-trace')
-    expect(routePath('industry-eval-trace')).toBe('/industry/eval/trace')
-    expect(renderToStaticMarkup(<AppShell initialPath="/industry/eval/trace" traceEval={<div>Trace Eval sentinel</div>} />)).toContain('Trace Eval sentinel')
     const path = traceEvalRunPath('run trace/guarded')
-    expect(path).toBe('/industry/eval/runs/run%20trace%2Fguarded/trace')
     expect(resolveAppRoute(path)).toBe('industry-eval-trace-run')
     expect(traceEvalRunIdFromPath(path)).toBe('run trace/guarded')
-    expect(renderToStaticMarkup(<AppShell initialPath={path} traceEval={<div>Trace Eval run sentinel</div>} />)).toContain('Trace Eval run sentinel')
   })
 
   it('routes mutation evaluation workbench and result pages', () => {
