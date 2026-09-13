@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import http from 'node:http'
 import test from 'node:test'
-import { MockPrincipalProvider, type AuthPrincipal } from '../src/industry/auth'
+import { MockPrincipalProvider, type AuthPrincipal, type PrincipalProvider } from '../src/industry/auth'
 import { MockIndustryAgentClient } from '../src/industry/clients/mock-industry-agent-client'
 import { IndustryContextService } from '../src/industry/context'
 import { MockEvaluationClient } from '../src/industry/eval/mock-evaluation-client'
@@ -16,13 +16,13 @@ function principal(permissions: readonly string[], sessionId = 'session-hardenin
   }
 }
 
-function makeRouter(permissions: readonly string[], rateLimiter?: InMemoryRateLimiter) {
+function buildRouter(principalProvider: PrincipalProvider, rateLimiter?: InMemoryRateLimiter) {
   const client = new MockIndustryAgentClient([
     { tenantId: 'tenant-1', projectId: 'project-1', companyId: 'company-1', name: 'Project One' },
   ])
   return createIndustryRouter({
     mode: 'control-plane',
-    principalProvider: new MockPrincipalProvider(principal(permissions)),
+    principalProvider,
     client,
     evaluationClient: new MockEvaluationClient(),
     contextService: new IndustryContextService(client),
@@ -30,6 +30,10 @@ function makeRouter(permissions: readonly string[], rateLimiter?: InMemoryRateLi
     jsonBodyLimitBytes: 16_384,
     ...(rateLimiter === undefined ? {} : { rateLimiter }),
   })
+}
+
+function makeRouter(permissions: readonly string[], rateLimiter?: InMemoryRateLimiter) {
+  return buildRouter(new MockPrincipalProvider(principal(permissions)), rateLimiter)
 }
 
 async function withServer(router: ReturnType<typeof createIndustryRouter>, run: (baseUrl: string) => Promise<void>): Promise<void> {
@@ -45,6 +49,17 @@ async function selectProject(baseUrl: string): Promise<void> {
   const response = await fetch(`${baseUrl}/api/industry/v1/context/project`, { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ projectId: 'project-1' }) })
   assert.equal(response.status, 200)
 }
+
+test('control-plane rejects principal provider failures as authentication errors', async () => {
+  const rejectingProvider: PrincipalProvider = { async getPrincipal() { throw new Error('no session') } }
+  await withServer(buildRouter(rejectingProvider), async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/industry/v1/context`)
+    assert.equal(response.status, 401)
+    const body = await response.json() as { error: { code: string; resolution?: { type: string } } }
+    assert.equal(body.error.code, 'AUTHENTICATION_REQUIRED')
+    assert.equal(body.error.resolution?.type, 'reauth')
+  })
+})
 
 test('control-plane rejects cross-site state-changing browser requests', async () => {
   await withServer(makeRouter([]), async (baseUrl) => {
