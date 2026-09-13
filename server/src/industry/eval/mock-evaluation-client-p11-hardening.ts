@@ -1,9 +1,38 @@
 import './mock-evaluation-client-p11'
+import type { UnifiedBenchmarkRun, UnifiedReleaseDecision } from '../../../../shared/industry/eval/p11'
 import { EvaluationClientError } from './evaluation-client'
 import { MockEvaluationClient } from './mock-evaluation-client'
 
 const originalAcceptBaseline = MockEvaluationClient.prototype.acceptUnifiedBaseline
 const originalCompare = MockEvaluationClient.prototype.compareUnifiedRuns
+const originalListRuns = MockEvaluationClient.prototype.listUnifiedBenchmarkRuns
+const originalStartRun = MockEvaluationClient.prototype.startUnifiedBenchmarkRun
+const originalGetRun = MockEvaluationClient.prototype.getUnifiedBenchmarkRun
+const originalGetDecision = MockEvaluationClient.prototype.getUnifiedReleaseDecision
+
+function mockGateRun(run: UnifiedBenchmarkRun): UnifiedBenchmarkRun {
+  return { ...run, releaseGate: { ...run.releaseGate, source: 'MOCK_PI' } }
+}
+
+function mockGateDecision(decision: UnifiedReleaseDecision): UnifiedReleaseDecision {
+  return { ...decision, gate: { ...decision.gate, source: 'MOCK_PI' } }
+}
+
+MockEvaluationClient.prototype.listUnifiedBenchmarkRuns = async function listUnifiedBenchmarkRuns(context) {
+  return (await originalListRuns.call(this, context)).map(mockGateRun)
+}
+
+MockEvaluationClient.prototype.startUnifiedBenchmarkRun = async function startUnifiedBenchmarkRun(context, request) {
+  return mockGateRun(await originalStartRun.call(this, context, request))
+}
+
+MockEvaluationClient.prototype.getUnifiedBenchmarkRun = async function getUnifiedBenchmarkRun(context, runId) {
+  return mockGateRun(await originalGetRun.call(this, context, runId))
+}
+
+MockEvaluationClient.prototype.getUnifiedReleaseDecision = async function getUnifiedReleaseDecision(context, runId) {
+  return mockGateDecision(await originalGetDecision.call(this, context, runId))
+}
 
 MockEvaluationClient.prototype.acceptUnifiedBaseline = async function acceptUnifiedBaseline(context, runId) {
   const [run, manifest] = await Promise.all([
