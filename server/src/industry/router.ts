@@ -8,6 +8,7 @@ import { IndustryContextError, IndustryContextService } from './context'
 import type { EvaluationClient } from './eval/evaluation-client'
 import { handleEvalRoute } from './eval/router'
 import { handleTraceEvalRoute } from './eval/trace-router'
+import { handleKnowledgeRoute } from './knowledge-router'
 import { handleMutationRoute } from './mutation-router'
 import { handleTraceRoute } from './trace-router'
 import { isOriginAllowed } from '../security/origin'
@@ -76,6 +77,17 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
         principal,
         context: resolved.trusted,
         client: options.evaluationClient,
+        bodyLimitBytes: bodyLimit,
+      })) return true
+
+      if (await handleKnowledgeRoute({
+        request,
+        response,
+        url,
+        requestId,
+        principal,
+        context: resolved.trusted,
+        client: options.client,
         bodyLimitBytes: bodyLimit,
       })) return true
 
