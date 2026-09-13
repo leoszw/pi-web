@@ -41,17 +41,13 @@ export function parseMockPrincipal(raw: string | undefined): AuthPrincipal {
 
 export function validatePrincipal(input: unknown): AuthPrincipal {
   if (!isRecord(input)) throw new Error('principal must be an object')
-  const permissions = requireStringArray(input.permissions, 'permissions')
-  // Backward-compatible alias for pre-hardening fixtures/config. New control-plane
-  // principals should grant industry.workspace explicitly.
-  if (permissions.includes('industry.read') && !permissions.includes('industry.workspace')) permissions.push('industry.workspace')
   return {
     subject: requireString(input.subject, 'subject'),
     userId: requireString(input.userId, 'userId'),
     tenantId: requireString(input.tenantId, 'tenantId'),
     companyIds: requireStringArray(input.companyIds, 'companyIds'),
     roles: requireStringArray(input.roles, 'roles'),
-    permissions,
+    permissions: requireStringArray(input.permissions, 'permissions'),
     sessionId: requireString(input.sessionId, 'sessionId'),
   }
 }
