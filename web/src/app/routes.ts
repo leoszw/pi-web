@@ -16,8 +16,8 @@ export function resolveAppRoute(pathname: string): AppRoute {
   return 'chat'
 }
 
-export function routePath(route: Exclude<AppRoute, 'industry-eval-retrieval-run'>): string {
-  if (route === 'industry-eval-retrieval') return '/industry/eval/playground/retrieval'
+export function routePath(route: AppRoute): string {
+  if (route === 'industry-eval-retrieval-run' || route === 'industry-eval-retrieval') return '/industry/eval/playground/retrieval'
   if (route === 'industry-eval-intent') return '/industry/eval/intent'
   if (route === 'industry-eval') return '/industry/eval'
   if (route === 'industry') return '/industry'
