@@ -142,7 +142,8 @@ describe('RetrievalLabView', () => {
   })
 
   it('shows hard-filter removals in the selected stage drilldown', () => {
-    const html = renderToStaticMarkup(<RetrievalLabView {...viewProps} selectedStage="HARD_FILTERS" />)
+    const hardFilterProps = { ...viewProps, selectedStage: 'HARD_FILTERS' as const }
+    const html = renderToStaticMarkup(<RetrievalLabView {...hardFilterProps} />)
     expect(html).toContain('Removed by hard filters')
     expect(html).toContain('cross-project-001')
   })
