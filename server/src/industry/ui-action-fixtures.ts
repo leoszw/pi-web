@@ -4,7 +4,7 @@ const LONG_ID = '123456789012345678'
 
 export function buildMockUiActions(text: string, traceId: string): readonly UiActionEnvelope[] {
   const all = /uiaction|交互组件|全部组件|all actions/iu.test(text)
-  const actions = all ? ALL_TYPES : (['table'] as const)
+  const actions: readonly UiActionType[] = all ? ALL_TYPES : []
   return actions.map((type, index) => actionFor(type, traceId, index))
 }
 
@@ -24,7 +24,7 @@ const ALL_TYPES: readonly UiActionType[] = [
 function actionFor(type: UiActionType, traceId: string, index: number): UiActionEnvelope {
   const base = {
     schemaVersion: 'ui-action-v1' as const,
-    actionId: `mock-action-${type}-${index + 1}`,
+    actionId: `${traceId}:${type}:${index + 1}`,
     type,
     traceId,
   }
