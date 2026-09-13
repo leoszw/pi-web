@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import type {
   MutationAuditTrail,
   MutationOperation,
@@ -365,7 +365,7 @@ async function loadSnapshot(
 async function refreshKnownOperation(
   client: IndustryMutationApiClient,
   operationId: string,
-  setSnapshot: React.Dispatch<React.SetStateAction<MutationCenterSnapshot | undefined>>,
+  setSnapshot: Dispatch<SetStateAction<MutationCenterSnapshot | undefined>>,
 ): Promise<void> {
   try {
     const [operation, audit] = await Promise.all([client.getMutation(operationId), client.getMutationAudit(operationId)])
@@ -378,7 +378,7 @@ async function refreshKnownOperation(
 async function refreshAfterFinalizationFailure(
   client: IndustryMutationApiClient,
   operationId: string,
-  setSnapshot: React.Dispatch<React.SetStateAction<MutationCenterSnapshot | undefined>>,
+  setSnapshot: Dispatch<SetStateAction<MutationCenterSnapshot | undefined>>,
 ): Promise<void> {
   try {
     const [operation, audit, reconciliation] = await Promise.all([
