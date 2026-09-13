@@ -21,3 +21,16 @@ test('P11 compare version diff covers the full reproducibility component snapsho
   assert.equal(comparison.versionDiff.find((item)=>item.component==='agentModel')?.changed,true)
   assert.equal(comparison.versionDiff.find((item)=>item.component==='parser')?.changed,false)
 })
+
+test('P11 mock hardening never presents deterministic fixture gates as real PI provenance',async()=>{
+  const client=new MockEvaluationClient()
+  const runs=await client.listUnifiedBenchmarkRuns(context)
+  assert.ok(runs.length>0)
+  assert.ok(runs.every((run)=>run.releaseGate.source==='MOCK_PI'))
+  const created=await client.startUnifiedBenchmarkRun(context,{corpusId:'phase11-unified-corpus-v1',variantId:'p11-guarded-v1'})
+  assert.equal(created.releaseGate.source,'MOCK_PI')
+  const detail=await client.getUnifiedBenchmarkRun(context,created.runId)
+  assert.equal(detail.releaseGate.source,'MOCK_PI')
+  const decision=await client.getUnifiedReleaseDecision(context,created.runId)
+  assert.equal(decision.gate.source,'MOCK_PI')
+})
