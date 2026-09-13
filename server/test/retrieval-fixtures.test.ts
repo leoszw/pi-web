@@ -32,6 +32,18 @@ test('hard filters remove cross-project candidates permanently before ranking', 
   }
 })
 
+test('stable and candidate playground variants expose the same ranking change used by batch runs', () => {
+  const stable = buildRetrievalPlaygroundFixture('retrieval-boq-001', 'retrieval-stable-v1')
+  const candidate = buildRetrievalPlaygroundFixture('retrieval-boq-001', 'retrieval-candidate-v2')
+  const stableFinal = stable.stages.find((stage) => stage.stage === 'FINAL')
+  const candidateFinal = candidate.stages.find((stage) => stage.stage === 'FINAL')
+  assert.ok(stableFinal)
+  assert.ok(candidateFinal)
+  assert.equal(stableFinal.candidates[0]?.entityId, 'boq-c25-001')
+  assert.equal(candidateFinal.candidates[0]?.entityId, 'boq-001')
+  assert.ok((candidateFinal.candidates[0]?.finalScore ?? 0) > (stableFinal.candidates.find((item) => item.entityId === 'boq-001')?.finalScore ?? 0))
+})
+
 test('final stage keeps hard negatives inspectable with explicit scores and reasons', () => {
   const result = buildRetrievalPlaygroundFixture('retrieval-boq-001')
   const finalStage = result.stages.find((stage) => stage.stage === 'FINAL')
