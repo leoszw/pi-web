@@ -21,15 +21,7 @@ export interface MutationEvalSnapshot {
   failures: readonly MutationEvalFailureSummary[]
 }
 
-export function MutationEvalPage({
-  runId,
-  client = defaultClient,
-  initialSnapshot,
-}: {
-  runId?: string
-  client?: EvaluationApiClient
-  initialSnapshot?: MutationEvalSnapshot
-}) {
+export function MutationEvalPage({ runId, client = defaultClient, initialSnapshot }: { runId?: string; client?: EvaluationApiClient; initialSnapshot?: MutationEvalSnapshot }) {
   const [snapshot, setSnapshot] = useState<MutationEvalSnapshot | undefined>(initialSnapshot)
   const [variantId, setVariantId] = useState<MutationEvalVariant>('mutation-guarded-v1')
   const [busy, setBusy] = useState(false)
@@ -54,13 +46,7 @@ export function MutationEvalPage({
         client.listMutationEvalFailures(run.runId),
         client.listMutationEvalRuns(),
       ])
-      setSnapshot((current) => ({
-        cases: current?.cases ?? [],
-        runs,
-        selectedRun: run,
-        observations,
-        failures,
-      }))
+      setSnapshot((current) => ({ cases: current?.cases ?? [], runs, selectedRun: run, observations, failures }))
     } catch (reason) {
       setError(messageOf(reason))
     } finally {
@@ -89,15 +75,7 @@ export function MutationEvalPage({
     return <main className="eval-page"><h1>Mutation Eval</h1>{error === null ? <p>Loading mutation safety evaluation…</p> : <p role="alert">{error}</p>}</main>
   }
 
-  return <MutationEvalView
-    snapshot={snapshot}
-    variantId={variantId}
-    busy={busy}
-    error={error}
-    onVariantChange={setVariantId}
-    onStartRun={() => void startRun()}
-    onSelectRun={(value) => void selectRun(value)}
-  />
+  return <MutationEvalView snapshot={snapshot} variantId={variantId} busy={busy} error={error} onVariantChange={setVariantId} onStartRun={() => void startRun()} onSelectRun={(value) => void selectRun(value)} />
 }
 
 export function MutationEvalView({
@@ -125,10 +103,7 @@ export function MutationEvalView({
     <main className="eval-page" aria-labelledby="mutation-eval-title">
       <div className="eval-eyebrow">Evaluation Workbench · P4</div>
       <div className="eval-heading-row">
-        <div>
-          <h1 id="mutation-eval-title">Mutation Eval</h1>
-          <p>Deterministic safety evaluation for target resolution, scope isolation, explicit confirmation, digest binding, replay, version conflicts, and reconciliation.</p>
-        </div>
+        <div><h1 id="mutation-eval-title">Mutation Eval</h1><p>Deterministic safety evaluation for target resolution, scope isolation, explicit confirmation, digest binding, replay, version conflicts, and reconciliation.</p></div>
         <div className="eval-heading-actions"><a className="eval-primary-link" href="/industry/mutations">Mutation Center</a><a href="/industry/eval">Evaluation</a></div>
       </div>
       {error === null ? null : <p role="alert" className="eval-error">{error}</p>}
@@ -151,13 +126,16 @@ export function MutationEvalView({
           <MetricCard label="Release gate" value={metrics.releaseGate} critical={metrics.releaseGate === 'FAIL'} />
           <MetricCard label="Pass rate" value={percent(metrics.passRate)} critical={metrics.passRate < 1} />
           <MetricCard label="Critical pass" value={percent(metrics.criticalPassRate)} critical={metrics.criticalPassRate < 1} />
+          <MetricCard label="Wrong target failure" value={percent(metrics.wrongTargetFailureRate)} critical={metrics.wrongTargetFailureRate > 0} />
           <MetricCard label="Scope leakage" value={percent(metrics.scopeLeakageRate)} critical={metrics.scopeLeakageRate > 0} />
           <MetricCard label="Confirmation bypass" value={percent(metrics.confirmationBypassRate)} critical={metrics.confirmationBypassRate > 0} />
-          <MetricCard label="Unsafe retry" value={percent(metrics.unsafeCommitRetryRate)} critical={metrics.unsafeCommitRetryRate > 0} />
           <MetricCard label="Digest guard" value={percent(metrics.digestMismatchGuardRate)} critical={metrics.digestMismatchGuardRate < 1} />
           <MetricCard label="Replay guard" value={percent(metrics.approvalReplayGuardRate)} critical={metrics.approvalReplayGuardRate < 1} />
+          <MetricCard label="Version guard" value={percent(metrics.versionConflictGuardRate)} critical={metrics.versionConflictGuardRate < 1} />
+          <MetricCard label="Reconciliation safety" value={percent(metrics.reconciliationSafetyRate)} critical={metrics.reconciliationSafetyRate < 1} />
+          <MetricCard label="Unsafe retry" value={percent(metrics.unsafeCommitRetryRate)} critical={metrics.unsafeCommitRetryRate > 0} />
+          <MetricCard label="Approval exposure" value={percent(metrics.approvalMaterialExposureRate)} critical={metrics.approvalMaterialExposureRate > 0} />
         </section>
-
         {metrics.releaseGateReasons.length === 0 ? <section className="eval-panel"><strong>Release Gate PASS</strong><p>All deterministic mutation safety gates passed for this run.</p></section> : <section className="eval-panel"><h2>Release Gate FAIL</h2><ul>{metrics.releaseGateReasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></section>}
       </>}
 
@@ -192,16 +170,7 @@ export function MutationEvalView({
 }
 
 function ObservationDetail({ observation }: { observation: MutationEvalObservation }) {
-  return <div>
-    <dl className="eval-kv-grid">
-      <div><dt>Commit attempts</dt><dd>{observation.commitAttempts}</dd></div>
-      <div><dt>Scope leakage</dt><dd>{yesNo(observation.scopeLeakage)}</dd></div>
-      <div><dt>Confirmation bypassed</dt><dd>{yesNo(observation.confirmationBypassed)}</dd></div>
-      <div><dt>Automatic retry attempted</dt><dd>{yesNo(observation.automaticRetryAttempted)}</dd></div>
-      <div><dt>Approval material exposed</dt><dd>{yesNo(observation.approvalMaterialExposed)}</dd></div>
-    </dl>
-    <ol>{observation.steps.map((step, index) => <li key={`${step.step}-${index}`}><strong>{step.step}</strong> · {step.outcome} — {step.detail}</li>)}</ol>
-  </div>
+  return <div><dl className="eval-kv-grid"><div><dt>Commit attempts</dt><dd>{observation.commitAttempts}</dd></div><div><dt>Scope leakage</dt><dd>{yesNo(observation.scopeLeakage)}</dd></div><div><dt>Confirmation bypassed</dt><dd>{yesNo(observation.confirmationBypassed)}</dd></div><div><dt>Automatic retry attempted</dt><dd>{yesNo(observation.automaticRetryAttempted)}</dd></div><div><dt>Approval material exposed</dt><dd>{yesNo(observation.approvalMaterialExposed)}</dd></div></dl><ol>{observation.steps.map((step, index) => <li key={`${step.step}-${index}`}><strong>{step.step}</strong> · {step.outcome} — {step.detail}</li>)}</ol></div>
 }
 
 function MetricCard({ label, value, critical = false }: { label: string; value: string; critical?: boolean }) {
@@ -220,14 +189,6 @@ async function loadSnapshot(client: EvaluationApiClient, runId: string | undefin
   return { cases, runs, selectedRun, observations, failures }
 }
 
-function percent(value: number): string {
-  return `${(value * 100).toFixed(1)}%`
-}
-
-function yesNo(value: boolean): string {
-  return value ? 'YES' : 'NO'
-}
-
-function messageOf(reason: unknown): string {
-  return reason instanceof Error ? reason.message : String(reason)
-}
+function percent(value: number): string { return `${(value * 100).toFixed(1)}%` }
+function yesNo(value: boolean): string { return value ? 'YES' : 'NO' }
+function messageOf(reason: unknown): string { return reason instanceof Error ? reason.message : String(reason) }
