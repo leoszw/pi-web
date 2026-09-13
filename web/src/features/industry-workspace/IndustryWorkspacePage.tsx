@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { IndustryContextResponse } from '../../../../shared/industry/api'
 import type { IndustryConversation, IndustryEventEnvelope } from '../../../../shared/industry/conversation'
-import type { UiActionEnvelope, UiActionPresentedEventPayload } from '../../../../shared/industry/ui-actions'
+import type {
+  UiActionEnvelope,
+  UiActionInteraction,
+  UiActionPresentedEventPayload,
+} from '../../../../shared/industry/ui-actions'
 import { createIndustryConversationApiClient, type IndustryConversationApiClient } from '../../api/conversation-client'
 import { createIndustryWorkspaceApiClient, type IndustryWorkspaceApiClient } from '../../api/workspace-client'
 import { IndustryEventGateway } from './event-gateway'
@@ -100,6 +104,22 @@ export function IndustryWorkspacePage({
     }
   }
 
+  async function interactWithAction(action: UiActionEnvelope, interaction: UiActionInteraction): Promise<void> {
+    const conversation = snapshot?.conversation
+    if (conversation === undefined) return
+    setBusy(true)
+    setError(null)
+    try {
+      await conversationClient.interactWithUiAction(conversation.conversationId, action.actionId, { interaction })
+      const refreshed = await conversationClient.getConversation(conversation.conversationId)
+      await syncConversation(refreshed)
+    } catch (reason) {
+      setError(messageOf(reason))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function reconnect(): Promise<void> {
     const conversation = snapshot?.conversation
     if (conversation === undefined) return
@@ -156,6 +176,7 @@ export function IndustryWorkspacePage({
     onCreateConversation={() => void createConversation()}
     onMessageChange={setMessage}
     onSendMessage={(event) => void sendMessage(event)}
+    onActionInteract={(action, interaction) => void interactWithAction(action, interaction)}
     onReconnect={() => void reconnect()}
     onAbort={() => void abortConversation()}
   />
@@ -170,6 +191,7 @@ export function IndustryWorkspaceView({
   onCreateConversation = () => undefined,
   onMessageChange = () => undefined,
   onSendMessage = (event) => event.preventDefault(),
+  onActionInteract = () => undefined,
   onReconnect = () => undefined,
   onAbort = () => undefined,
 }: {
@@ -181,6 +203,7 @@ export function IndustryWorkspaceView({
   onCreateConversation?: () => void
   onMessageChange?: (message: string) => void
   onSendMessage?: (event: FormEvent<HTMLFormElement>) => void
+  onActionInteract?: (action: UiActionEnvelope, interaction: UiActionInteraction) => void
   onReconnect?: () => void
   onAbort?: () => void
 }) {
@@ -222,7 +245,7 @@ export function IndustryWorkspaceView({
                 <header><strong>{item.role === 'USER' ? 'You' : 'Industry Agent'}</strong><a href={`/industry/traces/${encodeURIComponent(item.traceId)}`}>trace</a></header>
                 <p>{item.text}</p>
               </article>)}
-              {snapshot.actions.map((action) => <UIActionRegistry action={action} key={action.actionId} />)}
+              {snapshot.actions.map((action) => <UIActionRegistry action={action} busy={busy} onInteract={onActionInteract} key={action.actionId} />)}
             </div>
             <form className="workspace-composer" onSubmit={onSendMessage}>
               <textarea rows={3} value={message} disabled={busy || conversation.status !== 'ACTIVE'} onChange={(event) => onMessageChange(event.target.value)} placeholder="Ask about engineering data or type 演示全部 UIAction" />
@@ -250,13 +273,13 @@ function InspectorCard({ title, children }: { title: string; children: React.Rea
   return <section className="workspace-inspector-card"><h3>{title}</h3><div>{children}</div></section>
 }
 
-function actionsFromEvents(events: readonly IndustryEventEnvelope[]): readonly UiActionEnvelope[] {
-  const actions: UiActionEnvelope[] = []
+export function actionsFromEvents(events: readonly IndustryEventEnvelope[]): readonly UiActionEnvelope[] {
+  const actions = new Map<string, UiActionEnvelope>()
   for (const event of events) {
     if (event.type !== 'ui.action.presented' || !isUiActionPayload(event.payload)) continue
-    actions.push(structuredClone(event.payload.action))
+    actions.set(event.payload.action.actionId, structuredClone(event.payload.action))
   }
-  return actions
+  return [...actions.values()]
 }
 
 function isUiActionPayload(value: unknown): value is UiActionPresentedEventPayload {
