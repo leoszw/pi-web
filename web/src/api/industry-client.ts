@@ -1,6 +1,13 @@
 import type { EvalVariantSummary } from '../../../shared/industry/eval/common'
 import type { CreateIntentDraftCaseRequest, EvalDatasetSummary, IntentDatasetDetail, IntentEvalCase, IntentTurn } from '../../../shared/industry/eval/datasets'
 import type {
+  MutationEvalCase,
+  MutationEvalFailureSummary,
+  MutationEvalObservation,
+  MutationEvalRunSummary,
+  MutationEvalVariant,
+} from '../../../shared/industry/eval/mutation'
+import type {
   RetrievalComparisonType,
   RetrievalDomain,
   RetrievalEvalCase,
@@ -40,11 +47,13 @@ export interface EvaluationApiClient {
   startRetrievalRun(input: { datasetId: string; variantId: string }): Promise<RetrievalRunSummary>
   getRetrievalRun(runId: string): Promise<RetrievalRunSummary>
   listRetrievalObservations(runId: string): Promise<readonly RetrievalEvalObservation[]>
-  compareRetrievalRuns(
-    baselineRunId: string,
-    candidateRunId: string,
-    comparisonType: RetrievalComparisonType,
-  ): Promise<RetrievalRunComparison>
+  compareRetrievalRuns(baselineRunId: string, candidateRunId: string, comparisonType: RetrievalComparisonType): Promise<RetrievalRunComparison>
+  listMutationEvalCases(): Promise<readonly MutationEvalCase[]>
+  listMutationEvalRuns(): Promise<readonly MutationEvalRunSummary[]>
+  startMutationEvalRun(input: { datasetId: string; variantId: MutationEvalVariant }): Promise<MutationEvalRunSummary>
+  getMutationEvalRun(runId: string): Promise<MutationEvalRunSummary>
+  listMutationEvalObservations(runId: string): Promise<readonly MutationEvalObservation[]>
+  listMutationEvalFailures(runId: string): Promise<readonly MutationEvalFailureSummary[]>
   listRuns(): Promise<readonly EvalRunSummary[]>
   startIntentRun(input: { datasetId: string; variantId: string }): Promise<EvalRunSummary>
   listObservations(runId: string): Promise<readonly IntentEvalObservation[]>
@@ -80,11 +89,13 @@ export function createEvaluationApiClient(fetcher: typeof fetch = fetch): Evalua
     startRetrievalRun: (input) => post('/api/industry/v1/eval/retrieval/runs', input),
     getRetrievalRun: (runId) => get(`/api/industry/v1/eval/retrieval/runs/${encodeURIComponent(runId)}`),
     listRetrievalObservations: (runId) => get(`/api/industry/v1/eval/retrieval/runs/${encodeURIComponent(runId)}/observations`),
-    compareRetrievalRuns: (baselineRunId, candidateRunId, comparisonType) => post('/api/industry/v1/eval/retrieval/compare', {
-      baselineRunId,
-      candidateRunId,
-      comparisonType,
-    }),
+    compareRetrievalRuns: (baselineRunId, candidateRunId, comparisonType) => post('/api/industry/v1/eval/retrieval/compare', { baselineRunId, candidateRunId, comparisonType }),
+    listMutationEvalCases: () => get('/api/industry/v1/eval/mutation/cases'),
+    listMutationEvalRuns: () => get('/api/industry/v1/eval/mutation/runs'),
+    startMutationEvalRun: (input) => post('/api/industry/v1/eval/mutation/runs', input),
+    getMutationEvalRun: (runId) => get(`/api/industry/v1/eval/mutation/runs/${encodeURIComponent(runId)}`),
+    listMutationEvalObservations: (runId) => get(`/api/industry/v1/eval/mutation/runs/${encodeURIComponent(runId)}/observations`),
+    listMutationEvalFailures: (runId) => get(`/api/industry/v1/eval/mutation/runs/${encodeURIComponent(runId)}/failures`),
     listRuns: () => get('/api/industry/v1/eval/runs'),
     startIntentRun: (input) => post('/api/industry/v1/eval/runs', input),
     listObservations: (runId) => get(`/api/industry/v1/eval/runs/${encodeURIComponent(runId)}/observations`),
