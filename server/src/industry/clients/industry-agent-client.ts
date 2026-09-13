@@ -12,6 +12,7 @@ import type {
   MutationReconciliationList,
   RejectMutationRequest,
 } from '../../../../shared/industry/mutation'
+import type { RetrievalDebugResult } from '../../../../shared/industry/retrieval-debug'
 import type {
   TraceAccessProfile,
   TraceDetail,
@@ -71,6 +72,7 @@ export interface IndustryAgentClient {
   getTraceTimeline(context: TrustedRequestContext, traceId: string, access: TraceAccessProfile): Promise<readonly TraceTimelineEvent[]>
   getTraceTree(context: TrustedRequestContext, traceId: string, access: TraceAccessProfile): Promise<TraceTree>
   getTraceStats(context: TrustedRequestContext, traceId: string): Promise<TraceStats>
+  getRetrievalDebug(context: TrustedRequestContext, traceId: string): Promise<RetrievalDebugResult>
 }
 
 export class IndustryAgentClientError extends Error {
