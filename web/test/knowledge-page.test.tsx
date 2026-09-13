@@ -37,9 +37,12 @@ const form: KnowledgeUploadRequest = {
 }
 
 describe('KnowledgePageView', () => {
-  it('renders server-issued scope options, ingestion pipeline, chunk context and source version', () => {
+  it('renders server-issued scope options, metadata-only picker, ingestion pipeline, chunk context and source version', () => {
     const html = renderToStaticMarkup(<KnowledgePageView snapshot={snapshot} form={form} busy={false} error={null} />)
     expect(html).toContain('Knowledge / RAG')
+    expect(html).toContain('Local file (metadata only)')
+    expect(html).toContain('type="file"')
+    expect(html).toContain('file bytes are not uploaded or stored')
     expect(html).toContain('project-1')
     expect(html).toContain('project-user')
     expect(html).toContain('QUALITY_VALIDATING')
