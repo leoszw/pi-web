@@ -83,7 +83,7 @@ export function buildRetrievalPlaygroundFixture(caseId: string, variantId = 'ret
     caseId: fixture.caseId,
     variantId,
     queryContext: structuredClone(fixture.queryContext),
-    stages: RETRIEVAL_STAGE_ORDER.map((stage, index) => buildStage(stage, candidates, fixture.expected.expectedProjectId, index)),
+    stages: RETRIEVAL_STAGE_ORDER.map((stage, index) => buildStage(stage, candidates, fixture, variantId, index)),
     traceId: `mock-retrieval-${fingerprint(`${fixture.caseId}:${variantId}`)}`,
   }
 }
@@ -118,29 +118,37 @@ export function buildRetrievalLeakageFixture(): RetrievalLeakageReport {
 function buildStage(
   stage: RetrievalStage,
   base: readonly RetrievalCandidate[],
-  expectedProjectId: string,
+  fixture: RetrievalEvalCase,
+  variantId: string,
   index: number,
 ): RetrievalStageSnapshot {
   if (stage === 'SEMANTIC_PARSE') return { stage, candidates: [], notes: ['展示归一化 query 与结构化工程/清单实体，不产生候选。'] }
-  const scoped = base.filter((item) => item.projectId === expectedProjectId)
+  const scoped = base.filter((item) => item.projectId === fixture.expected.expectedProjectId)
   if (stage === 'HARD_FILTERS') {
     return {
       stage,
       candidates: scoped.map((item, rank) => ({ ...item, rank: rank + 1 })),
-      removedEntityIds: base.filter((item) => item.projectId !== expectedProjectId).map((item) => item.entityId),
+      removedEntityIds: base.filter((item) => item.projectId !== fixture.expected.expectedProjectId).map((item) => item.entityId),
       notes: ['项目范围在服务端上下文中确定，跨项目候选必须在 hard filters 阶段剔除，且后续阶段不得重新进入候选集。'],
     }
   }
   const candidates = scoped
     .filter((item) => stage === 'EXACT' ? item.sourceArm.includes('exact') : true)
-    .map((item, rank) => scoreCandidate(item, stage, index, rank))
+    .map((item, rank) => scoreCandidate(item, stage, index, rank, fixture, variantId))
     .sort((a, b) => (b.finalScore ?? b.rerankScore ?? b.rrfScore ?? b.denseScore ?? b.bm25Score ?? b.exactScore ?? 0)
       - (a.finalScore ?? a.rerankScore ?? a.rrfScore ?? a.denseScore ?? a.bm25Score ?? a.exactScore ?? 0))
     .map((item, rank) => ({ ...item, rank: rank + 1 }))
   return { stage, candidates }
 }
 
-function scoreCandidate(candidateValue: RetrievalCandidate, stage: RetrievalStage, index: number, rank: number): RetrievalCandidate {
+function scoreCandidate(
+  candidateValue: RetrievalCandidate,
+  stage: RetrievalStage,
+  index: number,
+  rank: number,
+  fixture: RetrievalEvalCase,
+  variantId: string,
+): RetrievalCandidate {
   const base = Math.max(0.25, 0.96 - rank * 0.22 - index * 0.003)
   const result: RetrievalCandidate = { ...candidateValue, rank: rank + 1 }
   if (stage === 'EXACT') result.exactScore = round(base)
@@ -150,8 +158,19 @@ function scoreCandidate(candidateValue: RetrievalCandidate, stage: RetrievalStag
   if (stage === 'RRF') result.rrfScore = round(base + (candidateValue.hardNegative ? -0.12 : 0.03))
   if (stage === 'RERANKER') result.rerankScore = round(base + (candidateValue.hardNegative ? -0.25 : 0.08))
   if (stage === 'BUSINESS_FEATURE') result.businessScore = round(base + (candidateValue.criticalSpecConflict ? -0.35 : candidateValue.hardNegative ? -0.12 : 0.06))
-  if (stage === 'FINAL') result.finalScore = round(base + (candidateValue.criticalSpecConflict ? -0.42 : candidateValue.hardNegative ? -0.2 : 0.1))
+  if (stage === 'FINAL') result.finalScore = finalVariantScore(candidateValue, fixture, variantId)
   return result
+}
+
+function finalVariantScore(candidateValue: RetrievalCandidate, fixture: RetrievalEvalCase, variantId: string): number {
+  const relevant = fixture.expected.relevantEntityIds.includes(candidateValue.entityId)
+  if (variantId === 'retrieval-candidate-v2') {
+    return relevant ? 0.97 : candidateValue.criticalSpecConflict ? 0.48 : 0.55
+  }
+  if (fixture.domain === 'ENGINEERING') {
+    return relevant ? 0.84 : candidateValue.entityId === 'eng-002' ? 0.93 : 0.58
+  }
+  return relevant ? 0.83 : candidateValue.criticalSpecConflict ? 0.94 : 0.62
 }
 
 function candidate(entityId: string, name: string, projectId: string, sourceArm: readonly string[], reason: readonly string[]): RetrievalCandidate {
