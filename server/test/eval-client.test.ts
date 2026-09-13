@@ -72,6 +72,62 @@ test('retrieval leakage report preserves deterministic holdout contamination fin
   assert.equal(report.findings.some((finding) => finding.severity === 'ERROR'), true)
 })
 
+test('seeded retrieval candidate improves ranking metrics and deterministic safety metrics', async () => {
+  const client = new MockEvaluationClient()
+  const baseline = await client.getRetrievalRun(context, 'run-retrieval-baseline-v1')
+  const candidate = await client.getRetrievalRun(context, 'run-retrieval-candidate-v2')
+
+  assert.equal(baseline.runType, 'RETRIEVAL')
+  assert.equal(candidate.projectId, 'project-1')
+  assert.ok((candidate.metrics?.hitAt1 ?? 0) > (baseline.metrics?.hitAt1 ?? 0))
+  assert.ok((candidate.metrics?.mrr ?? 0) > (baseline.metrics?.mrr ?? 0))
+  assert.ok((candidate.metrics?.ndcgAt10 ?? 0) > (baseline.metrics?.ndcgAt10 ?? 0))
+  assert.equal(candidate.metrics?.crossProjectLeakageRate, 0)
+  assert.ok((candidate.metrics?.wrongEntityHighConfidenceRate ?? 1) < (baseline.metrics?.wrongEntityHighConfidenceRate ?? 0))
+})
+
+test('retrieval comparison returns movement, paired stats and deterministic safety verdict separately', async () => {
+  const client = new MockEvaluationClient()
+  const comparison = await client.compareRetrievalRuns(
+    context,
+    'run-retrieval-baseline-v1',
+    'run-retrieval-candidate-v2',
+    'CONFIG',
+  )
+
+  assert.equal(comparison.comparisonType, 'CONFIG')
+  assert.ok(comparison.improvedCaseIds.length > 0)
+  assert.deepEqual(comparison.regressedCaseIds, [])
+  assert.ok(comparison.metricDeltas.some((item) => item.metric === 'hitAt1' && item.delta > 0))
+  assert.ok(comparison.rankMovements.some((item) => item.rankDelta !== undefined && item.rankDelta !== 0))
+  assert.equal(comparison.pairedStats.minimumSampleWarning, true)
+  assert.equal(comparison.pairedStats.conclusion, 'INCONCLUSIVE')
+  assert.equal(comparison.deterministicSafetyRegression, false)
+  assert.deepEqual(comparison.safetyRegressionReasons, [])
+})
+
+test('new retrieval batch run exposes per-case observations and remains project scoped', async () => {
+  const client = new MockEvaluationClient()
+  const run = await client.startRetrievalRun(context, {
+    datasetId: 'retrieval-regression-v1',
+    variantId: 'retrieval-candidate-v2',
+  })
+  const observations = await client.listRetrievalObservations(context, run.runId)
+  assert.equal(run.status, 'COMPLETED')
+  assert.equal(observations.length, 2)
+  assert.ok(observations.every((item) => item.finalCandidates.every((candidate) => candidate.projectId === 'project-1')))
+  assert.ok(observations.every((item) => item.hitAt10))
+})
+
+test('retrieval run stores are isolated by active project', async () => {
+  const client = new MockEvaluationClient()
+  const projectTwo: TrustedRequestContext = { ...context, projectId: 'project-2' }
+  const run = await client.getRetrievalRun(projectTwo, 'run-retrieval-candidate-v2')
+  const observations = await client.listRetrievalObservations(projectTwo, run.runId)
+  assert.equal(run.projectId, 'project-2')
+  assert.ok(observations.every((item) => item.finalCandidates.every((candidate) => candidate.projectId === 'project-2')))
+})
+
 test('candidate run improves quantity cases and comparison records the delta', async () => {
   const client = new MockEvaluationClient()
   const baseline = await client.getRun(context, 'run-intent-baseline-v1')
