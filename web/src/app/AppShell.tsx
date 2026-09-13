@@ -4,20 +4,21 @@ import { EvalOverviewPage } from '../features/eval/EvalOverviewPage'
 import { IntentLabPage } from '../features/eval/IntentLabPage'
 import { RetrievalLabPage } from '../features/eval/RetrievalLabPage'
 import { RetrievalRunPage } from '../features/eval/RetrievalRunPage'
-import { IndustryDashboard } from '../features/industry-dashboard/IndustryDashboard'
+import { IndustryWorkspacePage } from '../features/industry-workspace/IndustryWorkspacePage'
 import { isIndustryRoute, resolveAppRoute, retrievalRunIdFromPath, routePath, type AppRoute } from './routes'
 import './app-shell.css'
 
 export interface AppShellProps {
   initialPath?: string
   codingChat?: ReactNode
+  industryWorkspace?: ReactNode
   evalOverview?: ReactNode
   intentLab?: ReactNode
   retrievalLab?: ReactNode
   retrievalRun?: ReactNode
 }
 
-export function AppShell({ initialPath, codingChat, evalOverview, intentLab, retrievalLab, retrievalRun }: AppShellProps) {
+export function AppShell({ initialPath, codingChat, industryWorkspace, evalOverview, intentLab, retrievalLab, retrievalRun }: AppShellProps) {
   const [route, setRoute] = useState<AppRoute>(() => resolveAppRoute(initialPath ?? currentPath()))
   const pathname = initialPath ?? currentPath()
   const retrievalRunId = retrievalRunIdFromPath(pathname)
@@ -49,6 +50,7 @@ export function AppShell({ initialPath, codingChat, evalOverview, intentLab, ret
           route={route}
           retrievalRunId={retrievalRunId}
           codingChat={codingChat}
+          industryWorkspace={industryWorkspace}
           evalOverview={evalOverview}
           intentLab={intentLab}
           retrievalLab={retrievalLab}
@@ -63,6 +65,7 @@ function AppContent({
   route,
   retrievalRunId,
   codingChat,
+  industryWorkspace,
   evalOverview,
   intentLab,
   retrievalLab,
@@ -71,6 +74,7 @@ function AppContent({
   route: AppRoute
   retrievalRunId: string | null
   codingChat?: ReactNode
+  industryWorkspace?: ReactNode
   evalOverview?: ReactNode
   intentLab?: ReactNode
   retrievalLab?: ReactNode
@@ -82,7 +86,7 @@ function AppContent({
   if (route === 'industry-eval-retrieval') return retrievalLab ?? <RetrievalLabPage />
   if (route === 'industry-eval-intent') return intentLab ?? <IntentLabPage />
   if (route === 'industry-eval') return evalOverview ?? <EvalOverviewPage />
-  if (route === 'industry') return <IndustryDashboard />
+  if (route === 'industry') return industryWorkspace ?? <IndustryWorkspacePage />
   return codingChat ?? <CodingChatApp />
 }
 
