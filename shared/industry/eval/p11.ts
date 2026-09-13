@@ -30,7 +30,7 @@ export interface UnifiedBenchmarkMetric {
 
 export interface UnifiedReleaseGate {
   status: 'PASS' | 'FAIL'
-  source: 'PI'
+  source: 'PI' | 'MOCK_PI'
   ruleVersion: string
   reasons: readonly string[]
   evaluatedAt: string
