@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AgentLoopBudget, StartAgentLoopRunRequest } from '../../../shared/industry/agent-loop'
 import type { AuthPrincipal } from './auth'
-import type { IndustryAgentClient } from './clients/industry-agent-client'
+import { IndustryAgentClientError, type IndustryAgentClient } from './clients/industry-agent-client'
 import type { TrustedRequestContext } from './context'
 import { RequestBodyError, readJsonBody } from '../security/request-limits'
 
@@ -56,7 +56,7 @@ function parseStart(input: unknown): StartAgentLoopRunRequest {
 
 function requirePermission(principal: AuthPrincipal, permission: 'agent.loop.read'|'agent.loop.run'): void {
   if (principal.permissions.includes('agent.loop.admin') || principal.permissions.includes(permission)) return
-  throw new RequestBodyError('INVALID_QUERY', `missing permission: ${permission}`, 403)
+  throw new IndustryAgentClientError('AGENT_LOOP_ACCESS_DENIED', `missing permission: ${permission}`, 403)
 }
 function record(value: unknown): Record<string, unknown> { if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new RequestBodyError('INVALID_JSON','request body must be an object',400); return value as Record<string, unknown> }
 function only(value: Record<string, unknown>, allowed: readonly string[]): void { const bad = Object.keys(value).filter((key) => !allowed.includes(key)); if (bad.length > 0) throw new RequestBodyError('INVALID_JSON',`unexpected fields: ${bad.join(', ')}`,400) }
