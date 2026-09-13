@@ -7,6 +7,7 @@ import { MockPrincipalProvider, parseMockPrincipal, type AuthPrincipal } from '.
 import { MockIndustryAgentClient, parseMockProjects } from './industry/clients/mock-industry-agent-client'
 import { IndustryContextService } from './industry/context'
 import './industry/eval/mock-evaluation-client-mutation'
+import './industry/eval/mock-evaluation-client-rag'
 import './industry/eval/mock-evaluation-client-retrieval'
 import './industry/eval/mock-evaluation-client-trace'
 import { MockEvaluationClient } from './industry/eval/mock-evaluation-client'
