@@ -19,13 +19,16 @@ const ENGINEERING_CASE: RetrievalEvalCase = {
   domain: 'ENGINEERING',
   queryContext: {
     projectId: 'project-demo-001',
-    query: 'K12+300到K12+800左幅有哪些路基工程部位',
-    normalizedQuery: 'K12300到K12800左幅有哪些路基工程部位',
+    query: 'K12+300到K12+800左幅一工区路基填方有哪些工程部位',
+    normalizedQuery: 'K12300到K12800左幅一工区路基填方有哪些工程部位',
     domain: 'ENGINEERING',
     chainageStart: 12300,
     chainageEnd: 12800,
     alignment: 'LEFT',
+    unit: '一工区',
     category: '路基工程',
+    engineeringType: '路基填方',
+    hierarchy: ['一工区', '路基工程', '路基填方'],
   },
   expected: {
     relevantEntityIds: ['eng-001'],
@@ -33,7 +36,7 @@ const ENGINEERING_CASE: RetrievalEvalCase = {
     expectedProjectId: 'project-demo-001',
     expectedAlignment: 'LEFT',
   },
-  tags: ['chainage', 'alignment', 'hard-negative'],
+  tags: ['chainage', 'alignment', 'hierarchy', 'hard-negative'],
   critical: true,
 }
 
@@ -46,33 +49,37 @@ const BOQ_CASE: RetrievalEvalCase = {
   domain: 'BOQ',
   queryContext: {
     projectId: 'project-demo-001',
-    query: 'C30混凝土基础对应哪些清单项',
-    normalizedQuery: 'C30混凝土基础对应哪些清单项',
+    query: '清单403-2-a里C30混凝土基础、直径25mm、厚度30cm、掺量8%的项目',
+    normalizedQuery: '清单403-2-a C30混凝土基础 直径25mm 厚度30cm 掺量8%',
     domain: 'BOQ',
+    boqCode: '403-2-a',
     specification: '混凝土基础',
     concreteGrade: 'C30',
+    diameterMm: 25,
+    thicknessMm: 300,
+    percentage: 8,
   },
   expected: {
     relevantEntityIds: ['boq-001'],
     hardNegativeEntityIds: ['boq-c25-001', 'boq-c30-column-001'],
     expectedProjectId: 'project-demo-001',
   },
-  tags: ['boq', 'concrete-grade', 'specification', 'hard-negative'],
+  tags: ['boq', 'code', 'concrete-grade', 'dimension', 'percentage', 'hard-negative'],
   critical: true,
 }
 
 export const RETRIEVAL_CASE_FIXTURES: readonly RetrievalEvalCase[] = [ENGINEERING_CASE, BOQ_CASE]
 
 const ENGINEERING_CANDIDATES: readonly RetrievalCandidate[] = [
-  { ...candidate('eng-001', 'K12+300-K12+800 左幅路基填筑', 'project-demo-001', ['exact', 'bm25', 'dense'], ['桩号区间命中', '左幅命中', '路基类别命中']), alignment: 'LEFT' },
-  { ...candidate('eng-002', 'K12+300-K12+800 右幅路基填筑', 'project-demo-001', ['bm25', 'dense'], ['桩号区间命中', '横断面方向冲突']), alignment: 'RIGHT', hardNegative: true },
-  { ...candidate('eng-cross-project-001', 'K12+300-K12+800 左幅路基填筑', 'project-demo-002', ['dense'], ['文本高度相似但项目不一致']), alignment: 'LEFT', hardNegative: true },
+  { ...candidate('eng-001', 'K12+300-K12+800 左幅一工区路基填方', 'project-demo-001', ['exact', 'bm25', 'dense'], ['桩号区间命中', '左幅命中', '工区/类别/类型层级命中']), alignment: 'LEFT' },
+  { ...candidate('eng-002', 'K12+300-K12+800 右幅一工区路基填方', 'project-demo-001', ['bm25', 'dense'], ['桩号区间命中', '工区/类别/类型命中', '横断面方向冲突']), alignment: 'RIGHT', hardNegative: true },
+  { ...candidate('eng-cross-project-001', 'K12+300-K12+800 左幅一工区路基填方', 'project-demo-002', ['dense'], ['文本高度相似但项目不一致']), alignment: 'LEFT', hardNegative: true },
 ]
 
 const BOQ_CANDIDATES: readonly RetrievalCandidate[] = [
-  candidate('boq-001', 'C30 混凝土基础', 'project-demo-001', ['exact', 'bm25', 'dense'], ['强度等级命中', '基础构件命中']),
-  { ...candidate('boq-c25-001', 'C25 混凝土基础', 'project-demo-001', ['bm25', 'dense'], ['基础构件命中但强度等级冲突']), hardNegative: true, criticalSpecConflict: true },
-  { ...candidate('boq-c30-column-001', 'C30 混凝土墩柱', 'project-demo-001', ['dense'], ['强度等级命中但构件类型冲突']), hardNegative: true },
+  candidate('boq-001', '403-2-a C30 混凝土基础 φ25 厚30cm 掺量8%', 'project-demo-001', ['exact', 'bm25', 'dense'], ['清单编码命中', '强度等级命中', '规格尺寸命中', '掺量命中']),
+  { ...candidate('boq-c25-001', '403-2-a C25 混凝土基础 φ25 厚30cm 掺量8%', 'project-demo-001', ['bm25', 'dense'], ['清单编码/尺寸命中但强度等级冲突']), hardNegative: true, criticalSpecConflict: true },
+  { ...candidate('boq-c30-column-001', '403-2-a C30 混凝土墩柱 φ25 厚30cm 掺量8%', 'project-demo-001', ['dense'], ['编码/强度/尺寸命中但构件类型冲突']), hardNegative: true },
 ]
 
 export function buildRetrievalPlaygroundFixture(caseId: string, variantId = 'retrieval-stable-v1'): RetrievalPlaygroundResult {
