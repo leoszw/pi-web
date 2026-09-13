@@ -4,10 +4,10 @@ export const DEFAULT_UPLOAD_LIMIT_BYTES = 25 * 1024 * 1024
 import type { IncomingMessage } from 'node:http'
 
 export class RequestBodyError extends Error {
-  readonly code: 'INVALID_JSON' | 'REQUEST_TOO_LARGE'
+  readonly code: 'INVALID_JSON' | 'INVALID_QUERY' | 'REQUEST_TOO_LARGE'
   readonly statusCode: number
 
-  constructor(code: 'INVALID_JSON' | 'REQUEST_TOO_LARGE', message: string, statusCode: number) {
+  constructor(code: 'INVALID_JSON' | 'INVALID_QUERY' | 'REQUEST_TOO_LARGE', message: string, statusCode: number) {
     super(message)
     this.name = 'RequestBodyError'
     this.code = code
