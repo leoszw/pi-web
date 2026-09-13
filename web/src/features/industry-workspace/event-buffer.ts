@@ -5,6 +5,7 @@ const KNOWN_EVENT_TYPES = new Set([
   'message.user.accepted',
   'message.assistant.completed',
   'ui.action.presented',
+  'ui.action.interaction.accepted',
   'conversation.aborted',
 ])
 
