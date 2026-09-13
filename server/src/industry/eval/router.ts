@@ -2,7 +2,18 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { EVAL_API_VERSION } from '../../../../shared/industry/eval/common'
 import type { EvalVariantSummary } from '../../../../shared/industry/eval/common'
 import type { CreateIntentDraftCaseRequest, EvalDatasetSummary, IntentDatasetDetail, IntentEvalCase, IntentName, IntentTurn } from '../../../../shared/industry/eval/datasets'
-import type { RetrievalDomain, RetrievalEvalCase, RetrievalLeakageReport, RetrievalPlaygroundRequest, RetrievalPlaygroundResult } from '../../../../shared/industry/eval/retrieval'
+import type {
+  RetrievalComparisonType,
+  RetrievalDomain,
+  RetrievalEvalCase,
+  RetrievalEvalObservation,
+  RetrievalLeakageReport,
+  RetrievalPlaygroundRequest,
+  RetrievalPlaygroundResult,
+  RetrievalRunComparison,
+  RetrievalRunSummary,
+  StartRetrievalRunRequest,
+} from '../../../../shared/industry/eval/retrieval'
 import type { EvalRunSummary, IntentEvalObservation, IntentPlaygroundRequest, IntentRunComparison, StartIntentRunRequest } from '../../../../shared/industry/eval/runs'
 import type { AuthPrincipal } from '../auth'
 import type { TrustedRequestContext } from '../context'
@@ -81,6 +92,44 @@ export async function handleEvalRoute(options: EvalRouteOptions): Promise<boolea
     if (path === '/api/industry/v1/eval/retrieval/leakage' && options.request.method === 'GET') {
       requirePermission(options.principal, 'eval.read')
       return sendData(options.response, await options.client.getRetrievalLeakageReport(options.context))
+    }
+
+    if (path === '/api/industry/v1/eval/retrieval/runs' && options.request.method === 'GET') {
+      requirePermission(options.principal, 'eval.read')
+      return sendData(options.response, await options.client.listRetrievalRuns(options.context))
+    }
+
+    if (path === '/api/industry/v1/eval/retrieval/runs' && options.request.method === 'POST') {
+      requirePermission(options.principal, 'eval.run')
+      const body = await readJsonBody(options.request, options.bodyLimitBytes)
+      return sendData(options.response, await options.client.startRetrievalRun(options.context, parseStartRetrievalRunRequest(body)), 201)
+    }
+
+    const retrievalObservationsMatch = path.match(/^\/api\/industry\/v1\/eval\/retrieval\/runs\/([^/]+)\/observations$/u)
+    if (retrievalObservationsMatch !== null && options.request.method === 'GET') {
+      requirePermission(options.principal, 'eval.read')
+      return sendData(
+        options.response,
+        await options.client.listRetrievalObservations(options.context, decodeSegment(retrievalObservationsMatch[1])),
+      )
+    }
+
+    const retrievalRunMatch = path.match(/^\/api\/industry\/v1\/eval\/retrieval\/runs\/([^/]+)$/u)
+    if (retrievalRunMatch !== null && options.request.method === 'GET') {
+      requirePermission(options.principal, 'eval.read')
+      return sendData(options.response, await options.client.getRetrievalRun(options.context, decodeSegment(retrievalRunMatch[1])))
+    }
+
+    if (path === '/api/industry/v1/eval/retrieval/compare' && options.request.method === 'POST') {
+      requirePermission(options.principal, 'eval.read')
+      const body = await readJsonBody(options.request, options.bodyLimitBytes)
+      const compare = parseRetrievalCompareRequest(body)
+      return sendData(options.response, await options.client.compareRetrievalRuns(
+        options.context,
+        compare.baselineRunId,
+        compare.candidateRunId,
+        compare.comparisonType,
+      ))
     }
 
     if (path === '/api/industry/v1/eval/runs' && options.request.method === 'GET') {
@@ -235,6 +284,15 @@ function parseStartRunRequest(input: unknown): StartIntentRunRequest {
   }
 }
 
+function parseStartRetrievalRunRequest(input: unknown): StartRetrievalRunRequest {
+  const record = requireRecord(input)
+  assertOnlyKeys(record, ['datasetId', 'variantId'])
+  return {
+    datasetId: requireNonEmptyString(record.datasetId, 'datasetId'),
+    variantId: requireNonEmptyString(record.variantId, 'variantId'),
+  }
+}
+
 function parseCompareRequest(input: unknown): { baselineRunId: string; candidateRunId: string } {
   const record = requireRecord(input)
   assertOnlyKeys(record, ['baselineRunId', 'candidateRunId'])
@@ -242,6 +300,25 @@ function parseCompareRequest(input: unknown): { baselineRunId: string; candidate
     baselineRunId: requireNonEmptyString(record.baselineRunId, 'baselineRunId'),
     candidateRunId: requireNonEmptyString(record.candidateRunId, 'candidateRunId'),
   }
+}
+
+function parseRetrievalCompareRequest(input: unknown): {
+  baselineRunId: string
+  candidateRunId: string
+  comparisonType: RetrievalComparisonType
+} {
+  const record = requireRecord(input)
+  assertOnlyKeys(record, ['baselineRunId', 'candidateRunId', 'comparisonType'])
+  return {
+    baselineRunId: requireNonEmptyString(record.baselineRunId, 'baselineRunId'),
+    candidateRunId: requireNonEmptyString(record.candidateRunId, 'candidateRunId'),
+    comparisonType: parseRetrievalComparisonType(record.comparisonType),
+  }
+}
+
+function parseRetrievalComparisonType(value: unknown): RetrievalComparisonType {
+  if (value === 'EMBEDDING' || value === 'RERANKER' || value === 'CONFIG') return value
+  throw new RequestBodyError('INVALID_JSON', 'comparisonType must be EMBEDDING, RERANKER, or CONFIG', 400)
 }
 
 function parseTurn(input: unknown, index: number): IntentTurn {
@@ -313,6 +390,10 @@ function sendData(
     | readonly RetrievalEvalCase[]
     | RetrievalPlaygroundResult
     | RetrievalLeakageReport
+    | RetrievalRunSummary
+    | readonly RetrievalRunSummary[]
+    | readonly RetrievalEvalObservation[]
+    | RetrievalRunComparison
     | Awaited<ReturnType<EvaluationClient['playgroundIntent']>>,
   statusCode = 200,
 ): true {
