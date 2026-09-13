@@ -64,7 +64,7 @@ const BOQ_CASE: RetrievalEvalCase = {
 export const RETRIEVAL_CASE_FIXTURES: readonly RetrievalEvalCase[] = [ENGINEERING_CASE, BOQ_CASE]
 
 const ENGINEERING_CANDIDATES: readonly RetrievalCandidate[] = [
-  candidate('eng-001', 'K12+300-K12+800 左幅路基填筑', 'project-demo-001', ['exact', 'bm25', 'dense'], ['桩号区间命中', '左幅命中', '路基类别命中']),
+  { ...candidate('eng-001', 'K12+300-K12+800 左幅路基填筑', 'project-demo-001', ['exact', 'bm25', 'dense'], ['桩号区间命中', '左幅命中', '路基类别命中']), alignment: 'LEFT' },
   { ...candidate('eng-002', 'K12+300-K12+800 右幅路基填筑', 'project-demo-001', ['bm25', 'dense'], ['桩号区间命中', '横断面方向冲突']), alignment: 'RIGHT', hardNegative: true },
   { ...candidate('eng-cross-project-001', 'K12+300-K12+800 左幅路基填筑', 'project-demo-002', ['dense'], ['文本高度相似但项目不一致']), alignment: 'LEFT', hardNegative: true },
 ]
@@ -83,7 +83,7 @@ export function buildRetrievalPlaygroundFixture(caseId: string, variantId = 'ret
     caseId: fixture.caseId,
     variantId,
     queryContext: structuredClone(fixture.queryContext),
-    stages: RETRIEVAL_STAGE_ORDER.map((stage, index) => buildStage(stage, candidates, index)),
+    stages: RETRIEVAL_STAGE_ORDER.map((stage, index) => buildStage(stage, candidates, fixture.expected.expectedProjectId, index)),
     traceId: `mock-retrieval-${fingerprint(`${fixture.caseId}:${variantId}`)}`,
   }
 }
@@ -115,17 +115,23 @@ export function buildRetrievalLeakageFixture(): RetrievalLeakageReport {
   }
 }
 
-function buildStage(stage: RetrievalStage, base: readonly RetrievalCandidate[], index: number): RetrievalStageSnapshot {
+function buildStage(
+  stage: RetrievalStage,
+  base: readonly RetrievalCandidate[],
+  expectedProjectId: string,
+  index: number,
+): RetrievalStageSnapshot {
   if (stage === 'SEMANTIC_PARSE') return { stage, candidates: [], notes: ['展示归一化 query 与结构化工程/清单实体，不产生候选。'] }
+  const scoped = base.filter((item) => item.projectId === expectedProjectId)
   if (stage === 'HARD_FILTERS') {
     return {
       stage,
-      candidates: base.filter((item) => item.projectId === 'project-demo-001').map((item, rank) => ({ ...item, rank: rank + 1 })),
-      removedEntityIds: base.filter((item) => item.projectId !== 'project-demo-001').map((item) => item.entityId),
-      notes: ['项目范围在服务端上下文中确定，跨项目候选必须在 hard filters 阶段剔除。'],
+      candidates: scoped.map((item, rank) => ({ ...item, rank: rank + 1 })),
+      removedEntityIds: base.filter((item) => item.projectId !== expectedProjectId).map((item) => item.entityId),
+      notes: ['项目范围在服务端上下文中确定，跨项目候选必须在 hard filters 阶段剔除，且后续阶段不得重新进入候选集。'],
     }
   }
-  const candidates = base
+  const candidates = scoped
     .filter((item) => stage === 'EXACT' ? item.sourceArm.includes('exact') : true)
     .map((item, rank) => scoreCandidate(item, stage, index, rank))
     .sort((a, b) => (b.finalScore ?? b.rerankScore ?? b.rrfScore ?? b.denseScore ?? b.bm25Score ?? b.exactScore ?? 0)
