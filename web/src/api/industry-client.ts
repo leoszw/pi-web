@@ -8,6 +8,13 @@ import type {
   MutationEvalVariant,
 } from '../../../shared/industry/eval/mutation'
 import type {
+  RagEvalCase,
+  RagEvalFailureSummary,
+  RagEvalObservation,
+  RagEvalRunSummary,
+  RagEvalVariant,
+} from '../../../shared/industry/eval/rag'
+import type {
   RetrievalComparisonType,
   RetrievalDomain,
   RetrievalEvalCase,
@@ -67,6 +74,12 @@ export interface EvaluationApiClient {
   getTraceEvalRun(runId: string): Promise<TraceEvalRunSummary>
   listTraceEvalObservations(runId: string): Promise<readonly TraceEvalObservation[]>
   listTraceEvalFailures(runId: string): Promise<readonly TraceEvalFailureSummary[]>
+  listRagEvalCases(): Promise<readonly RagEvalCase[]>
+  listRagEvalRuns(): Promise<readonly RagEvalRunSummary[]>
+  startRagEvalRun(input: { datasetId: string; variantId: RagEvalVariant }): Promise<RagEvalRunSummary>
+  getRagEvalRun(runId: string): Promise<RagEvalRunSummary>
+  listRagEvalObservations(runId: string): Promise<readonly RagEvalObservation[]>
+  listRagEvalFailures(runId: string): Promise<readonly RagEvalFailureSummary[]>
   listRuns(): Promise<readonly EvalRunSummary[]>
   startIntentRun(input: { datasetId: string; variantId: string }): Promise<EvalRunSummary>
   listObservations(runId: string): Promise<readonly IntentEvalObservation[]>
@@ -115,6 +128,12 @@ export function createEvaluationApiClient(fetcher: typeof fetch = fetch): Evalua
     getTraceEvalRun: (runId) => get(`/api/industry/v1/eval/trace/runs/${encodeURIComponent(runId)}`),
     listTraceEvalObservations: (runId) => get(`/api/industry/v1/eval/trace/runs/${encodeURIComponent(runId)}/observations`),
     listTraceEvalFailures: (runId) => get(`/api/industry/v1/eval/trace/runs/${encodeURIComponent(runId)}/failures`),
+    listRagEvalCases: () => get('/api/industry/v1/eval/rag/cases'),
+    listRagEvalRuns: () => get('/api/industry/v1/eval/rag/runs'),
+    startRagEvalRun: (input) => post('/api/industry/v1/eval/rag/runs', input),
+    getRagEvalRun: (runId) => get(`/api/industry/v1/eval/rag/runs/${encodeURIComponent(runId)}`),
+    listRagEvalObservations: (runId) => get(`/api/industry/v1/eval/rag/runs/${encodeURIComponent(runId)}/observations`),
+    listRagEvalFailures: (runId) => get(`/api/industry/v1/eval/rag/runs/${encodeURIComponent(runId)}/failures`),
     listRuns: () => get('/api/industry/v1/eval/runs'),
     startIntentRun: (input) => post('/api/industry/v1/eval/runs', input),
     listObservations: (runId) => get(`/api/industry/v1/eval/runs/${encodeURIComponent(runId)}/observations`),
