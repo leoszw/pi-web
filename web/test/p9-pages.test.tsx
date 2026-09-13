@@ -22,6 +22,23 @@ describe('P9 management views',()=>{
     expect(html).toContain('There is deliberately no arbitrary SQL or Python console')
     expect(html).not.toMatch(/<textarea[^>]*(sql|python)/iu)
   })
+  it('escapes active-looking Report content instead of creating executable HTML or links',()=>{
+    const malicious:ReportArtifact={...report,preview:'<script>alert(1)</script><a href="https://evil.example">click</a>',metadata:{note:'<img src=x onerror=alert(1)>'},evidence:[{...report.evidence[0]!,sourceRef:'javascript:alert(1)'}]}
+    const html=renderToStaticMarkup(<ReportCenterView snapshot={{reports:[malicious],selected:malicious}} busy={false} error={null}/>)
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+    expect(html).toContain('javascript:alert(1)')
+    expect(html).not.toContain('<script>')
+    expect(html).not.toContain('href="https://evil.example"')
+    expect(html).not.toContain('href="javascript:')
+  })
+  it('escapes generated SQL and Python diagnostic text rather than executing markup',()=>{
+    const malicious:SandboxRun={...sandbox,generatedSql:'SELECT id FROM engineering_position /* <script>alert(1)</script> */',pythonSource:'<img src=x onerror=alert(1)>\nprint("diagnostic")'}
+    const html=renderToStaticMarkup(<SandboxView snapshot={{runs:[malicious],selected:malicious}} goal={malicious.goal} scenario="SAFE_READ" budget={malicious.budget} busy={false} error={null}/>)
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
+    expect(html).not.toContain('<script>')
+    expect(html).not.toMatch(/<img[^>]+onerror/iu)
+  })
 })
 
 describe('P9 evaluation views',()=>{
