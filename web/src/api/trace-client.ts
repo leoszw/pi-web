@@ -1,3 +1,4 @@
+import type { RetrievalDebugResult } from '../../../shared/industry/retrieval-debug'
 import type {
   TraceDetail,
   TraceStats,
@@ -26,6 +27,7 @@ export interface IndustryTraceApiClient {
   getTimeline(traceId: string): Promise<readonly TraceTimelineEvent[]>
   getTree(traceId: string): Promise<TraceTree>
   getStats(traceId: string): Promise<TraceStats>
+  getRetrievalDebug(traceId: string): Promise<RetrievalDebugResult>
 }
 
 export class IndustryTraceApiError extends Error {
@@ -49,6 +51,7 @@ export function createIndustryTraceApiClient(fetcher: typeof fetch = fetch): Ind
     getTimeline: async (traceId) => (await get<{ traceId: string; events: readonly TraceTimelineEvent[] }>(`/api/industry/v1/traces/${encodeURIComponent(traceId)}/timeline`)).events,
     getTree: (traceId) => get(`/api/industry/v1/traces/${encodeURIComponent(traceId)}/tree`),
     getStats: (traceId) => get(`/api/industry/v1/traces/${encodeURIComponent(traceId)}/stats`),
+    getRetrievalDebug: (traceId) => get(`/api/industry/v1/traces/${encodeURIComponent(traceId)}/retrieval-debug`),
   }
 
   async function get<T>(path: string): Promise<T> {
