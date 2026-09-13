@@ -58,11 +58,16 @@ function parseReview(input: unknown) {
   only(value, ['decision','selectedEntityId','correctedFields','note'])
   if (value.decision !== 'ACCEPT' && value.decision !== 'CORRECT' && value.decision !== 'REJECT') throw new RequestBodyError('INVALID_JSON', 'decision is invalid', 400)
   const correctedFields = value.correctedFields === undefined ? undefined : stringRecord(value.correctedFields, 'correctedFields')
+  const selectedEntityId = value.selectedEntityId === undefined ? undefined : str(value.selectedEntityId, 'selectedEntityId')
+  const note = value.note === undefined ? undefined : str(value.note, 'note')
+  if (value.decision === 'ACCEPT' && correctedFields !== undefined) throw new RequestBodyError('INVALID_JSON', 'ACCEPT cannot include correctedFields', 400)
+  if (value.decision === 'REJECT' && (correctedFields !== undefined || selectedEntityId !== undefined)) throw new RequestBodyError('INVALID_JSON', 'REJECT cannot include correctedFields or selectedEntityId', 400)
+  if (value.decision === 'CORRECT' && correctedFields === undefined && selectedEntityId === undefined) throw new RequestBodyError('INVALID_JSON', 'CORRECT requires correctedFields or selectedEntityId', 400)
   return {
     decision: value.decision,
-    ...(value.selectedEntityId === undefined ? {} : { selectedEntityId: str(value.selectedEntityId, 'selectedEntityId') }),
+    ...(selectedEntityId === undefined ? {} : { selectedEntityId }),
     ...(correctedFields === undefined ? {} : { correctedFields }),
-    ...(value.note === undefined ? {} : { note: str(value.note, 'note') }),
+    ...(note === undefined ? {} : { note }),
   }
 }
 
@@ -74,6 +79,6 @@ function record(value: unknown): Record<string, unknown> { if (typeof value !== 
 function only(value: Record<string, unknown>, allowed: readonly string[]): void { const bad = Object.keys(value).filter((key) => !allowed.includes(key)); if (bad.length > 0) throw new RequestBodyError('INVALID_JSON',`unexpected fields: ${bad.join(', ')}`,400) }
 function str(value: unknown, name: string): string { if (typeof value !== 'string' || value.trim() === '') throw new RequestBodyError('INVALID_JSON',`${name} must be a non-empty string`,400); return value }
 function integer(value: unknown, name: string): number { if (typeof value !== 'number' || !Number.isInteger(value)) throw new RequestBodyError('INVALID_JSON',`${name} must be an integer`,400); return value }
-function stringRecord(value: unknown, name: string): Readonly<Record<string,string>> { const input = record(value); const result: Record<string,string> = {}; for (const [key,item] of Object.entries(input)) { if (typeof item !== 'string') throw new RequestBodyError('INVALID_JSON',`${name}.${key} must be a string`,400); result[key] = item } return result }
+function stringRecord(value: unknown, name: string): Readonly<Record<string,string>> { const input = record(value); const result: Record<string,string> = {}; for (const [key,item] of Object.entries(input)) { if (typeof item !== 'string' || item.trim() === '') throw new RequestBodyError('INVALID_JSON',`${name}.${key} must be a non-empty string`,400); result[key] = item } return result }
 function decode(value: string): string { try { return decodeURIComponent(value) } catch { throw new RequestBodyError('INVALID_QUERY','invalid path encoding',400) } }
 function sendData(response: ServerResponse, data: unknown, statusCode = 200): true { response.writeHead(statusCode, {'content-type':'application/json; charset=utf-8','cache-control':'no-store'}); response.end(JSON.stringify({apiVersion:'industry-api-v1',data})); return true }
