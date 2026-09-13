@@ -104,6 +104,14 @@ test('knowledge write permissions cannot blind-write without knowledge.read', as
     assert.equal(response.status, 403)
     assert.equal(((await response.json()) as { error: { code: string } }).error.code, 'KNOWLEDGE_ACCESS_DENIED')
   })
+  await withServer(makeRouter(['knowledge.reingest']), async (baseUrl) => {
+    await selectProject(baseUrl)
+    const response = await fetch(`${baseUrl}/api/industry/v1/knowledge/documents/knowledge-project-1-spec-001/reingest`, {
+      method: 'POST', headers: jsonHeaders(), body: '{}',
+    })
+    assert.equal(response.status, 403)
+    assert.equal(((await response.json()) as { error: { code: string } }).error.code, 'KNOWLEDGE_ACCESS_DENIED')
+  })
 })
 
 test('project selections expire when the configured session selection TTL elapses', async () => {
