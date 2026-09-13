@@ -24,7 +24,7 @@ export async function handleReportRoute(options: ReportRouteOptions): Promise<bo
   }
   const downloadMatch = path.match(/^\/api\/industry\/v1\/reports\/([^/]+)\/download$/u)
   if (downloadMatch !== null && options.request.method === 'POST') {
-    requirePermission(options.principal, 'report.download')
+    requireDownloadPermissions(options.principal)
     const body = await readJsonBody(options.request, options.bodyLimitBytes)
     requireEmptyBody(body)
     return sendData(options.response, await options.client.createReportDownloadGrant(options.context, decode(downloadMatch[1])), 201)
@@ -39,6 +39,11 @@ export async function handleReportRoute(options: ReportRouteOptions): Promise<bo
 
 function requireEmptyBody(value: unknown): void {
   if (typeof value !== 'object' || value === null || Array.isArray(value) || Object.keys(value).length !== 0) throw new RequestBodyError('INVALID_JSON','report download request body must be an empty object',400)
+}
+function requireDownloadPermissions(principal:AuthPrincipal):void{
+  if(principal.permissions.includes('report.admin'))return
+  if(principal.permissions.includes('report.read')&&principal.permissions.includes('report.download'))return
+  throw new IndustryAgentClientError('REPORT_ACCESS_DENIED','report download requires report.read and report.download',403)
 }
 function requirePermission(principal: AuthPrincipal, permission: 'report.read' | 'report.download'): void {
   if (principal.permissions.includes('report.admin') || principal.permissions.includes(permission)) return
