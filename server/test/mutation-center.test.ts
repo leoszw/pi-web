@@ -19,14 +19,14 @@ const principal: AuthPrincipal = {
   sessionId: 'session-mutation-center',
 }
 
-function makeRouter() {
+function makeRouter(permissions: readonly string[] = principal.permissions) {
   const client = new MockIndustryAgentClient([
     { tenantId: 'tenant-1', projectId: 'project-1', companyId: 'company-1', name: 'Project One' },
     { tenantId: 'tenant-1', projectId: 'project-2', companyId: 'company-1', name: 'Project Two' },
   ])
   return createIndustryRouter({
     mode: 'control-plane',
-    principalProvider: new MockPrincipalProvider(principal),
+    principalProvider: new MockPrincipalProvider({ ...principal, permissions }),
     client,
     evaluationClient: new MockEvaluationClient(),
     contextService: new IndustryContextService(client),
@@ -89,6 +89,14 @@ async function confirm(baseUrl: string, operation: MutationOperation, key: strin
     body: JSON.stringify({ digest, explicitConfirmation: true }),
   })
 }
+
+test('mutation center requires explicit mutation permission', async () => {
+  await withServer(makeRouter(['industry.read']), async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/industry/v1/mutations`, { headers: { origin: 'http://127.0.0.1' } })
+    assert.equal(response.status, 403)
+    assert.equal((await response.json() as { error: { code: string } }).error.code, 'ACCESS_DENIED')
+  })
+})
 
 test('mutation center requires trusted project scope and never exposes approval material', async () => {
   await withServer(makeRouter(), async (baseUrl) => {
@@ -189,7 +197,10 @@ test('finalization failure enters reconciliation and never retries commit', asyn
 
     const failed = await confirm(baseUrl, operation, 'finalization-key')
     assert.equal(failed.status, 500)
-    assert.equal((await failed.json() as { error: { code: string } }).error.code, 'MUTATION_COMMIT_FINALIZATION_FAILED')
+    const failedBody = await failed.json() as { error: { code: string; resolution?: { type: string }; retryable: boolean } }
+    assert.equal(failedBody.error.code, 'MUTATION_COMMIT_FINALIZATION_FAILED')
+    assert.equal(failedBody.error.retryable, false)
+    assert.equal(failedBody.error.resolution?.type, 'open_reconciliation')
 
     const detailResponse = await fetch(`${baseUrl}/api/industry/v1/mutations/${encodeURIComponent(operation.operationId)}`)
     const detail = (await detailResponse.json() as { data: MutationOperation }).data
