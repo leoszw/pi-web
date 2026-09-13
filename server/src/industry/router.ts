@@ -23,7 +23,9 @@ import { handleReportRoute } from './report-router'
 import { handleRuntimeRoute } from './runtime-router'
 import { handleSandboxRoute } from './sandbox-router'
 import { handleTraceRoute } from './trace-router'
+import { assertControlPlaneCsrfSafe, CsrfError } from '../security/csrf'
 import { isOriginAllowed } from '../security/origin'
+import { InMemoryRateLimiter } from '../security/rate-limit'
 import { DEFAULT_JSON_BODY_LIMIT_BYTES, RequestBodyError, readJsonBody } from '../security/request-limits'
 
 export interface IndustryRouterOptions {
@@ -34,10 +36,12 @@ export interface IndustryRouterOptions {
   contextService: IndustryContextService
   allowedOrigins: ReadonlySet<string>
   jsonBodyLimitBytes?: number
+  rateLimiter?: InMemoryRateLimiter
 }
 
 export function createIndustryRouter(options: IndustryRouterOptions) {
   const bodyLimit = options.jsonBodyLimitBytes ?? DEFAULT_JSON_BODY_LIMIT_BYTES
+  const rateLimiter = options.rateLimiter ?? new InMemoryRateLimiter()
   return async (request: IncomingMessage, response: ServerResponse): Promise<boolean> => {
     const url = new URL(request.url ?? '/', 'http://localhost')
     if (!url.pathname.startsWith('/api/industry/v1/')) return false
@@ -46,7 +50,19 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
     if (options.mode !== 'control-plane') { sendError(response, { requestId, code:'INDUSTRY_CONTROL_PLANE_DISABLED', message:'industry control plane is disabled in local mode', retryable:false },404); return true }
     if (!isOriginAllowed(request, options.allowedOrigins)) { sendError(response, { requestId, code:'ORIGIN_NOT_ALLOWED', message:'request origin is not allowed', retryable:false },403); return true }
     try {
+      assertControlPlaneCsrfSafe(request, options.allowedOrigins)
       const principal = await options.principalProvider.getPrincipal(request)
+      const rateKey = `${principal.tenantId}\u0000${principal.userId}\u0000${principal.sessionId}`
+      const write = !['GET','HEAD','OPTIONS'].includes(request.method ?? 'GET')
+      const rate = rateLimiter.consume(rateKey, write)
+      response.setHeader('x-ratelimit-limit', String(rate.limit))
+      response.setHeader('x-ratelimit-remaining', String(rate.remaining))
+      response.setHeader('x-ratelimit-reset', String(Math.ceil(rate.resetAt / 1000)))
+      if (!rate.allowed) {
+        response.setHeader('retry-after', String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000))))
+        sendError(response,{requestId,code:'RATE_LIMITED',message:'control-plane request rate exceeded',retryable:true},429)
+        return true
+      }
       const resolved = await options.contextService.getContext(principal, requestId)
       if (await handleP12Route({ request,response,url,requestId,principal,context:resolved.trusted,client:options.evaluationClient,agentClient:options.client,bodyLimitBytes:bodyLimit })) return true
       if (await handleP11EvalRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.evaluationClient,bodyLimitBytes:bodyLimit })) return true
@@ -65,12 +81,13 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
       if (await handleKnowledgeRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.client,bodyLimitBytes:bodyLimit })) return true
       if (await handleTraceRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.client })) return true
       if (await handleMutationRoute({ request,response,url,requestId,context:resolved.trusted,client:options.client,bodyLimitBytes:bodyLimit })) return true
-      if (await handleConversationRoute({ request,response,url,requestId,context:resolved.trusted,client:options.client,bodyLimitBytes:bodyLimit })) return true
+      if (await handleConversationRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.client,bodyLimitBytes:bodyLimit })) return true
       if (url.pathname === '/api/industry/v1/health' && request.method === 'GET') { const health=await options.client.getHealth(resolved.trusted); sendJson(response,{apiVersion:'industry-api-v1',status:health.status,mode:'control-plane',adapter:health.adapter,requestId}); return true }
       if (url.pathname === '/api/industry/v1/context' && request.method === 'GET') { sendJson(response,{apiVersion:'industry-api-v1',context:resolved.view,authorizedProjects:resolved.authorizedProjects}); return true }
       if (url.pathname === '/api/industry/v1/context/project' && request.method === 'POST') { const body=await readJsonBody(request,bodyLimit); const projectId=parseProjectSelection(body); const selected=await options.contextService.selectProject(principal,requestId,projectId); sendJson(response,{apiVersion:'industry-api-v1',context:selected.view,authorizedProjects:selected.authorizedProjects}); return true }
       sendError(response,{requestId,code:'INDUSTRY_ROUTE_NOT_FOUND',message:'industry route not found',retryable:false},404); return true
     } catch (error) {
+      if (error instanceof CsrfError) { sendError(response,{requestId,code:error.code,message:error.message,retryable:false},error.statusCode); return true }
       if (error instanceof IndustryContextError) { sendError(response,{requestId,code:error.code,message:error.message,retryable:false,resolution:{type:'reselect_project'}},error.statusCode); return true }
       if (error instanceof IndustryAgentClientError) { sendError(response,{requestId,code:error.code,message:error.message,retryable:false,...(error.code==='MUTATION_COMMIT_FINALIZATION_FAILED'?{resolution:{type:'open_reconciliation' as const}}:{})},error.statusCode); return true }
       if (error instanceof EvaluationClientError) { sendError(response,{requestId,code:error.code,message:error.message,retryable:false},error.statusCode); return true }
