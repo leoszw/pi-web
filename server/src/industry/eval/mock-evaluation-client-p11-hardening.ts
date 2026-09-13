@@ -1,3 +1,4 @@
+import './mock-evaluation-client-p11'
 import { EvaluationClientError } from './evaluation-client'
 import { MockEvaluationClient } from './mock-evaluation-client'
 
