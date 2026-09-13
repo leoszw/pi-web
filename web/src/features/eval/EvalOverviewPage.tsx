@@ -47,19 +47,23 @@ export function EvalOverviewView({ snapshot }: { snapshot: EvalOverviewSnapshot 
   const completedRuns = useMemo(() => snapshot.runs.filter((run) => run.status === 'COMPLETED'), [snapshot.runs])
   return (
     <main className="eval-page" aria-labelledby="eval-overview-title">
-      <div className="eval-eyebrow">Evaluation Workbench · P1</div>
+      <div className="eval-eyebrow">Evaluation Workbench · P2</div>
       <div className="eval-heading-row">
         <div>
           <h1 id="eval-overview-title">Evaluation</h1>
-          <p>Intent evaluation is active with deterministic mock fixtures. Production metrics remain owned by pi.</p>
+          <p>Intent evaluation and deterministic Engineering / BOQ retrieval inspection are available. Production metrics remain owned by pi.</p>
         </div>
-        <a className="eval-primary-link" href="/industry/eval/intent">Open Intent Lab</a>
+        <div className="eval-heading-actions">
+          <a className="eval-primary-link" href="/industry/eval/intent">Open Intent Lab</a>
+          <a className="eval-primary-link" href="/industry/eval/playground/retrieval">Open Retrieval Lab</a>
+        </div>
       </div>
 
       <section className="eval-summary-grid" aria-label="Evaluation summary">
-        <article><strong>{snapshot.datasets.length}</strong><span>Datasets</span></article>
-        <article><strong>{completedRuns.length}</strong><span>Completed runs</span></article>
+        <article><strong>{snapshot.datasets.length}</strong><span>Intent datasets</span></article>
+        <article><strong>{completedRuns.length}</strong><span>Completed intent runs</span></article>
         <article><strong>{snapshot.variants.length}</strong><span>Intent variants</span></article>
+        <article><strong>10</strong><span>Retrieval stages</span></article>
       </section>
 
       <section className="eval-panel">
