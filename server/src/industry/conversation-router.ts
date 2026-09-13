@@ -123,7 +123,7 @@ function parseUiActionInteraction(input: unknown): UiActionInteraction {
   }
   if (kind === 'table_query') {
     assertOnlyKeys(record, ['kind', 'pageSize', 'cursor', 'sort', 'filters'])
-    if (!Number.isInteger(record.pageSize) || (record.pageSize as number) < 1 || (record.pageSize as number) > 100) {
+    if (typeof record.pageSize !== 'number' || !Number.isInteger(record.pageSize) || record.pageSize < 1 || record.pageSize > 100) {
       throw new RequestBodyError('INVALID_JSON', 'pageSize must be an integer between 1 and 100', 400)
     }
     const cursor = optionalNonEmptyString(record.cursor, 'cursor')
@@ -131,7 +131,7 @@ function parseUiActionInteraction(input: unknown): UiActionInteraction {
     const filters = record.filters === undefined ? undefined : parseTableFilters(record.filters)
     return {
       kind,
-      pageSize: record.pageSize as number,
+      pageSize: record.pageSize,
       ...(cursor === undefined ? {} : { cursor }),
       ...(sort === undefined ? {} : { sort }),
       ...(filters === undefined ? {} : { filters }),
