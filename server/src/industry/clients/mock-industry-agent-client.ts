@@ -9,6 +9,13 @@ import type {
   SendConversationMessageRequest,
 } from '../../../../shared/industry/conversation'
 import type {
+  ConfirmMutationRequest,
+  MutationAuditTrail,
+  MutationOperation,
+  MutationReconciliationList,
+  RejectMutationRequest,
+} from '../../../../shared/industry/mutation'
+import type {
   UiActionEnvelope,
   UiActionInteractionAcceptedEventPayload,
   UiActionInteractionRequest,
@@ -17,6 +24,7 @@ import type {
 } from '../../../../shared/industry/ui-actions'
 import type { AuthPrincipal } from '../auth'
 import type { TrustedRequestContext } from '../context'
+import { MockMutationStore } from '../mutation/mock-mutation-store'
 import {
   applyMockUiActionInteraction,
   buildMockUiActions,
@@ -36,6 +44,7 @@ interface StoredConversation {
 export class MockIndustryAgentClient implements IndustryAgentClient {
   readonly #projects: readonly MockAuthorizedProject[]
   readonly #conversations = new Map<string, StoredConversation>()
+  readonly #mutations = new MockMutationStore()
 
   constructor(projects: readonly MockAuthorizedProject[]) {
     this.#projects = projects.map((project) => ({ ...project }))
@@ -270,6 +279,41 @@ export class MockIndustryAgentClient implements IndustryAgentClient {
       latestSequenceNo: stored.conversation.lastSequenceNo,
       events: structuredClone(stored.events.filter((event) => event.sequenceNo > afterSequenceNo)),
     }
+  }
+
+  async listMutations(context: TrustedRequestContext): Promise<readonly MutationOperation[]> {
+    return this.#mutations.list(context)
+  }
+
+  async getMutation(context: TrustedRequestContext, operationId: string): Promise<MutationOperation> {
+    return this.#mutations.get(context, operationId)
+  }
+
+  async confirmMutation(
+    context: TrustedRequestContext,
+    operationId: string,
+    request: ConfirmMutationRequest,
+    idempotencyKey: string,
+    requestId: string,
+  ): Promise<MutationOperation> {
+    return this.#mutations.confirm(context, operationId, request, idempotencyKey, requestId)
+  }
+
+  async rejectMutation(
+    context: TrustedRequestContext,
+    operationId: string,
+    request: RejectMutationRequest,
+    requestId: string,
+  ): Promise<MutationOperation> {
+    return this.#mutations.reject(context, operationId, request, requestId)
+  }
+
+  async getMutationAudit(context: TrustedRequestContext, operationId: string): Promise<MutationAuditTrail> {
+    return this.#mutations.audit(context, operationId)
+  }
+
+  async listMutationReconciliation(context: TrustedRequestContext): Promise<MutationReconciliationList> {
+    return this.#mutations.reconciliation(context)
   }
 
   #requireConversation(context: TrustedRequestContext, conversationId: string): StoredConversation {
