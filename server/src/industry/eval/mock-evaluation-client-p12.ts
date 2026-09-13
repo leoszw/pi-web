@@ -223,6 +223,7 @@ function buildQualitySnapshot(projectId: string): OnlineQualitySnapshot {
   ]
   const byId = new Map(metrics.map((item)=>[item.metricId,item]))
   return {
+    source:'MOCK_FIXTURE',
     projectId,
     windowStart:'2026-09-12T09:45:00.000Z',
     windowEnd:'2026-09-13T09:45:00.000Z',
@@ -252,7 +253,7 @@ function buildHealth(projectId:string,state:ProjectState):DatasetHealthSummary {
   for(const item of labeled)for(const tag of item.humanLabel?.tags??[])tagCounts.set(tag,(tagCounts.get(tag)??0)+1)
   const duplicateCount=1, nearDuplicateCount=2, holdoutLeakageCount=0, labelChurnRate=.08, lastReviewAgeDays=2
   return {
-    projectId,datasetId:DATASET_ID,sourceCaseCount:items.length,draftCount:items.filter((item)=>item.stage==='SANITIZED'||item.stage==='DRAFT').length,labeledCount:labeled.length,reviewedCount:reviewed.length,versionedCount:items.filter((item)=>item.stage==='VERSIONED').length,reviewedPercent:items.length===0?0:reviewed.length/items.length,hardAdversarialCount:hard.length,hardAdversarialPercent:labeled.length===0?0:hard.length/labeled.length,tagDistribution:[...tagCounts.entries()].map(([tag,count])=>({tag,count})).sort((a,b)=>b.count-a.count||a.tag.localeCompare(b.tag)),duplicateCount,nearDuplicateCount,holdoutLeakageCount,labelChurnRate,lastReviewAgeDays,issues:[{issueId:'health-duplicate',type:'DUPLICATE',severity:'WARN',count:duplicateCount,detail:'Exact duplicate candidates require curator review.'},{issueId:'health-near-duplicate',type:'NEAR_DUPLICATE',severity:'WARN',count:nearDuplicateCount,detail:'Near-duplicate candidates should be clustered before versioning.'},{issueId:'health-label-churn',type:'LABEL_CHURN',severity:'WARN',count:1,detail:'Label churn is 8.0% in the mock review window.'}],computedAt:new Date().toISOString(),
+    source:'MOCK_FIXTURE',projectId,datasetId:DATASET_ID,sourceCaseCount:items.length,draftCount:items.filter((item)=>item.stage==='SANITIZED'||item.stage==='DRAFT').length,labeledCount:labeled.length,reviewedCount:reviewed.length,versionedCount:items.filter((item)=>item.stage==='VERSIONED').length,reviewedPercent:items.length===0?0:reviewed.length/items.length,hardAdversarialCount:hard.length,hardAdversarialPercent:labeled.length===0?0:hard.length/labeled.length,tagDistribution:[...tagCounts.entries()].map(([tag,count])=>({tag,count})).sort((a,b)=>b.count-a.count||a.tag.localeCompare(b.tag)),duplicateCount,nearDuplicateCount,holdoutLeakageCount,labelChurnRate,lastReviewAgeDays,issues:[{issueId:'health-duplicate',type:'DUPLICATE',severity:'WARN',count:duplicateCount,detail:'Exact duplicate candidates require curator review.'},{issueId:'health-near-duplicate',type:'NEAR_DUPLICATE',severity:'WARN',count:nearDuplicateCount,detail:'Near-duplicate candidates should be clustered before versioning.'},{issueId:'health-label-churn',type:'LABEL_CHURN',severity:'WARN',count:1,detail:'Label churn is 8.0% in the mock review window.'}],computedAt:new Date().toISOString(),
   }
 }
 
