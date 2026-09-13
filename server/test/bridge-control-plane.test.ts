@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import { WebSocket } from 'ws'
-import { attachBridge } from '../src/bridge'
+import { attachBridge, shouldContinueSession } from '../src/bridge'
 import { MockPrincipalProvider, type AuthPrincipal } from '../src/industry/auth'
 
 const fakePi = fileURLToPath(new URL('./fake-pi.mjs', import.meta.url))
@@ -131,4 +131,10 @@ test('control-plane websocket rejects untrusted origin and missing coding permis
   } finally {
     server.close()
   }
+})
+
+test('control-plane never resumes the shared most-recent coding session', () => {
+  assert.equal(shouldContinueSession('local', '/ws?continue=1'), true)
+  assert.equal(shouldContinueSession('local', '/ws'), false)
+  assert.equal(shouldContinueSession('control-plane', '/ws?continue=1'), false)
 })
