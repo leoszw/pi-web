@@ -34,6 +34,8 @@ test('mock conversation can emit every P3 UIAction with monotonic event sequence
     .filter((event) => event.type === 'ui.action.presented')
     .map((event) => (event.payload as UiActionPresentedEventPayload).action)
   assert.deepEqual(actions.map((action) => action.type), expectedTypes)
+  assert.equal(JSON.stringify(actions).toLowerCase().includes('approval token'), false)
+  assert.equal(JSON.stringify(actions).toLowerCase().includes('approval_token'), false)
 })
 
 test('DataTable fixture preserves 18-digit identifiers as strings and exposes server table controls', async () => {
