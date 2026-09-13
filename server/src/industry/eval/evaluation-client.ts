@@ -1,6 +1,12 @@
 import type { CreateIntentDraftCaseRequest, EvalDatasetSummary, IntentDatasetDetail, IntentEvalCase } from '../../../../shared/industry/eval/datasets'
 import type { EvalVariantSummary } from '../../../../shared/industry/eval/common'
 import type {
+  RetrievalEvalCase,
+  RetrievalLeakageReport,
+  RetrievalPlaygroundRequest,
+  RetrievalPlaygroundResult,
+} from '../../../../shared/industry/eval/retrieval'
+import type {
   EvalRunSummary,
   IntentEvalObservation,
   IntentPlaygroundRequest,
@@ -17,6 +23,9 @@ export interface EvaluationClient {
   listCases(context: TrustedRequestContext, datasetId: string): Promise<readonly IntentEvalCase[]>
   createDraftCase(context: TrustedRequestContext, datasetId: string, request: CreateIntentDraftCaseRequest): Promise<IntentEvalCase>
   playgroundIntent(context: TrustedRequestContext, request: IntentPlaygroundRequest): Promise<IntentPlaygroundResult>
+  listRetrievalCases(context: TrustedRequestContext): Promise<readonly RetrievalEvalCase[]>
+  playgroundRetrieval(context: TrustedRequestContext, request: RetrievalPlaygroundRequest): Promise<RetrievalPlaygroundResult>
+  getRetrievalLeakageReport(context: TrustedRequestContext): Promise<RetrievalLeakageReport>
   listRuns(context: TrustedRequestContext): Promise<readonly EvalRunSummary[]>
   startIntentRun(context: TrustedRequestContext, request: StartIntentRunRequest): Promise<EvalRunSummary>
   getRun(context: TrustedRequestContext, runId: string): Promise<EvalRunSummary>
