@@ -56,8 +56,12 @@ test('final stage keeps hard negatives inspectable with explicit scores and reas
   assert.equal(negative.reason.length > 0, true)
 })
 
-test('leakage fixture flags release holdout contamination deterministically', () => {
+test('leakage fixture covers exact, normalized, near and same-source duplicates', () => {
   const report = buildRetrievalLeakageFixture()
   assert.equal(report.releaseHoldoutContaminated, true)
+  assert.deepEqual(
+    [...new Set(report.findings.map((finding) => finding.kind))].sort(),
+    ['EXACT_DUPLICATE', 'NEAR_DUPLICATE', 'NORMALIZED_DUPLICATE', 'SAME_SOURCE_DUPLICATE'].sort(),
+  )
   assert.equal(report.findings.some((finding) => finding.splits.includes('RELEASE_HOLDOUT') && finding.severity === 'ERROR'), true)
 })
