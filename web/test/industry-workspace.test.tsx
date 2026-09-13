@@ -14,7 +14,7 @@ const actions: readonly UiActionEnvelope[] = [
   base('entity_picker', { title: 'Entity', entityType: 'engineering', options: [{ id: 'e1', label: 'Position 1' }], selectedEntityIds: ['e1'], multi: false }, 1),
   base('form', { title: 'Form', fields: [{ key: 'q', label: 'Query', value: 'K12' }], submitLabel: 'Search' }, 2),
   base('editable_form', { title: 'Editable', fields: [{ key: 'owner', label: 'Owner', value: '张三' }], submitLabel: 'Save', version: 'v1' }, 3),
-  base('table', { title: 'Table', columns: [{ key: 'id', label: 'ID', sortable: true, filterable: false }, { key: 'name', label: 'Name', sortable: false, filterable: true }], rows: [{ rowId: '123456789012345678', cells: { id: '123456789012345678', name: '<script>alert(1)</script>' } }], pagination: { pageSize: 20, stableCursor: 'mock-table-v1:abcdef123456:0', nextCursor: 'mock-table-v1:abcdef123456:20', totalRows: 21 }, sortAllowlist: ['id'], filterAllowlist: ['name'], selectedRowIds: ['123456789012345678'], exportSnapshotRef: 'snapshot://table/1' }, 4),
+  base('table', { title: 'Table', columns: [{ key: 'id', label: 'ID', sortable: true, filterable: false }, { key: 'name', label: 'Name', sortable: false, filterable: true }], rows: [{ rowId: '123456789012345678', cells: { id: '123456789012345678', name: '<script>alert(1)</script>' } }], pagination: { pageSize: 20, stableCursor: 'mock-table-v1:abcdef123456:0', nextCursor: 'mock-table-v1:abcdef123456:20', totalRows: 21 }, query: { sort: { key: 'id', direction: 'asc' }, filters: [{ key: 'name', value: 'C30' }] }, sortAllowlist: ['id'], filterAllowlist: ['name'], selectedRowIds: ['123456789012345678'], exportSnapshotRef: 'snapshot://table/1' }, 4),
   base('multi_select', { title: 'Multi', options: [{ id: 'a', label: 'A' }], selectedIds: ['a'] }, 5),
   base('date_picker', { title: 'Date', value: '2026-09-13' }, 6),
   base('diff', { title: 'Diff', entries: [{ field: 'owner', label: 'Owner', before: '李四', after: '张三' }] }, 7),
@@ -59,13 +59,14 @@ describe('IndustryWorkspaceView', () => {
     }
   })
 
-  it('renders server DataTable controls, preserves 18-digit IDs and escapes raw HTML', () => {
+  it('renders server DataTable controls, restores query state, preserves 18-digit IDs and escapes raw HTML', () => {
     const html = renderToStaticMarkup(<IndustryWorkspaceView snapshot={snapshot} message="" busy={false} error={null} />)
     expect(html).toContain('123456789012345678')
     expect(html).toContain('mock-table-v1:abcdef123456:0')
     expect(html).toContain('snapshot://table/1')
     expect(html).toContain('Apply server query')
     expect(html).toContain('1 / 21 rows')
+    expect(html).toContain('C30')
     expect(html).toContain('Next')
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
     expect(html).not.toContain('<script>alert(1)</script>')
