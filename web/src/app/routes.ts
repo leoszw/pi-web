@@ -1,6 +1,8 @@
 export type AppRoute =
   | 'chat'
   | 'industry'
+  | 'industry-traces'
+  | 'industry-trace-detail'
   | 'industry-mutations'
   | 'industry-mutation-detail'
   | 'industry-mutation-reconciliation'
@@ -19,6 +21,8 @@ export function resolveAppRoute(pathname: string): AppRoute {
   if (pathname === '/industry/eval/retrieval' || pathname.startsWith('/industry/eval/retrieval/')) return 'industry-eval-retrieval'
   if (pathname === '/industry/eval/intent' || pathname.startsWith('/industry/eval/intent/')) return 'industry-eval-intent'
   if (pathname === '/industry/eval' || pathname.startsWith('/industry/eval/')) return 'industry-eval'
+  if (traceIdFromPath(pathname) !== null) return 'industry-trace-detail'
+  if (pathname === '/industry/traces' || pathname === '/industry/traces/') return 'industry-traces'
   if (pathname === '/industry/mutations/reconciliation' || pathname === '/industry/mutations/reconciliation/') return 'industry-mutation-reconciliation'
   if (mutationOperationIdFromPath(pathname) !== null) return 'industry-mutation-detail'
   if (pathname === '/industry/mutations' || pathname === '/industry/mutations/') return 'industry-mutations'
@@ -31,10 +35,25 @@ export function routePath(route: AppRoute): string {
   if (route === 'industry-eval-retrieval-run' || route === 'industry-eval-retrieval') return '/industry/eval/playground/retrieval'
   if (route === 'industry-eval-intent') return '/industry/eval/intent'
   if (route === 'industry-eval') return '/industry/eval'
+  if (route === 'industry-trace-detail' || route === 'industry-traces') return '/industry/traces'
   if (route === 'industry-mutation-reconciliation') return '/industry/mutations/reconciliation'
   if (route === 'industry-mutation-detail' || route === 'industry-mutations') return '/industry/mutations'
   if (route === 'industry') return '/industry'
   return '/chat'
+}
+
+export function tracePath(traceId: string): string {
+  return `/industry/traces/${encodeURIComponent(traceId)}`
+}
+
+export function traceIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/industry\/traces\/([^/]+)\/?$/u)
+  if (match?.[1] === undefined) return null
+  try {
+    return decodeURIComponent(match[1])
+  } catch {
+    return null
+  }
 }
 
 export function mutationOperationPath(operationId: string): string {
@@ -91,4 +110,8 @@ export function isMutationRoute(route: AppRoute): boolean {
   return route === 'industry-mutations'
     || route === 'industry-mutation-detail'
     || route === 'industry-mutation-reconciliation'
+}
+
+export function isTraceRoute(route: AppRoute): boolean {
+  return route === 'industry-traces' || route === 'industry-trace-detail'
 }
