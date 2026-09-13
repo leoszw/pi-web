@@ -8,6 +8,7 @@ import test from 'node:test'
 import { WebSocket } from 'ws'
 import { attachBridge, shouldContinueSession } from '../src/bridge'
 import { MockPrincipalProvider, type AuthPrincipal } from '../src/industry/auth'
+import { InMemoryRateLimiter } from '../src/security/rate-limit'
 
 const fakePi = fileURLToPath(new URL('./fake-pi.mjs', import.meta.url))
 
@@ -129,6 +130,31 @@ test('control-plane websocket rejects untrusted origin and missing coding permis
     await assert.rejects(openSocket(port), /Unexpected server response: 403/)
     await assert.rejects(openSocket(port, 'https://evil.example'), /Unexpected server response: 403/)
   } finally {
+    server.close()
+  }
+})
+
+test('control-plane websocket closes when the authenticated message rate is exceeded', async () => {
+  const server = http.createServer()
+  attachBridge({
+    server,
+    piCommand: ['node', fakePi],
+    piCwd: process.cwd(),
+    mode: 'control-plane',
+    allowedOrigins: new Set(['http://127.0.0.1']),
+    principalProvider: new MockPrincipalProvider(principal(['coding.chat'])),
+    rateLimiter: new InMemoryRateLimiter({ readLimit: 10, writeLimit: 1, windowMs: 60_000 }),
+  })
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const port = (server.address() as { port: number }).port
+  const ws = await openSocket(port)
+  try {
+    const closed = new Promise<number>((resolve) => ws.once('close', (code) => resolve(code)))
+    ws.send(JSON.stringify({ id: 'first', type: 'config_get_models' }))
+    ws.send(JSON.stringify({ id: 'second', type: 'config_get_models' }))
+    assert.equal(await closed, 1008)
+  } finally {
+    if (ws.readyState === WebSocket.OPEN) ws.close()
     server.close()
   }
 })
