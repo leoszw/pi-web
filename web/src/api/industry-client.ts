@@ -18,6 +18,13 @@ import type {
   RetrievalRunSummary,
 } from '../../../shared/industry/eval/retrieval'
 import type { EvalRunSummary, IntentEvalObservation, IntentPlaygroundResult, IntentRunComparison } from '../../../shared/industry/eval/runs'
+import type {
+  TraceEvalCase,
+  TraceEvalFailureSummary,
+  TraceEvalObservation,
+  TraceEvalRunSummary,
+  TraceEvalVariant,
+} from '../../../shared/industry/eval/trace'
 
 interface EvalApiEnvelope<T> {
   apiVersion: 'eval-api-v1'
@@ -54,6 +61,12 @@ export interface EvaluationApiClient {
   getMutationEvalRun(runId: string): Promise<MutationEvalRunSummary>
   listMutationEvalObservations(runId: string): Promise<readonly MutationEvalObservation[]>
   listMutationEvalFailures(runId: string): Promise<readonly MutationEvalFailureSummary[]>
+  listTraceEvalCases(): Promise<readonly TraceEvalCase[]>
+  listTraceEvalRuns(): Promise<readonly TraceEvalRunSummary[]>
+  startTraceEvalRun(input: { datasetId: string; variantId: TraceEvalVariant }): Promise<TraceEvalRunSummary>
+  getTraceEvalRun(runId: string): Promise<TraceEvalRunSummary>
+  listTraceEvalObservations(runId: string): Promise<readonly TraceEvalObservation[]>
+  listTraceEvalFailures(runId: string): Promise<readonly TraceEvalFailureSummary[]>
   listRuns(): Promise<readonly EvalRunSummary[]>
   startIntentRun(input: { datasetId: string; variantId: string }): Promise<EvalRunSummary>
   listObservations(runId: string): Promise<readonly IntentEvalObservation[]>
@@ -96,6 +109,12 @@ export function createEvaluationApiClient(fetcher: typeof fetch = fetch): Evalua
     getMutationEvalRun: (runId) => get(`/api/industry/v1/eval/mutation/runs/${encodeURIComponent(runId)}`),
     listMutationEvalObservations: (runId) => get(`/api/industry/v1/eval/mutation/runs/${encodeURIComponent(runId)}/observations`),
     listMutationEvalFailures: (runId) => get(`/api/industry/v1/eval/mutation/runs/${encodeURIComponent(runId)}/failures`),
+    listTraceEvalCases: () => get('/api/industry/v1/eval/trace/cases'),
+    listTraceEvalRuns: () => get('/api/industry/v1/eval/trace/runs'),
+    startTraceEvalRun: (input) => post('/api/industry/v1/eval/trace/runs', input),
+    getTraceEvalRun: (runId) => get(`/api/industry/v1/eval/trace/runs/${encodeURIComponent(runId)}`),
+    listTraceEvalObservations: (runId) => get(`/api/industry/v1/eval/trace/runs/${encodeURIComponent(runId)}/observations`),
+    listTraceEvalFailures: (runId) => get(`/api/industry/v1/eval/trace/runs/${encodeURIComponent(runId)}/failures`),
     listRuns: () => get('/api/industry/v1/eval/runs'),
     startIntentRun: (input) => post('/api/industry/v1/eval/runs', input),
     listObservations: (runId) => get(`/api/industry/v1/eval/runs/${encodeURIComponent(runId)}/observations`),
