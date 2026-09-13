@@ -4,6 +4,7 @@ import { EvalOverviewPage } from '../features/eval/EvalOverviewPage'
 import { IntentLabPage } from '../features/eval/IntentLabPage'
 import { MutationEvalPage } from '../features/eval/MutationEvalPage'
 import { P7EvalPage } from '../features/eval/P7EvalPage'
+import { P8EvalPage } from '../features/eval/P8EvalPage'
 import { RagEvalPage } from '../features/eval/RagEvalPage'
 import { RetrievalLabPage } from '../features/eval/RetrievalLabPage'
 import { RetrievalRunPage } from '../features/eval/RetrievalRunPage'
@@ -11,6 +12,8 @@ import { TraceEvalPage } from '../features/eval/TraceEvalPage'
 import { IndustryWorkspacePage } from '../features/industry-workspace/IndustryWorkspacePage'
 import { KnowledgePage } from '../features/knowledge/KnowledgePage'
 import { MutationCenterPage } from '../features/mutation-center/MutationCenterPage'
+import { AgentLoopPage } from '../features/p8/AgentLoopPage'
+import { MultimodalPage } from '../features/p8/MultimodalPage'
 import { RetrievalDebugPage } from '../features/trace/RetrievalDebugPage'
 import { TracePage } from '../features/trace/TracePage'
 import {
@@ -25,6 +28,8 @@ export interface AppShellProps {
   codingChat?: ReactNode
   industryWorkspace?: ReactNode
   knowledge?: ReactNode
+  multimodal?: ReactNode
+  agentLoop?: ReactNode
   traceExplorer?: ReactNode
   retrievalDebug?: ReactNode
   mutationCenter?: ReactNode
@@ -36,6 +41,7 @@ export interface AppShellProps {
   traceEval?: ReactNode
   ragEval?: ReactNode
   p7Eval?: ReactNode
+  p8Eval?: ReactNode
 }
 
 export function AppShell(props: AppShellProps) {
@@ -70,6 +76,8 @@ export function AppShell(props: AppShellProps) {
       <a href="/chat" data-active={route === 'chat'} onClick={navigate('chat')}>Coding Chat</a>
       <a href="/industry" data-active={route === 'industry'} onClick={navigate('industry')}>Industry Agent</a>
       <a href="/industry/knowledge" data-active={route === 'industry-knowledge'} onClick={navigate('industry-knowledge')}>Knowledge</a>
+      <a href="/industry/multimodal" data-active={route === 'industry-multimodal'} onClick={navigate('industry-multimodal')}>Multimodal</a>
+      <a href="/industry/agent-loop" data-active={route === 'industry-agent-loop'} onClick={navigate('industry-agent-loop')}>Agent Loop</a>
       <a href="/industry/traces" data-active={isTraceRoute(route)} onClick={navigate('industry-traces')}>Trace</a>
       <a href="/industry/mutations" data-active={isMutationRoute(route)} onClick={navigate('industry-mutations')}>Mutation Center</a>
       <a href="/industry/eval" data-active={isEvaluationRoute(route)} onClick={navigate('industry-eval')}>Evaluation</a>
@@ -92,6 +100,8 @@ function AppContent(props: AppShellProps & {
   mutationOperationId: string | null
 }) {
   const { route, traceId, retrievalDebugTraceId, retrievalRunId, mutationEvalRunId, traceEvalRunId, ragEvalRunId, mutationOperationId } = props
+  if (route === 'industry-eval-multimodal') return props.p8Eval ?? <P8EvalPage domain="MULTIMODAL" />
+  if (route === 'industry-eval-agent-loop') return props.p8Eval ?? <P8EvalPage domain="AGENT_LOOP" />
   if (route === 'industry-eval-normalization') return props.p7Eval ?? <P7EvalPage domain="NORMALIZATION" />
   if (route === 'industry-eval-entity') return props.p7Eval ?? <P7EvalPage domain="ENTITY" />
   if (route === 'industry-eval-tool') return props.p7Eval ?? <P7EvalPage domain="TOOL" />
@@ -106,6 +116,8 @@ function AppContent(props: AppShellProps & {
   if (route === 'industry-eval-retrieval') return props.retrievalLab ?? <RetrievalLabPage />
   if (route === 'industry-eval-intent') return props.intentLab ?? <IntentLabPage />
   if (route === 'industry-eval') return props.evalOverview ?? <EvalOverviewPage />
+  if (route === 'industry-multimodal') return props.multimodal ?? <MultimodalPage />
+  if (route === 'industry-agent-loop') return props.agentLoop ?? <AgentLoopPage />
   if (route === 'industry-knowledge') return props.knowledge ?? <KnowledgePage />
   if (route === 'industry-retrieval-debug' && retrievalDebugTraceId !== null) return props.retrievalDebug ?? <RetrievalDebugPage traceId={retrievalDebugTraceId} />
   if (route === 'industry-trace-detail' && traceId !== null) return props.traceExplorer ?? <TracePage traceId={traceId} />
