@@ -7,6 +7,7 @@ import { handleConversationRoute } from './conversation-router'
 import { IndustryContextError, IndustryContextService } from './context'
 import type { EvaluationClient } from './eval/evaluation-client'
 import { handleEvalRoute } from './eval/router'
+import { handleTraceEvalRoute } from './eval/trace-router'
 import { handleMutationRoute } from './mutation-router'
 import { handleTraceRoute } from './trace-router'
 import { isOriginAllowed } from '../security/origin'
@@ -55,6 +56,17 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
     try {
       const principal = await options.principalProvider.getPrincipal(request)
       const resolved = await options.contextService.getContext(principal, requestId)
+
+      if (await handleTraceEvalRoute({
+        request,
+        response,
+        url,
+        requestId,
+        principal,
+        context: resolved.trusted,
+        client: options.evaluationClient,
+        bodyLimitBytes: bodyLimit,
+      })) return true
 
       if (await handleEvalRoute({
         request,
