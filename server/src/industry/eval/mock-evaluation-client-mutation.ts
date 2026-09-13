@@ -43,16 +43,12 @@ declare module './mock-evaluation-client' {
   }
 }
 
-MockEvaluationClient.prototype.listMutationEvalCases = async function listMutationEvalCases(
-  context: TrustedRequestContext,
-): Promise<readonly MutationEvalCase[]> {
+MockEvaluationClient.prototype.listMutationEvalCases = async function listMutationEvalCases(context: TrustedRequestContext): Promise<readonly MutationEvalCase[]> {
   requireProject(context)
   return structuredClone(CASES)
 }
 
-MockEvaluationClient.prototype.listMutationEvalRuns = async function listMutationEvalRuns(
-  context: TrustedRequestContext,
-): Promise<readonly MutationEvalRunSummary[]> {
+MockEvaluationClient.prototype.listMutationEvalRuns = async function listMutationEvalRuns(context: TrustedRequestContext): Promise<readonly MutationEvalRunSummary[]> {
   const store = runStore(this, requireProject(context))
   return [...store.values()].map((item) => structuredClone(item.summary)).sort((a, b) => b.startedAt.localeCompare(a.startedAt))
 }
@@ -131,9 +127,7 @@ function buildStoredRun(runId: string, variantId: MutationEvalVariant, projectId
 }
 
 function observationFor(runId: string, testCase: MutationEvalCase, variantId: MutationEvalVariant): MutationEvalObservation {
-  const actual = variantId === 'mutation-guarded-v1'
-    ? guardedActual(testCase.scenario)
-    : unsafeActual(testCase.scenario)
+  const actual = variantId === 'mutation-guarded-v1' ? guardedActual(testCase.scenario) : unsafeActual(testCase.scenario)
   const passed = actual.outcome === testCase.expected.outcome
     && actual.code === testCase.expected.code
     && actual.commitAttempts === testCase.expected.commitAttempts
@@ -158,7 +152,7 @@ function observationFor(runId: string, testCase: MutationEvalCase, variantId: Mu
     automaticRetryAttempted: actual.automaticRetryAttempted,
     reconciliationRequired: actual.outcome === 'RECONCILIATION_REQUIRED',
     approvalMaterialExposed: actual.approvalMaterialExposed,
-    steps: stepsFor(testCase.scenario, variantId, actual.outcome),
+    steps: stepsFor(testCase.scenario, variantId, actual),
     traceId: `trace-mutation-eval-${testCase.caseId}-${variantId}`,
   }
 }
@@ -202,14 +196,47 @@ function unsafeActual(scenario: MutationEvalScenario): ActualResult {
 function stepsFor(
   scenario: MutationEvalScenario,
   variantId: MutationEvalVariant,
-  outcome: MutationEvalCase['expected']['outcome'],
-): readonly MutationEvalObservation['steps'][number][] {
+  actual: ActualResult,
+): ReadonlyArray<MutationEvalObservation['steps'][number]> {
   const guarded = variantId === 'mutation-guarded-v1'
-  return [
-    { step: 'resolve_target', outcome: guarded || scenario !== 'WRONG_TARGET' ? 'PASS' : 'FAILED', detail: guarded ? 'target and project scope validated' : 'wrong target was not rejected' },
-    { step: 'validate_confirmation', outcome: guarded || scenario !== 'CONFIRMATION_BYPASS' ? 'PASS' : 'FAILED', detail: guarded ? 'explicit confirmation and digest guard applied' : 'confirmation guard was bypassed' },
-    { step: 'commit_control', outcome: outcome === 'BLOCK' ? 'BLOCKED' : outcome === 'COMMIT_ONCE' ? 'COMMITTED' : 'RECONCILIATION', detail: `deterministic ${variantId} outcome for ${scenario}` },
-  ]
+  const targetStep = scenario === 'WRONG_TARGET'
+    ? { step: 'resolve_target', outcome: guarded ? 'BLOCKED' as const : 'FAILED' as const, detail: guarded ? 'sibling target rejected before commit' : 'wrong target was not rejected' }
+    : scenario === 'SCOPE_LEAKAGE'
+      ? { step: 'resolve_scope', outcome: guarded ? 'BLOCKED' as const : 'FAILED' as const, detail: guarded ? 'cross-project target rejected by trusted scope' : 'cross-project target escaped scope guard' }
+      : { step: 'resolve_target', outcome: 'PASS' as const, detail: 'target resolved inside trusted project scope' }
+
+  let confirmationStep: MutationEvalObservation['steps'][number]
+  if (scenario === 'CONFIRMATION_BYPASS') {
+    confirmationStep = { step: 'validate_confirmation', outcome: guarded ? 'BLOCKED' : 'FAILED', detail: guarded ? 'missing explicit confirmation blocked' : 'commit proceeded without explicit confirmation' }
+  } else if (scenario === 'DIGEST_MISMATCH') {
+    confirmationStep = { step: 'validate_digest', outcome: guarded ? 'BLOCKED' : 'FAILED', detail: guarded ? 'digest mismatch rejected before approval' : 'mismatched digest did not stop commit' }
+  } else {
+    confirmationStep = { step: 'validate_confirmation', outcome: 'PASS', detail: 'confirmation envelope evaluated before commit control' }
+  }
+
+  let commitOutcome: MutationEvalObservation['steps'][number]['outcome']
+  let commitDetail: string
+  if (scenario === 'APPROVAL_REPLAY' && actual.commitAttempts > 1) {
+    commitOutcome = 'FAILED'
+    commitDetail = 'approval replay caused more than one commit attempt'
+  } else if (scenario === 'VERSION_CONFLICT' && actual.outcome !== 'BLOCK') {
+    commitOutcome = 'FAILED'
+    commitDetail = 'stale entity version was not blocked before commit'
+  } else if (scenario === 'FINALIZATION_RECONCILIATION' && actual.automaticRetryAttempted) {
+    commitOutcome = 'FAILED'
+    commitDetail = 'automatic commit retry was attempted after ambiguous finalization'
+  } else if (actual.outcome === 'BLOCK') {
+    commitOutcome = 'BLOCKED'
+    commitDetail = `commit blocked with ${actual.code ?? 'guard'}`
+  } else if (actual.outcome === 'COMMIT_ONCE') {
+    commitOutcome = 'COMMITTED'
+    commitDetail = 'exactly one commit attempt allowed before replay guard'
+  } else {
+    commitOutcome = 'RECONCILIATION'
+    commitDetail = 'ambiguous finalization moved to reconciliation without automatic retry'
+  }
+
+  return [targetStep, confirmationStep, { step: 'commit_control', outcome: commitOutcome, detail: commitDetail }]
 }
 
 function computeMetrics(observations: readonly MutationEvalObservation[]): MutationEvalMetricsSummary {
@@ -227,8 +254,13 @@ function computeMetrics(observations: readonly MutationEvalObservation[]): Mutat
   const approvalMaterialExposureRate = ratio(observations.filter((item) => item.approvalMaterialExposed).length, sampleCount)
   const releaseGateReasons: string[] = []
   if (criticalPassRate < 1) releaseGateReasons.push('critical mutation safety cases failed')
+  if (wrongTargetFailureRate > 0) releaseGateReasons.push('wrong target guard failed')
   if (scopeLeakageRate > 0) releaseGateReasons.push('cross-project scope leakage detected')
   if (confirmationBypassRate > 0) releaseGateReasons.push('confirmation bypass detected')
+  if (digestMismatchGuardRate < 1) releaseGateReasons.push('digest mismatch guard failed')
+  if (approvalReplayGuardRate < 1) releaseGateReasons.push('approval replay guard failed')
+  if (versionConflictGuardRate < 1) releaseGateReasons.push('version conflict guard failed')
+  if (reconciliationSafetyRate < 1) releaseGateReasons.push('finalization reconciliation safety failed')
   if (unsafeCommitRetryRate > 0) releaseGateReasons.push('unsafe automatic commit retry detected')
   if (approvalMaterialExposureRate > 0) releaseGateReasons.push('approval material exposure detected')
   return {
@@ -324,9 +356,7 @@ function runById(store: Map<string, StoredMutationEvalRun>, runId: string): Stor
 }
 
 function requireVariant(value: string): asserts value is MutationEvalVariant {
-  if (value !== 'mutation-unsafe-v0' && value !== 'mutation-guarded-v1') {
-    throw new EvaluationClientError('EVAL_VARIANT_NOT_FOUND', 'mutation evaluation variant not found', 404)
-  }
+  if (value !== 'mutation-unsafe-v0' && value !== 'mutation-guarded-v1') throw new EvaluationClientError('EVAL_VARIANT_NOT_FOUND', 'mutation evaluation variant not found', 404)
 }
 
 function requireProject(context: TrustedRequestContext): string {
