@@ -25,6 +25,14 @@ import type {
   StartP8EvalRunRequest,
 } from '../../../../shared/industry/eval/p8'
 import type {
+  P9EvalCase,
+  P9EvalDomain,
+  P9EvalFailureSummary,
+  P9EvalObservation,
+  P9EvalRunSummary,
+  StartP9EvalRunRequest,
+} from '../../../../shared/industry/eval/p9'
+import type {
   RagEvalCase,
   RagEvalFailureSummary,
   RagEvalObservation,
@@ -106,6 +114,12 @@ export interface EvaluationClient {
   getP8EvalRun(context: TrustedRequestContext, runId: string): Promise<P8EvalRunSummary>
   listP8EvalObservations(context: TrustedRequestContext, runId: string): Promise<readonly P8EvalObservation[]>
   listP8EvalFailures(context: TrustedRequestContext, runId: string): Promise<readonly P8EvalFailureSummary[]>
+  listP9EvalCases(context: TrustedRequestContext, domain: P9EvalDomain): Promise<readonly P9EvalCase[]>
+  listP9EvalRuns(context: TrustedRequestContext, domain: P9EvalDomain): Promise<readonly P9EvalRunSummary[]>
+  startP9EvalRun(context: TrustedRequestContext, domain: P9EvalDomain, request: StartP9EvalRunRequest): Promise<P9EvalRunSummary>
+  getP9EvalRun(context: TrustedRequestContext, runId: string): Promise<P9EvalRunSummary>
+  listP9EvalObservations(context: TrustedRequestContext, runId: string): Promise<readonly P9EvalObservation[]>
+  listP9EvalFailures(context: TrustedRequestContext, runId: string): Promise<readonly P9EvalFailureSummary[]>
   listRuns(context: TrustedRequestContext): Promise<readonly EvalRunSummary[]>
   startIntentRun(context: TrustedRequestContext, request: StartIntentRunRequest): Promise<EvalRunSummary>
   getRun(context: TrustedRequestContext, runId: string): Promise<EvalRunSummary>
