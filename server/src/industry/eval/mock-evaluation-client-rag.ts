@@ -138,7 +138,7 @@ function observationFor(runId: string, variantId: RagEvalVariant, projectId: str
   const actual = variantId === 'rag-guarded-v1'
     ? guardedActual(projectId, testCase)
     : brokenActual(projectId, testCase)
-  const metrics = observationMetrics(testCase, actual.chunks, actual.answer, actual.claims)
+  const metrics = observationMetrics(testCase, actual.chunks, actual.answer, actual.claims, projectId)
   const failureReasons: string[] = []
   if (metrics.aclLeakage) failureReasons.push('ACL leakage: retrieved chunk is not authorized for the active project/user scope')
   if (testCase.expectedEvidence.length > 0 && metrics.recallAt3 < 1) failureReasons.push('expected evidence was not retrieved in top 3')
@@ -194,10 +194,10 @@ function brokenActual(projectId: string, testCase: RagEvalCase): ActualRag {
   if (testCase.caseId === 'rag-003') {
     return { chunks: [], answer: '隧道通风机必须采用 55kW 轴流风机。', claims: [claim('claim-1', '必须采用 55kW 轴流风机。', [], false)] }
   }
-  const foreignProject = 'project-2'
+  const foreignProject = projectId === 'project-2' ? 'project-1' : 'project-2'
   const foreignDoc = `knowledge-${safeId(foreignProject)}-spec-001`
   const foreignChunk = `${foreignDoc}:chunk-2`
-  return { chunks: [{ ...ragChunk(foreignDoc, foreignChunk, 1, 0.99, '另一个项目的质量验收记录。', 'Project Two > 质量验收', 7, '质量验收', foreignProject), aclAllowed: false }], answer: '另一个项目的质量验收记录显示已验收。', claims: [claim('claim-1', '另一个项目已经完成质量验收。', [foreignChunk], false)] }
+  return { chunks: [{ ...ragChunk(foreignDoc, foreignChunk, 1, 0.99, '另一个项目的质量验收记录。', `${foreignProject} > 质量验收`, 7, '质量验收', foreignProject), aclAllowed: false }], answer: '另一个项目的质量验收记录显示已验收。', claims: [claim('claim-1', '另一个项目已经完成质量验收。', [foreignChunk], false)] }
 }
 
 interface ActualRag {
@@ -206,7 +206,7 @@ interface ActualRag {
   claims: readonly RagAnswerClaim[]
 }
 
-function observationMetrics(testCase: RagEvalCase, chunks: readonly RagRetrievedChunk[], answer: string, claims: readonly RagAnswerClaim[]) {
+function observationMetrics(testCase: RagEvalCase, chunks: readonly RagRetrievedChunk[], answer: string, claims: readonly RagAnswerClaim[], projectId: string) {
   const expectedIds = new Set(testCase.expectedEvidence.map((item) => item.chunkId))
   const ranks = chunks.filter((item) => expectedIds.has(item.chunkId)).map((item) => item.rank)
   const bestRank = ranks.length === 0 ? undefined : Math.min(...ranks)
@@ -214,7 +214,7 @@ function observationMetrics(testCase: RagEvalCase, chunks: readonly RagRetrieved
   const reciprocalRank = bestRank === undefined ? (expectedIds.size === 0 && chunks.length === 0 ? 1 : 0) : 1 / bestRank
   const ndcgAt5 = expectedIds.size === 0 ? (chunks.length === 0 ? 1 : 0) : ndcg(chunks, expectedIds, 5)
   const duplicateRate = chunks.length === 0 ? 0 : chunks.filter((item) => item.duplicateOfChunkId !== undefined).length / chunks.length
-  const aclLeakage = chunks.some((item) => !item.aclAllowed || item.projectId !== testCase.expectedEvidence[0]?.documentId.split('-').slice(1, 3).join('-') && item.projectId === 'project-2')
+  const aclLeakage = chunks.some((item) => !item.aclAllowed || item.projectId !== projectId)
   const supportedClaims = claims.filter((item) => item.supported)
   const citedClaims = claims.filter((item) => item.citationChunkIds.length > 0)
   const correctCitations = citedClaims.filter((item) => item.supported && item.citationChunkIds.every((id) => chunks.some((chunk) => chunk.chunkId === id)))
@@ -239,27 +239,29 @@ function observationMetrics(testCase: RagEvalCase, chunks: readonly RagRetrieved
 }
 
 function metricsFor(observations: readonly RagEvalObservation[]): RagEvalMetricsSummary {
-  const average = (selector: (item: RagEvalObservation) => number) => observations.reduce((sum, item) => sum + selector(item), 0) / observations.length
+  const average = (items: readonly RagEvalObservation[], selector: (item: RagEvalObservation) => number, emptyValue = 1) => items.length === 0 ? emptyValue : items.reduce((sum, item) => sum + selector(item), 0) / items.length
+  const evidenceCases = observations.filter((item) => item.expectedEvidence.length > 0)
+  const insufficientCases = observations.filter((item) => item.expectedEvidence.length === 0)
   const passedCount = observations.filter((item) => item.passed).length
   const metrics = {
     sampleCount: observations.length,
     passedCount,
-    passRate: passedCount / observations.length,
-    recallAt1: average((item) => item.recallAt1),
-    recallAt3: average((item) => item.recallAt3),
-    recallAt5: average((item) => item.recallAt5),
-    mrr: average((item) => item.reciprocalRank),
-    ndcgAt5: average((item) => item.ndcgAt5),
-    documentHitRate: average((item) => item.documentHit ? 1 : 0),
-    chunkHitRate: average((item) => item.chunkHit ? 1 : 0),
-    duplicateRate: average((item) => item.duplicateRate),
-    aclLeakageRate: average((item) => item.aclLeakage ? 1 : 0),
-    groundedness: average((item) => item.groundedness),
-    citationCorrectness: average((item) => item.citationCorrectness),
-    citationCompleteness: average((item) => item.citationCompleteness),
-    answerRelevance: average((item) => item.answerRelevance),
-    unsupportedClaimRate: average((item) => item.unsupportedClaimRate),
-    insufficientEvidenceCorrectness: average((item) => item.insufficientEvidenceCorrect ? 1 : 0),
+    passRate: observations.length === 0 ? 0 : passedCount / observations.length,
+    recallAt1: average(evidenceCases, (item) => item.recallAt1),
+    recallAt3: average(evidenceCases, (item) => item.recallAt3),
+    recallAt5: average(evidenceCases, (item) => item.recallAt5),
+    mrr: average(evidenceCases, (item) => item.reciprocalRank),
+    ndcgAt5: average(evidenceCases, (item) => item.ndcgAt5),
+    documentHitRate: average(evidenceCases, (item) => item.documentHit ? 1 : 0),
+    chunkHitRate: average(evidenceCases, (item) => item.chunkHit ? 1 : 0),
+    duplicateRate: average(observations, (item) => item.duplicateRate, 0),
+    aclLeakageRate: average(observations, (item) => item.aclLeakage ? 1 : 0, 0),
+    groundedness: average(observations, (item) => item.groundedness),
+    citationCorrectness: average(observations, (item) => item.citationCorrectness),
+    citationCompleteness: average(observations, (item) => item.citationCompleteness),
+    answerRelevance: average(observations, (item) => item.answerRelevance),
+    unsupportedClaimRate: average(observations, (item) => item.unsupportedClaimRate, 0),
+    insufficientEvidenceCorrectness: average(insufficientCases, (item) => item.insufficientEvidenceCorrect ? 1 : 0),
   }
   const reasons: string[] = []
   if (metrics.aclLeakageRate > 0) reasons.push('ACL leakage detected')
