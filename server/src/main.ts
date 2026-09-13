@@ -8,6 +8,7 @@ import { MockIndustryAgentClient, parseMockProjects } from './industry/clients/m
 import { IndustryContextService } from './industry/context'
 import './industry/eval/mock-evaluation-client-mutation'
 import './industry/eval/mock-evaluation-client-retrieval'
+import './industry/eval/mock-evaluation-client-trace'
 import { MockEvaluationClient } from './industry/eval/mock-evaluation-client'
 import { createIndustryRouter } from './industry/router'
 import './industry/trace/mock-industry-agent-client-retrieval-debug'
