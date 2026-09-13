@@ -7,8 +7,9 @@ import type {
   UiActionTableFilter,
   UiActionTableSort,
 } from '../../../shared/industry/ui-actions'
+import type { AuthPrincipal } from './auth'
 import type { TrustedRequestContext } from './context'
-import type { IndustryAgentClient } from './clients/industry-agent-client'
+import { IndustryAgentClientError, type IndustryAgentClient } from './clients/industry-agent-client'
 import { RequestBodyError, readJsonBody } from '../security/request-limits'
 
 export interface ConversationRouteOptions {
@@ -16,6 +17,7 @@ export interface ConversationRouteOptions {
   response: ServerResponse
   url: URL
   requestId: string
+  principal: AuthPrincipal
   context: TrustedRequestContext
   client: IndustryAgentClient
   bodyLimitBytes: number
@@ -24,6 +26,7 @@ export interface ConversationRouteOptions {
 export async function handleConversationRoute(options: ConversationRouteOptions): Promise<boolean> {
   const path = options.url.pathname
   if (!path.startsWith('/api/industry/v1/conversations')) return false
+  requireWorkspacePermission(options.principal)
 
   if (path === '/api/industry/v1/conversations' && options.request.method === 'POST') {
     const body = await readJsonBody(options.request, options.bodyLimitBytes)
@@ -83,6 +86,11 @@ export async function handleConversationRoute(options: ConversationRouteOptions)
   }
 
   return false
+}
+
+function requireWorkspacePermission(principal: AuthPrincipal): void {
+  if (principal.permissions.includes('industry.admin') || principal.permissions.includes('industry.workspace')) return
+  throw new IndustryAgentClientError('WORKSPACE_ACCESS_DENIED', 'industry.workspace permission is required', 403)
 }
 
 function parseCreateConversationRequest(input: unknown): CreateConversationRequest {
