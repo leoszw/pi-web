@@ -10,12 +10,12 @@ describe('AppShell routing', () => {
     expect(routePath('chat')).toBe('/chat')
   })
 
-  it('renders the industry dashboard for /industry', () => {
+  it('routes /industry to the P3 workspace slot', () => {
+    expect(resolveAppRoute('/industry')).toBe('industry')
     const html = renderToStaticMarkup(
-      <AppShell initialPath="/industry" codingChat={<div>Coding chat sentinel</div>} />,
+      <AppShell initialPath="/industry" industryWorkspace={<div>Industry Workspace sentinel</div>} codingChat={<div>Coding chat sentinel</div>} />,
     )
-    expect(html).toContain('Industry Agent')
-    expect(html).toContain('Control Plane foundation is active')
+    expect(html).toContain('Industry Workspace sentinel')
     expect(html).not.toContain('Coding chat sentinel')
   })
 
