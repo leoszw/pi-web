@@ -15,6 +15,17 @@ describe('P8 API client', () => {
     expect(body).not.toHaveProperty('userId')
   })
 
+  it('keeps multimodal review scope and approval material out of the payload', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ apiVersion: 'industry-api-v1', data: { analysisId: 'a1' } }), { status: 200, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch
+    const client = createP8ApiClient(fetcher)
+    await client.reviewMultimodalObservation('analysis-1', 'observation-1', { decision: 'CORRECT', selectedEntityId: 'engineering-position-123456789012345678', correctedFields: { diameter_mm: '25' }, note: 'reviewed' })
+    const [path, init] = vi.mocked(fetcher).mock.calls[0]!
+    expect(path).toBe('/api/industry/v1/multimodal/analyses/analysis-1/observations/observation-1/review')
+    const body = JSON.parse(String(init?.body)) as Record<string, unknown>
+    expect(body).toEqual({ decision: 'CORRECT', selectedEntityId: 'engineering-position-123456789012345678', correctedFields: { diameter_mm: '25' }, note: 'reviewed' })
+    for (const key of ['projectId','tenantId','userId','approvalToken']) expect(body).not.toHaveProperty(key)
+  })
+
   it('keeps Agent Loop scope out of the start payload', async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ apiVersion: 'industry-api-v1', data: { runId: 'loop-1' } }), { status: 201, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch
     const client = createP8ApiClient(fetcher)
