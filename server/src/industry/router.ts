@@ -143,6 +143,9 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
           code: error.code,
           message: error.message,
           retryable: false,
+          ...(error.code === 'MUTATION_COMMIT_FINALIZATION_FAILED'
+            ? { resolution: { type: 'open_reconciliation' as const } }
+            : {}),
         }, error.statusCode)
         return true
       }
