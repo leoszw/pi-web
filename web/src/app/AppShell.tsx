@@ -10,6 +10,7 @@ import { RagEvalPage } from '../features/eval/RagEvalPage'
 import { RetrievalLabPage } from '../features/eval/RetrievalLabPage'
 import { RetrievalRunPage } from '../features/eval/RetrievalRunPage'
 import { TraceEvalPage } from '../features/eval/TraceEvalPage'
+import { UnifiedBenchmarkPage } from '../features/eval/UnifiedBenchmarkPage'
 import { IndustryWorkspacePage } from '../features/industry-workspace/IndustryWorkspacePage'
 import { KnowledgePage } from '../features/knowledge/KnowledgePage'
 import { MutationCenterPage } from '../features/mutation-center/MutationCenterPage'
@@ -43,6 +44,7 @@ export interface AppShellProps {
   retrievalDebug?: ReactNode
   mutationCenter?: ReactNode
   evalOverview?: ReactNode
+  unifiedBenchmark?: ReactNode
   intentLab?: ReactNode
   retrievalLab?: ReactNode
   retrievalRun?: ReactNode
@@ -65,6 +67,7 @@ export function AppShell(props:AppShellProps){
 
 function AppContent(props:AppShellProps&{route:AppRoute;traceId:string|null;retrievalDebugTraceId:string|null;retrievalRunId:string|null;mutationEvalRunId:string|null;traceEvalRunId:string|null;ragEvalRunId:string|null;mutationOperationId:string|null}){
   const{route,traceId,retrievalDebugTraceId,retrievalRunId,mutationEvalRunId,traceEvalRunId,ragEvalRunId,mutationOperationId}=props
+  if(route==='industry-eval-benchmark')return props.unifiedBenchmark??<UnifiedBenchmarkPage/>
   if(route==='industry-eval-report')return props.p9Eval??<P9EvalPage domain="REPORT"/>
   if(route==='industry-eval-sandbox')return props.p9Eval??<P9EvalPage domain="SANDBOX"/>
   if(route==='industry-eval-multimodal')return props.p8Eval??<P8EvalPage domain="MULTIMODAL"/>
