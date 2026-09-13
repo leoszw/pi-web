@@ -17,6 +17,8 @@ import { AgentLoopPage } from '../features/p8/AgentLoopPage'
 import { MultimodalPage } from '../features/p8/MultimodalPage'
 import { ReportCenterPage } from '../features/p9/ReportCenterPage'
 import { SandboxPage } from '../features/p9/SandboxPage'
+import { OperationsPage } from '../features/p10/OperationsPage'
+import { RuntimePage } from '../features/p10/RuntimePage'
 import { RetrievalDebugPage } from '../features/trace/RetrievalDebugPage'
 import { TracePage } from '../features/trace/TracePage'
 import {
@@ -35,6 +37,8 @@ export interface AppShellProps {
   agentLoop?: ReactNode
   reportCenter?: ReactNode
   sandbox?: ReactNode
+  runtime?: ReactNode
+  operations?: ReactNode
   traceExplorer?: ReactNode
   retrievalDebug?: ReactNode
   mutationCenter?: ReactNode
@@ -55,7 +59,7 @@ export function AppShell(props:AppShellProps){
   useEffect(()=>{if(initialPath!==undefined)return undefined;const onPopState=():void=>setRoute(resolveAppRoute(window.location.pathname));window.addEventListener('popstate',onPopState);return()=>window.removeEventListener('popstate',onPopState)},[initialPath])
   const navigate=(target:AppRoute)=>(event:MouseEvent<HTMLAnchorElement>):void=>{if(initialPath!==undefined)return;event.preventDefault();const path=routePath(target);if(window.location.pathname!==path)window.history.pushState({},'',path);setRoute(target)}
   return <div className="app-shell"><nav className="app-shell__nav" aria-label="主导航">
-    <a href="/chat" data-active={route==='chat'} onClick={navigate('chat')}>Coding Chat</a><a href="/industry" data-active={route==='industry'} onClick={navigate('industry')}>Industry Agent</a><a href="/industry/knowledge" data-active={route==='industry-knowledge'} onClick={navigate('industry-knowledge')}>Knowledge</a><a href="/industry/multimodal" data-active={route==='industry-multimodal'} onClick={navigate('industry-multimodal')}>Multimodal</a><a href="/industry/agent-loop" data-active={route==='industry-agent-loop'} onClick={navigate('industry-agent-loop')}>Agent Loop</a><a href="/industry/reports" data-active={route==='industry-reports'} onClick={navigate('industry-reports')}>Reports</a><a href="/industry/sandbox" data-active={route==='industry-sandbox'} onClick={navigate('industry-sandbox')}>Sandbox</a><a href="/industry/traces" data-active={isTraceRoute(route)} onClick={navigate('industry-traces')}>Trace</a><a href="/industry/mutations" data-active={isMutationRoute(route)} onClick={navigate('industry-mutations')}>Mutation Center</a><a href="/industry/eval" data-active={isEvaluationRoute(route)} onClick={navigate('industry-eval')}>Evaluation</a>
+    <a href="/chat" data-active={route==='chat'} onClick={navigate('chat')}>Coding Chat</a><a href="/industry" data-active={route==='industry'} onClick={navigate('industry')}>Industry Agent</a><a href="/industry/knowledge" data-active={route==='industry-knowledge'} onClick={navigate('industry-knowledge')}>Knowledge</a><a href="/industry/multimodal" data-active={route==='industry-multimodal'} onClick={navigate('industry-multimodal')}>Multimodal</a><a href="/industry/agent-loop" data-active={route==='industry-agent-loop'} onClick={navigate('industry-agent-loop')}>Agent Loop</a><a href="/industry/reports" data-active={route==='industry-reports'} onClick={navigate('industry-reports')}>Reports</a><a href="/industry/sandbox" data-active={route==='industry-sandbox'} onClick={navigate('industry-sandbox')}>Sandbox</a><a href="/industry/runtime" data-active={route==='industry-runtime'} onClick={navigate('industry-runtime')}>Runtime</a><a href="/industry/operations" data-active={route==='industry-operations'} onClick={navigate('industry-operations')}>Operations</a><a href="/industry/traces" data-active={isTraceRoute(route)} onClick={navigate('industry-traces')}>Trace</a><a href="/industry/mutations" data-active={isMutationRoute(route)} onClick={navigate('industry-mutations')}>Mutation Center</a><a href="/industry/eval" data-active={isEvaluationRoute(route)} onClick={navigate('industry-eval')}>Evaluation</a>
   </nav><div className="app-shell__content"><AppContent {...props} route={route} traceId={traceId} retrievalDebugTraceId={retrievalDebugTraceId} retrievalRunId={retrievalRunId} mutationEvalRunId={mutationEvalRunId} traceEvalRunId={traceEvalRunId} ragEvalRunId={ragEvalRunId} mutationOperationId={mutationOperationId}/></div></div>
 }
 
@@ -79,6 +83,8 @@ function AppContent(props:AppShellProps&{route:AppRoute;traceId:string|null;retr
   if(route==='industry-eval-retrieval')return props.retrievalLab??<RetrievalLabPage/>
   if(route==='industry-eval-intent')return props.intentLab??<IntentLabPage/>
   if(route==='industry-eval')return props.evalOverview??<EvalOverviewPage/>
+  if(route==='industry-runtime')return props.runtime??<RuntimePage/>
+  if(route==='industry-operations')return props.operations??<OperationsPage/>
   if(route==='industry-reports')return props.reportCenter??<ReportCenterPage/>
   if(route==='industry-sandbox')return props.sandbox??<SandboxPage/>
   if(route==='industry-multimodal')return props.multimodal??<MultimodalPage/>
