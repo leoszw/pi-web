@@ -8,7 +8,7 @@
     "dev:web": "vite --config web/vite.config.ts",
     "build": "vite build --config web/vite.config.ts",
     "start": "tsx server/src/main.ts",
-    "test:server": "tsx --test server/test/rpc-client.test.ts server/test/bridge.test.ts server/test/bridge-config.test.ts server/test/models-config.test.ts server/test/static-server.test.ts server/test/industry-auth.test.ts server/test/industry-context.test.ts server/test/industry-router.test.ts server/test/industry-secret-redaction.test.ts server/test/bridge-control-plane.test.ts server/test/spa-routing.test.ts server/test/eval-client.test.ts server/test/eval-router.test.ts",
+    "test:server": "tsx --test server/test/rpc-client.test.ts server/test/bridge.test.ts server/test/bridge-config.test.ts server/test/models-config.test.ts server/test/static-server.test.ts server/test/industry-auth.test.ts server/test/industry-context.test.ts server/test/industry-router.test.ts server/test/industry-secret-redaction.test.ts server/test/bridge-control-plane.test.ts server/test/spa-routing.test.ts server/test/eval-client.test.ts server/test/eval-router.test.ts server/test/retrieval-fixtures.test.ts",
     "test:web": "vitest run web/test",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p web/tsconfig.json"
   },
@@ -26,7 +26,6 @@
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
     "@types/ws": "8.5.13",
-    "@vitejs/plugin-react": "4.3.4",
     "tsx": "4.19.2",
     "typescript": "5.6.3",
     "vite": "6.0.7",
