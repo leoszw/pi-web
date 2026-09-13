@@ -1,6 +1,13 @@
 import type { CreateIntentDraftCaseRequest, EvalDatasetSummary, IntentDatasetDetail, IntentEvalCase } from '../../../../shared/industry/eval/datasets'
 import type { EvalVariantSummary } from '../../../../shared/industry/eval/common'
 import type {
+  MutationEvalCase,
+  MutationEvalFailureSummary,
+  MutationEvalObservation,
+  MutationEvalRunSummary,
+  StartMutationEvalRunRequest,
+} from '../../../../shared/industry/eval/mutation'
+import type {
   RetrievalComparisonType,
   RetrievalEvalCase,
   RetrievalEvalObservation,
@@ -41,6 +48,12 @@ export interface EvaluationClient {
     candidateRunId: string,
     comparisonType: RetrievalComparisonType,
   ): Promise<RetrievalRunComparison>
+  listMutationEvalCases(context: TrustedRequestContext): Promise<readonly MutationEvalCase[]>
+  listMutationEvalRuns(context: TrustedRequestContext): Promise<readonly MutationEvalRunSummary[]>
+  startMutationEvalRun(context: TrustedRequestContext, request: StartMutationEvalRunRequest): Promise<MutationEvalRunSummary>
+  getMutationEvalRun(context: TrustedRequestContext, runId: string): Promise<MutationEvalRunSummary>
+  listMutationEvalObservations(context: TrustedRequestContext, runId: string): Promise<readonly MutationEvalObservation[]>
+  listMutationEvalFailures(context: TrustedRequestContext, runId: string): Promise<readonly MutationEvalFailureSummary[]>
   listRuns(context: TrustedRequestContext): Promise<readonly EvalRunSummary[]>
   startIntentRun(context: TrustedRequestContext, request: StartIntentRunRequest): Promise<EvalRunSummary>
   getRun(context: TrustedRequestContext, runId: string): Promise<EvalRunSummary>
