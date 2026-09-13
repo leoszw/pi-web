@@ -36,7 +36,7 @@ const audit: MutationAuditTrail = {
   }],
 }
 
-function renderDetail(status: MutationOperation['status'], unknown = false): string {
+function renderDetail(status: MutationOperation['status'], unknown = false, retained = false): string {
   const snapshot: MutationCenterSnapshot = { operations: [], operation: operation(status), audit }
   return renderToStaticMarkup(
     <MutationCenterView
@@ -47,6 +47,7 @@ function renderDetail(status: MutationOperation['status'], unknown = false): str
       explicitConfirmation={false}
       rejectReason=""
       confirmationStatusUnknown={unknown}
+      hasRetainedAttempt={retained}
     />,
   )
 }
@@ -74,12 +75,19 @@ describe('MutationCenterView', () => {
   })
 
   it('locks an uncertain confirmation attempt until status is refreshed', () => {
-    const html = renderDetail('PENDING_CONFIRMATION', true)
+    const html = renderDetail('PENDING_CONFIRMATION', true, true)
     expect(html).toContain('Confirmation status unknown')
     expect(html).toContain('Refresh status')
     expect(html).toContain('Idempotency-Key remains retained')
     expect(html).not.toContain('Confirm mutation')
     expect(html).not.toContain('Reject operation')
+  })
+
+  it('resumes a refreshed pending confirmation with the retained Idempotency-Key instead of creating a new attempt', () => {
+    const html = renderDetail('PENDING_CONFIRMATION', false, true)
+    expect(html).toContain('Resuming the same idempotent attempt')
+    expect(html).toContain('Resume same confirmation attempt')
+    expect(html).toContain('A new commit attempt is not created')
   })
 
   it('surfaces reconciliation backlog and forbids automatic retry', () => {
