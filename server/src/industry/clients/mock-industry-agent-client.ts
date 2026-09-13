@@ -8,9 +8,20 @@ import type {
   IndustryEventEnvelope,
   SendConversationMessageRequest,
 } from '../../../../shared/industry/conversation'
+import type {
+  UiActionEnvelope,
+  UiActionInteractionAcceptedEventPayload,
+  UiActionInteractionRequest,
+  UiActionInteractionResult,
+  UiActionPresentedEventPayload,
+} from '../../../../shared/industry/ui-actions'
 import type { AuthPrincipal } from '../auth'
 import type { TrustedRequestContext } from '../context'
-import { buildMockUiActions } from '../ui-action-fixtures'
+import {
+  applyMockUiActionInteraction,
+  buildMockUiActions,
+  MockUiActionInteractionError,
+} from '../ui-action-fixtures'
 import { IndustryAgentClientError, type IndustryAgentClient, type IndustryAgentHealth } from './industry-agent-client'
 
 export interface MockAuthorizedProject extends AuthorizedProject {
@@ -83,9 +94,7 @@ export class MockIndustryAgentClient implements IndustryAgentClient {
     requestId: string,
   ): Promise<IndustryConversation> {
     const stored = this.#requireConversation(context, conversationId)
-    if (stored.conversation.status !== 'ACTIVE') {
-      throw new IndustryAgentClientError('CONVERSATION_ABORTED', 'conversation is aborted', 409)
-    }
+    requireActive(stored.conversation)
 
     const now = new Date().toISOString()
     const userTraceId = `trace-${randomUUID()}`
@@ -145,6 +154,80 @@ export class MockIndustryAgentClient implements IndustryAgentClient {
       lastSequenceNo: assistantSequenceNo + actions.length,
     }
     return cloneConversation(stored.conversation)
+  }
+
+  async interactWithUiAction(
+    context: TrustedRequestContext,
+    conversationId: string,
+    actionId: string,
+    request: UiActionInteractionRequest,
+    requestId: string,
+  ): Promise<UiActionInteractionResult> {
+    const stored = this.#requireConversation(context, conversationId)
+    requireActive(stored.conversation)
+    const action = latestAction(stored.events, actionId)
+    if (action === undefined) throw new IndustryAgentClientError('UI_ACTION_NOT_FOUND', 'UIAction not found', 404)
+    if (action.type === 'mutation_confirmation') {
+      throw new IndustryAgentClientError(
+        'UI_ACTION_MUTATION_DISABLED_P3',
+        'mutation confirmation is display-only in P3; commit is implemented in P4',
+        409,
+      )
+    }
+
+    let updatedAction: UiActionEnvelope
+    try {
+      updatedAction = applyMockUiActionInteraction(action, request.interaction)
+    } catch (error) {
+      if (error instanceof MockUiActionInteractionError) {
+        throw new IndustryAgentClientError(error.code, error.message, error.statusCode)
+      }
+      throw error
+    }
+
+    const now = new Date().toISOString()
+    const traceId = `trace-${randomUUID()}`
+    const interactionId = `interaction-${randomUUID()}`
+    updatedAction = { ...updatedAction, traceId }
+    const acceptedSequenceNo = stored.conversation.lastSequenceNo + 1
+    const presentedSequenceNo = acceptedSequenceNo + 1
+    const acceptedPayload: UiActionInteractionAcceptedEventPayload = {
+      interactionId,
+      actionId,
+      kind: request.interaction.kind,
+    }
+    stored.events.push(
+      eventEnvelope({
+        conversationId,
+        sequenceNo: acceptedSequenceNo,
+        traceId,
+        requestId,
+        type: 'ui.action.interaction.accepted',
+        timestamp: now,
+        payload: acceptedPayload,
+      }),
+      eventEnvelope({
+        conversationId,
+        sequenceNo: presentedSequenceNo,
+        traceId,
+        requestId,
+        type: 'ui.action.presented',
+        timestamp: now,
+        payload: { action: updatedAction } satisfies UiActionPresentedEventPayload,
+      }),
+    )
+    stored.conversation = {
+      ...stored.conversation,
+      updatedAt: now,
+      lastSequenceNo: presentedSequenceNo,
+    }
+    return structuredClone({
+      conversationId,
+      interactionId,
+      action: updatedAction,
+      traceId,
+      acceptedAt: now,
+    })
   }
 
   async abortConversation(
@@ -236,6 +319,31 @@ function requireProject(context: TrustedRequestContext): string {
     throw new IndustryAgentClientError('INDUSTRY_PROJECT_REQUIRED', 'active project is required', 409)
   }
   return context.projectId
+}
+
+function requireActive(conversation: IndustryConversation): void {
+  if (conversation.status !== 'ACTIVE') {
+    throw new IndustryAgentClientError('CONVERSATION_ABORTED', 'conversation is aborted', 409)
+  }
+}
+
+function latestAction(events: readonly IndustryEventEnvelope[], actionId: string): UiActionEnvelope | undefined {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index]
+    if (event?.type !== 'ui.action.presented' || !isPresentedPayload(event.payload)) continue
+    if (event.payload.action.actionId === actionId) return structuredClone(event.payload.action)
+  }
+  return undefined
+}
+
+function isPresentedPayload(payload: unknown): payload is UiActionPresentedEventPayload {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return false
+  const action = (payload as { action?: unknown }).action
+  return typeof action === 'object'
+    && action !== null
+    && !Array.isArray(action)
+    && typeof (action as { actionId?: unknown }).actionId === 'string'
+    && (action as { schemaVersion?: unknown }).schemaVersion === 'ui-action-v1'
 }
 
 function cloneConversation(conversation: IndustryConversation): IndustryConversation {
