@@ -2,6 +2,7 @@ import { useEffect, useState, type MouseEvent, type ReactNode } from 'react'
 import CodingChatApp from '../App'
 import { EvalOverviewPage } from '../features/eval/EvalOverviewPage'
 import { IntentLabPage } from '../features/eval/IntentLabPage'
+import { RetrievalLabPage } from '../features/eval/RetrievalLabPage'
 import { IndustryDashboard } from '../features/industry-dashboard/IndustryDashboard'
 import { isIndustryRoute, resolveAppRoute, routePath, type AppRoute } from './routes'
 import './app-shell.css'
@@ -11,9 +12,10 @@ export interface AppShellProps {
   codingChat?: ReactNode
   evalOverview?: ReactNode
   intentLab?: ReactNode
+  retrievalLab?: ReactNode
 }
 
-export function AppShell({ initialPath, codingChat, evalOverview, intentLab }: AppShellProps) {
+export function AppShell({ initialPath, codingChat, evalOverview, intentLab, retrievalLab }: AppShellProps) {
   const [route, setRoute] = useState<AppRoute>(() => resolveAppRoute(initialPath ?? currentPath()))
 
   useEffect(() => {
@@ -39,7 +41,13 @@ export function AppShell({ initialPath, codingChat, evalOverview, intentLab }: A
         <a href="/industry/eval" data-active={isIndustryRoute(route) && route !== 'industry'} onClick={navigate('industry-eval')}>Evaluation</a>
       </nav>
       <div className="app-shell__content">
-        <AppContent route={route} codingChat={codingChat} evalOverview={evalOverview} intentLab={intentLab} />
+        <AppContent
+          route={route}
+          codingChat={codingChat}
+          evalOverview={evalOverview}
+          intentLab={intentLab}
+          retrievalLab={retrievalLab}
+        />
       </div>
     </div>
   )
@@ -50,12 +58,15 @@ function AppContent({
   codingChat,
   evalOverview,
   intentLab,
+  retrievalLab,
 }: {
   route: AppRoute
   codingChat?: ReactNode
   evalOverview?: ReactNode
   intentLab?: ReactNode
+  retrievalLab?: ReactNode
 }) {
+  if (route === 'industry-eval-retrieval') return retrievalLab ?? <RetrievalLabPage />
   if (route === 'industry-eval-intent') return intentLab ?? <IntentLabPage />
   if (route === 'industry-eval') return evalOverview ?? <EvalOverviewPage />
   if (route === 'industry') return <IndustryDashboard />
