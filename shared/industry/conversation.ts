@@ -14,6 +14,7 @@ export interface IndustryConversationMessage {
 export interface IndustryConversation {
   conversationId: string
   projectId: string
+  title?: string
   status: IndustryConversationStatus
   createdAt: string
   updatedAt: string
