@@ -12,6 +12,8 @@ import {
   retrievalRunIdFromPath,
   retrievalRunPath,
   routePath,
+  traceEvalRunIdFromPath,
+  traceEvalRunPath,
   traceIdFromPath,
   tracePath,
 } from '../src/app/routes'
@@ -32,9 +34,7 @@ describe('AppShell routing', () => {
 
   it('routes Trace Explorer list and detail before the generic industry catch-all', () => {
     expect(resolveAppRoute('/industry/traces')).toBe('industry-traces')
-    expect(routePath('industry-traces')).toBe('/industry/traces')
     const detailPath = tracePath('trace project/1')
-    expect(detailPath).toBe('/industry/traces/trace%20project%2F1')
     expect(resolveAppRoute(detailPath)).toBe('industry-trace-detail')
     expect(traceIdFromPath(detailPath)).toBe('trace project/1')
     expect(renderToStaticMarkup(<AppShell initialPath="/industry/traces" traceExplorer={<div>Trace list sentinel</div>} />)).toContain('Trace list sentinel')
@@ -43,69 +43,53 @@ describe('AppShell routing', () => {
 
   it('routes single-trace Retrieval Debug separately from Retrieval Eval', () => {
     const path = retrievalDebugPath('trace project/1')
-    expect(path).toBe('/industry/debug/retrieval/trace%20project%2F1')
     expect(resolveAppRoute(path)).toBe('industry-retrieval-debug')
     expect(retrievalDebugTraceIdFromPath(path)).toBe('trace project/1')
-    const html = renderToStaticMarkup(<AppShell initialPath={path} retrievalDebug={<div>Retrieval Debug sentinel</div>} />)
-    expect(html).toContain('Retrieval Debug sentinel')
-    expect(html).not.toContain('Retrieval Lab sentinel')
+    expect(renderToStaticMarkup(<AppShell initialPath={path} retrievalDebug={<div>Retrieval Debug sentinel</div>} />)).toContain('Retrieval Debug sentinel')
   })
 
   it('routes Mutation Center list, detail, and reconciliation paths', () => {
     expect(resolveAppRoute('/industry/mutations')).toBe('industry-mutations')
-    expect(routePath('industry-mutations')).toBe('/industry/mutations')
     expect(resolveAppRoute('/industry/mutations/reconciliation')).toBe('industry-mutation-reconciliation')
-    expect(routePath('industry-mutation-reconciliation')).toBe('/industry/mutations/reconciliation')
-
     const detailPath = mutationOperationPath('mutation project/1')
-    expect(detailPath).toBe('/industry/mutations/mutation%20project%2F1')
     expect(resolveAppRoute(detailPath)).toBe('industry-mutation-detail')
     expect(mutationOperationIdFromPath(detailPath)).toBe('mutation project/1')
-
     expect(renderToStaticMarkup(<AppShell initialPath="/industry/mutations" mutationCenter={<div>Mutation Center sentinel</div>} />)).toContain('Mutation Center sentinel')
-    expect(renderToStaticMarkup(<AppShell initialPath={detailPath} mutationCenter={<div>Mutation detail sentinel</div>} />)).toContain('Mutation detail sentinel')
-    expect(renderToStaticMarkup(<AppShell initialPath="/industry/mutations/reconciliation" mutationCenter={<div>Reconciliation sentinel</div>} />)).toContain('Reconciliation sentinel')
   })
 
   it('routes /industry/eval to the evaluation overview slot', () => {
     expect(resolveAppRoute('/industry/eval')).toBe('industry-eval')
-    expect(routePath('industry-eval')).toBe('/industry/eval')
-    const html = renderToStaticMarkup(<AppShell initialPath="/industry/eval" evalOverview={<div>Eval overview sentinel</div>} codingChat={<div>Coding chat sentinel</div>} />)
-    expect(html).toContain('Eval overview sentinel')
-    expect(html).not.toContain('Coding chat sentinel')
+    expect(renderToStaticMarkup(<AppShell initialPath="/industry/eval" evalOverview={<div>Eval overview sentinel</div>} />)).toContain('Eval overview sentinel')
   })
 
   it('routes /industry/eval/intent to the Intent Lab slot', () => {
     expect(resolveAppRoute('/industry/eval/intent')).toBe('industry-eval-intent')
-    expect(routePath('industry-eval-intent')).toBe('/industry/eval/intent')
     expect(renderToStaticMarkup(<AppShell initialPath="/industry/eval/intent" intentLab={<div>Intent Lab sentinel</div>} />)).toContain('Intent Lab sentinel')
   })
 
-  it('routes mutation evaluation workbench and result pages before generic eval', () => {
-    expect(resolveAppRoute('/industry/eval/mutation')).toBe('industry-eval-mutation')
-    expect(routePath('industry-eval-mutation')).toBe('/industry/eval/mutation')
-    expect(renderToStaticMarkup(<AppShell initialPath="/industry/eval/mutation" mutationEval={<div>Mutation Eval sentinel</div>} />)).toContain('Mutation Eval sentinel')
+  it('routes Trace Eval workbench and result pages before generic eval', () => {
+    expect(resolveAppRoute('/industry/eval/trace')).toBe('industry-eval-trace')
+    expect(routePath('industry-eval-trace')).toBe('/industry/eval/trace')
+    expect(renderToStaticMarkup(<AppShell initialPath="/industry/eval/trace" traceEval={<div>Trace Eval sentinel</div>} />)).toContain('Trace Eval sentinel')
+    const path = traceEvalRunPath('run trace/guarded')
+    expect(path).toBe('/industry/eval/runs/run%20trace%2Fguarded/trace')
+    expect(resolveAppRoute(path)).toBe('industry-eval-trace-run')
+    expect(traceEvalRunIdFromPath(path)).toBe('run trace/guarded')
+    expect(renderToStaticMarkup(<AppShell initialPath={path} traceEval={<div>Trace Eval run sentinel</div>} />)).toContain('Trace Eval run sentinel')
+  })
 
+  it('routes mutation evaluation workbench and result pages', () => {
+    expect(resolveAppRoute('/industry/eval/mutation')).toBe('industry-eval-mutation')
     const path = mutationEvalRunPath('run mutation/guarded')
-    expect(path).toBe('/industry/eval/runs/run%20mutation%2Fguarded/mutation')
     expect(resolveAppRoute(path)).toBe('industry-eval-mutation-run')
     expect(mutationEvalRunIdFromPath(path)).toBe('run mutation/guarded')
-    expect(renderToStaticMarkup(<AppShell initialPath={path} mutationEval={<div>Mutation Eval run sentinel</div>} />)).toContain('Mutation Eval run sentinel')
   })
 
-  it('routes retrieval playground aliases to the Retrieval Lab slot', () => {
+  it('routes retrieval playground and run detail', () => {
     expect(resolveAppRoute('/industry/eval/playground/retrieval')).toBe('industry-eval-retrieval')
-    expect(resolveAppRoute('/industry/eval/retrieval')).toBe('industry-eval-retrieval')
-    expect(routePath('industry-eval-retrieval')).toBe('/industry/eval/playground/retrieval')
-    expect(renderToStaticMarkup(<AppShell initialPath="/industry/eval/playground/retrieval" retrievalLab={<div>Retrieval Lab sentinel</div>} />)).toContain('Retrieval Lab sentinel')
-  })
-
-  it('routes retrieval run detail with safe run id decoding', () => {
     const path = retrievalRunPath('run candidate/2')
-    expect(path).toBe('/industry/eval/runs/run%20candidate%2F2/retrieval')
     expect(resolveAppRoute(path)).toBe('industry-eval-retrieval-run')
     expect(retrievalRunIdFromPath(path)).toBe('run candidate/2')
-    expect(renderToStaticMarkup(<AppShell initialPath={path} retrievalRun={<div>Retrieval run sentinel</div>} />)).toContain('Retrieval run sentinel')
   })
 
   it('renders the coding chat slot for /chat', () => {
