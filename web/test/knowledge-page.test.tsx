@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { KnowledgeUploadRequest } from '../../shared/industry/knowledge'
+import type { KnowledgeIngestionStatus, KnowledgeUploadRequest } from '../../shared/industry/knowledge'
 import { KnowledgePageView, type KnowledgeSnapshot } from '../src/features/knowledge/KnowledgePage'
 
 const document = {
@@ -10,6 +10,10 @@ const document = {
   sourceVersion: 'source-v1', ingestionId: 'ingestion-project-1-spec-001', ingestionStatus: 'READY' as const,
   chunkCount: 1, createdAt: '2026-09-13T07:00:00.000Z', updatedAt: '2026-09-13T07:00:00.000Z',
 }
+
+const pipeline: readonly KnowledgeIngestionStatus[] = [
+  'RECEIVED', 'VALIDATING', 'STORED', 'PARSING', 'EXTRACTING', 'CHUNKING', 'ENRICHING', 'EMBEDDING', 'INDEXING', 'QUALITY_VALIDATING', 'READY',
+]
 
 const snapshot: KnowledgeSnapshot = {
   options: {
@@ -22,7 +26,7 @@ const snapshot: KnowledgeSnapshot = {
   ingestion: {
     ingestionId: document.ingestionId, documentId: document.documentId, projectId: 'project-1', status: 'READY', sourceVersion: 'source-v1',
     startedAt: '2026-09-13T07:00:00.000Z', completedAt: '2026-09-13T07:00:00.250Z',
-    steps: ['RECEIVED','VALIDATING','STORED','PARSING','EXTRACTING','CHUNKING','ENRICHING','EMBEDDING','INDEXING','QUALITY_VALIDATING','READY'].map((status, index) => ({ status: status as any, timestamp: `2026-09-13T07:00:00.${String(index).padStart(3,'0')}Z`, detail: `mock ${status}` })),
+    steps: pipeline.map((status, index) => ({ status, timestamp: `2026-09-13T07:00:00.${String(index).padStart(3,'0')}Z`, detail: `mock ${status}` })),
   },
 }
 
