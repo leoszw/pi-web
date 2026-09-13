@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import type { IndustryEventEnvelope } from '../../shared/industry/conversation'
 import type { UiActionEnvelope } from '../../shared/industry/ui-actions'
-import { IndustryWorkspaceView, type IndustryWorkspaceSnapshot } from '../src/features/industry-workspace/IndustryWorkspacePage'
+import { actionsFromEvents, IndustryWorkspaceView, type IndustryWorkspaceSnapshot } from '../src/features/industry-workspace/IndustryWorkspacePage'
 import { IndustryEventBuffer } from '../src/features/industry-workspace/event-buffer'
 
 const traceId = 'trace-workspace-1'
@@ -13,7 +14,7 @@ const actions: readonly UiActionEnvelope[] = [
   base('entity_picker', { title: 'Entity', entityType: 'engineering', options: [{ id: 'e1', label: 'Position 1' }], selectedEntityIds: ['e1'], multi: false }, 1),
   base('form', { title: 'Form', fields: [{ key: 'q', label: 'Query', value: 'K12' }], submitLabel: 'Search' }, 2),
   base('editable_form', { title: 'Editable', fields: [{ key: 'owner', label: 'Owner', value: '张三' }], submitLabel: 'Save', version: 'v1' }, 3),
-  base('table', { title: 'Table', columns: [{ key: 'id', label: 'ID', sortable: true, filterable: false }, { key: 'name', label: 'Name', sortable: false, filterable: true }], rows: [{ rowId: '123456789012345678', cells: { id: '123456789012345678', name: '<script>alert(1)</script>' } }], pagination: { pageSize: 20, stableCursor: 'cursor:v1', nextCursor: 'cursor:v2' }, sortAllowlist: ['id'], filterAllowlist: ['name'], selectedRowIds: ['123456789012345678'], exportSnapshotRef: 'snapshot://table/1' }, 4),
+  base('table', { title: 'Table', columns: [{ key: 'id', label: 'ID', sortable: true, filterable: false }, { key: 'name', label: 'Name', sortable: false, filterable: true }], rows: [{ rowId: '123456789012345678', cells: { id: '123456789012345678', name: '<script>alert(1)</script>' } }], pagination: { pageSize: 20, stableCursor: 'mock-table-v1:abcdef123456:0', nextCursor: 'mock-table-v1:abcdef123456:20', totalRows: 21 }, sortAllowlist: ['id'], filterAllowlist: ['name'], selectedRowIds: ['123456789012345678'], exportSnapshotRef: 'snapshot://table/1' }, 4),
   base('multi_select', { title: 'Multi', options: [{ id: 'a', label: 'A' }], selectedIds: ['a'] }, 5),
   base('date_picker', { title: 'Date', value: '2026-09-13' }, 6),
   base('diff', { title: 'Diff', entries: [{ field: 'owner', label: 'Owner', before: '李四', after: '张三' }] }, 7),
@@ -58,22 +59,60 @@ describe('IndustryWorkspaceView', () => {
     }
   })
 
-  it('preserves 18-digit string IDs, table controls and escapes raw HTML', () => {
+  it('renders server DataTable controls, preserves 18-digit IDs and escapes raw HTML', () => {
     const html = renderToStaticMarkup(<IndustryWorkspaceView snapshot={snapshot} message="" busy={false} error={null} />)
     expect(html).toContain('123456789012345678')
-    expect(html).toContain('cursor:v1')
+    expect(html).toContain('mock-table-v1:abcdef123456:0')
     expect(html).toContain('snapshot://table/1')
+    expect(html).toContain('Apply server query')
+    expect(html).toContain('1 / 21 rows')
+    expect(html).toContain('Next')
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
     expect(html).not.toContain('<script>alert(1)</script>')
+  })
+
+  it('keeps mutation confirmation display-only in P3', () => {
+    const html = renderToStaticMarkup(<IndustryWorkspaceView snapshot={snapshot} message="" busy={false} error={null} />)
+    expect(html).toContain('Confirmation handled in P4')
+    expect(html).toContain('disabled=""')
   })
 })
 
 describe('IndustryEventBuffer UIAction support', () => {
-  it('treats ui.action.presented as known while preserving cursor monotonicity', () => {
+  it('treats presented and interaction events as known while preserving cursor monotonicity', () => {
     const buffer = new IndustryEventBuffer()
-    const result = buffer.apply([{ schemaVersion: 'industry-event-v1', eventId: 'event-1', sequenceNo: 1, traceId, requestId: 'request-1', conversationId: 'conversation-1', type: 'ui.action.presented', timestamp: '2026-09-13T00:00:00.000Z', payload: { action: actions[0] } }])
-    expect(result.applied).toHaveLength(1)
+    const result = buffer.apply([
+      event(1, 'ui.action.presented', { action: actions[0] }),
+      event(2, 'ui.action.interaction.accepted', { interactionId: 'interaction-1', actionId: 'action-1', kind: 'entity_selection' }),
+    ])
+    expect(result.applied).toHaveLength(2)
     expect(result.ignoredUnknown).toHaveLength(0)
-    expect(buffer.afterSequenceNo).toBe(1)
+    expect(buffer.afterSequenceNo).toBe(2)
+  })
+
+  it('reduces repeated presented events to the latest state for each action id', () => {
+    const updated = { ...actions[0], traceId: 'trace-updated', payload: { ...(actions[0]?.payload as object), selectedEntityIds: [] } } as UiActionEnvelope
+    const latest = actionsFromEvents([
+      event(1, 'ui.action.presented', { action: actions[0] }),
+      event(2, 'ui.action.interaction.accepted', { interactionId: 'interaction-1', actionId: 'action-1', kind: 'entity_selection' }),
+      event(3, 'ui.action.presented', { action: updated }),
+    ])
+    expect(latest).toHaveLength(1)
+    expect(latest[0]?.actionId).toBe('action-1')
+    expect(latest[0]?.traceId).toBe('trace-updated')
   })
 })
+
+function event(sequenceNo: number, type: string, payload: unknown): IndustryEventEnvelope {
+  return {
+    schemaVersion: 'industry-event-v1',
+    eventId: `event-${sequenceNo}`,
+    sequenceNo,
+    traceId: `trace-${sequenceNo}`,
+    requestId: `request-${sequenceNo}`,
+    conversationId: 'conversation-1',
+    type,
+    timestamp: '2026-09-13T00:00:00.000Z',
+    payload,
+  }
+}
