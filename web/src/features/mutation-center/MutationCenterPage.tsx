@@ -116,13 +116,17 @@ export function MutationCenterPage({
           await refreshAfterFinalizationFailure(client, operation.operationId, setSnapshot)
           setAttemptKey(null)
           setExplicitConfirmation(false)
-        } else if (reason.code === 'DIGEST_MISMATCH'
-          || reason.code === 'VERSION_CONFLICT'
-          || reason.code === 'APPROVAL_REPLAY'
-          || reason.code === 'MUTATION_UNSAFE_RETRY_FORBIDDEN') {
+        } else if (isDefinitiveMutationFailure(reason.code)) {
           await refreshKnownOperation(client, operation.operationId, setSnapshot)
           setAttemptKey(null)
           setExplicitConfirmation(false)
+        } else {
+          setConfirmationStatusUnknown(true)
+          setError({
+            code: reason.code,
+            message: `${reason.message} Confirmation outcome is not proven; check server status before any retry.`,
+            resolution: 'refresh',
+          })
         }
       } else {
         setError({
@@ -174,6 +178,7 @@ export function MutationCenterPage({
     explicitConfirmation={explicitConfirmation}
     rejectReason={rejectReason}
     confirmationStatusUnknown={confirmationStatusUnknown}
+    hasRetainedAttempt={attemptKey !== null}
     onExplicitConfirmation={setExplicitConfirmation}
     onRejectReason={setRejectReason}
     onConfirm={() => void confirm()}
@@ -190,6 +195,7 @@ export function MutationCenterView({
   explicitConfirmation,
   rejectReason,
   confirmationStatusUnknown,
+  hasRetainedAttempt = false,
   onExplicitConfirmation = () => undefined,
   onRejectReason = () => undefined,
   onConfirm = () => undefined,
@@ -203,6 +209,7 @@ export function MutationCenterView({
   explicitConfirmation: boolean
   rejectReason: string
   confirmationStatusUnknown: boolean
+  hasRetainedAttempt?: boolean
   onExplicitConfirmation?: (value: boolean) => void
   onRejectReason?: (value: string) => void
   onConfirm?: () => void
@@ -235,6 +242,7 @@ export function MutationCenterView({
           explicitConfirmation={explicitConfirmation}
           rejectReason={rejectReason}
           confirmationStatusUnknown={confirmationStatusUnknown}
+          hasRetainedAttempt={hasRetainedAttempt}
           onExplicitConfirmation={onExplicitConfirmation}
           onRejectReason={onRejectReason}
           onConfirm={onConfirm}
@@ -271,6 +279,7 @@ function OperationDetail({
   explicitConfirmation,
   rejectReason,
   confirmationStatusUnknown,
+  hasRetainedAttempt,
   onExplicitConfirmation,
   onRejectReason,
   onConfirm,
@@ -283,6 +292,7 @@ function OperationDetail({
   explicitConfirmation: boolean
   rejectReason: string
   confirmationStatusUnknown: boolean
+  hasRetainedAttempt: boolean
   onExplicitConfirmation: (value: boolean) => void
   onRejectReason: (value: string) => void
   onConfirm: () => void
@@ -312,8 +322,9 @@ function OperationDetail({
             {confirmationStatusUnknown ? (
               <div className="mutation-warning"><strong>Confirmation status unknown</strong><p>Do not start a new commit attempt. Check operation state first; the current Idempotency-Key remains retained in this browser session.</p><button type="button" disabled={busy} onClick={onRefresh}>Refresh status</button></div>
             ) : <>
+              {hasRetainedAttempt ? <div className="mutation-warning"><strong>Resuming the same idempotent attempt</strong><p>The retained Idempotency-Key will be reused. A new commit attempt is not created.</p></div> : null}
               <label className="mutation-checkbox"><input type="checkbox" checked={explicitConfirmation} disabled={busy} onChange={(event) => onExplicitConfirmation(event.target.checked)} />I reviewed the diff, target version, and digest and explicitly confirm this mutation.</label>
-              <button className="mutation-primary" type="button" disabled={busy || !explicitConfirmation} onClick={onConfirm}>Confirm mutation</button>
+              <button className="mutation-primary" type="button" disabled={busy || !explicitConfirmation} onClick={onConfirm}>{hasRetainedAttempt ? 'Resume same confirmation attempt' : 'Confirm mutation'}</button>
               <div className="mutation-reject"><label>Reject reason<textarea rows={2} value={rejectReason} disabled={busy} onChange={(event) => onRejectReason(event.target.value)} /></label><button type="button" disabled={busy} onClick={onReject}>Reject operation</button></div>
             </>}
           </section>
@@ -395,6 +406,15 @@ async function refreshAfterFinalizationFailure(
 function replaceOperation(operations: readonly MutationOperation[], next: MutationOperation): readonly MutationOperation[] {
   const found = operations.some((item) => item.operationId === next.operationId)
   return found ? operations.map((item) => item.operationId === next.operationId ? next : item) : [...operations, next]
+}
+
+function isDefinitiveMutationFailure(code: string): boolean {
+  return code === 'DIGEST_MISMATCH'
+    || code === 'VERSION_CONFLICT'
+    || code === 'APPROVAL_REPLAY'
+    || code === 'IDEMPOTENCY_KEY_REUSE'
+    || code === 'MUTATION_UNSAFE_RETRY_FORBIDDEN'
+    || code === 'MUTATION_INVALID_STATE'
 }
 
 function errorOf(reason: unknown): MutationCenterError {
