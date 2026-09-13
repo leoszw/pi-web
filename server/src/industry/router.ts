@@ -16,7 +16,9 @@ import { handleTraceEvalRoute } from './eval/trace-router'
 import { handleKnowledgeRoute } from './knowledge-router'
 import { handleMultimodalRoute } from './multimodal-router'
 import { handleMutationRoute } from './mutation-router'
+import { handleOperationsRoute } from './operations-router'
 import { handleReportRoute } from './report-router'
+import { handleRuntimeRoute } from './runtime-router'
 import { handleSandboxRoute } from './sandbox-router'
 import { handleTraceRoute } from './trace-router'
 import { isOriginAllowed } from '../security/origin'
@@ -50,6 +52,8 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
       if (await handleRagEvalRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.evaluationClient,bodyLimitBytes:bodyLimit })) return true
       if (await handleTraceEvalRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.evaluationClient,bodyLimitBytes:bodyLimit })) return true
       if (await handleEvalRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.evaluationClient,bodyLimitBytes:bodyLimit })) return true
+      if (await handleRuntimeRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.client,bodyLimitBytes:bodyLimit })) return true
+      if (await handleOperationsRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.client })) return true
       if (await handleReportRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.client,bodyLimitBytes:bodyLimit })) return true
       if (await handleSandboxRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.client,bodyLimitBytes:bodyLimit })) return true
       if (await handleMultimodalRoute({ request,response,url,requestId,principal,context:resolved.trusted,client:options.client,bodyLimitBytes:bodyLimit })) return true
