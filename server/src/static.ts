@@ -59,7 +59,11 @@ function isSpaRoute(pathname: string): boolean {
 }
 
 function sendFile(res: ServerResponse, filePath: string, data: Buffer): void {
-  const headers: Record<string, string> = { 'content-type': MIME[extname(filePath)] ?? 'application/octet-stream' }
+  const headers: Record<string, string> = {
+    'content-type': MIME[extname(filePath)] ?? 'application/octet-stream',
+    'x-frame-options': 'DENY',
+    'content-security-policy': "frame-ancestors 'none'",
+  }
   if (extname(filePath) === '.html') headers['cache-control'] = 'no-cache'
   res.writeHead(200, headers)
   res.end(data)
