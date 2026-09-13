@@ -8,6 +8,7 @@ import type {
   TraceTreeNode,
 } from '../../../../shared/industry/trace'
 import { createIndustryTraceApiClient, type IndustryTraceApiClient } from '../../api/trace-client'
+import { retrievalDebugPath } from '../../app/routes'
 import { maskTraceText, maskedJson } from './trace-redaction'
 import './trace.css'
 
@@ -69,7 +70,11 @@ export function TracePageView({
     <main className="trace-page" aria-labelledby="trace-title">
       <header className="trace-heading">
         <div><span>Industry Agent · P5</span><h1 id="trace-title">{detail.summary.name}</h1><p><code>{detail.summary.traceId}</code> · {detail.summary.kind} · {detail.summary.status}</p></div>
-        <nav><a href="/industry/traces">All traces</a><a href="/industry/eval/playground/retrieval">Retrieval Lab</a></nav>
+        <nav>
+          <a href="/industry/traces">All traces</a>
+          {detail.summary.kind === 'RETRIEVAL' ? <a href={retrievalDebugPath(detail.summary.traceId)}>Open Retrieval Debug</a> : null}
+          <a href="/industry/eval/playground/retrieval">Retrieval Eval</a>
+        </nav>
       </header>
       <div className="trace-tabs" role="tablist" aria-label="Trace detail tabs">
         {(['overview', 'timeline', 'tree', 'raw'] as const).map((item) => <button type="button" key={item} data-active={tab === item} onClick={() => onTabChange(item)}>{tabLabel(item)}</button>)}
