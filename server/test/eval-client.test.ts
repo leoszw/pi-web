@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { TrustedRequestContext } from '../src/industry/context'
+import '../src/industry/eval/mock-evaluation-client-mutation'
 import '../src/industry/eval/mock-evaluation-client-retrieval'
 import { MockEvaluationClient } from '../src/industry/eval/mock-evaluation-client'
 
@@ -126,6 +127,65 @@ test('retrieval run stores are isolated by active project', async () => {
   const observations = await client.listRetrievalObservations(projectTwo, run.runId)
   assert.equal(run.projectId, 'project-2')
   assert.ok(observations.every((item) => item.finalCandidates.every((candidate) => candidate.projectId === 'project-2')))
+})
+
+test('mutation evaluation covers all seven deterministic safety scenarios', async () => {
+  const client = new MockEvaluationClient()
+  const cases = await client.listMutationEvalCases(context)
+  assert.deepEqual(cases.map((item) => item.scenario), [
+    'WRONG_TARGET',
+    'SCOPE_LEAKAGE',
+    'CONFIRMATION_BYPASS',
+    'DIGEST_MISMATCH',
+    'APPROVAL_REPLAY',
+    'VERSION_CONFLICT',
+    'FINALIZATION_RECONCILIATION',
+  ])
+  assert.ok(cases.every((item) => item.critical))
+})
+
+test('guarded mutation run passes release gate while unsafe baseline exposes deterministic failures', async () => {
+  const client = new MockEvaluationClient()
+  const unsafe = await client.getMutationEvalRun(context, 'run-mutation-unsafe-v0')
+  const guarded = await client.getMutationEvalRun(context, 'run-mutation-guarded-v1')
+  assert.equal(unsafe.runType, 'MUTATION')
+  assert.equal(unsafe.metrics?.releaseGate, 'FAIL')
+  assert.ok((unsafe.metrics?.scopeLeakageRate ?? 0) > 0)
+  assert.ok((unsafe.metrics?.confirmationBypassRate ?? 0) > 0)
+  assert.ok((unsafe.metrics?.unsafeCommitRetryRate ?? 0) > 0)
+  assert.equal(guarded.metrics?.releaseGate, 'PASS')
+  assert.equal(guarded.metrics?.criticalPassRate, 1)
+  assert.equal(guarded.metrics?.scopeLeakageRate, 0)
+  assert.equal(guarded.metrics?.confirmationBypassRate, 0)
+  assert.equal(guarded.metrics?.unsafeCommitRetryRate, 0)
+  assert.equal(guarded.metrics?.approvalMaterialExposureRate, 0)
+})
+
+test('mutation failure drilldown reports unsafe baseline reasons and guarded run has no failures', async () => {
+  const client = new MockEvaluationClient()
+  const unsafeFailures = await client.listMutationEvalFailures(context, 'run-mutation-unsafe-v0')
+  const guardedFailures = await client.listMutationEvalFailures(context, 'run-mutation-guarded-v1')
+  assert.ok(unsafeFailures.some((item) => item.scenario === 'SCOPE_LEAKAGE' && item.reasons.includes('scope leakage observed')))
+  assert.ok(unsafeFailures.some((item) => item.scenario === 'FINALIZATION_RECONCILIATION' && item.reasons.includes('unsafe automatic retry attempted')))
+  assert.deepEqual(guardedFailures, [])
+})
+
+test('mutation evaluation run stores remain scoped to the active project', async () => {
+  const client = new MockEvaluationClient()
+  const projectTwo: TrustedRequestContext = { ...context, projectId: 'project-2' }
+  const run = await client.getMutationEvalRun(projectTwo, 'run-mutation-guarded-v1')
+  assert.equal(run.projectId, 'project-2')
+  const created = await client.startMutationEvalRun(projectTwo, { datasetId: 'mutation-safety-v1', variantId: 'mutation-guarded-v1' })
+  assert.equal(created.projectId, 'project-2')
+})
+
+test('mutation evaluation requires an active project', async () => {
+  const client = new MockEvaluationClient()
+  const withoutProject: TrustedRequestContext = { ...context, projectId: null }
+  await assert.rejects(
+    client.listMutationEvalRuns(withoutProject),
+    (error: unknown) => error instanceof Error && 'code' in error && error.code === 'EVAL_PROJECT_REQUIRED',
+  )
 })
 
 test('candidate run improves quantity cases and comparison records the delta', async () => {
