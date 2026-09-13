@@ -10,6 +10,10 @@ import {
 describe('AppShell routing', () => {
   it('keeps root and chat paths on the existing coding chat', () => { expect(resolveAppRoute('/')).toBe('chat'); expect(resolveAppRoute('/chat')).toBe('chat'); expect(routePath('chat')).toBe('/chat') })
   it('routes /industry to the workspace slot', () => { expect(resolveAppRoute('/industry')).toBe('industry'); const html = renderToStaticMarkup(<AppShell initialPath="/industry" industryWorkspace={<div>Industry Workspace sentinel</div>} codingChat={<div>Coding chat sentinel</div>} />); expect(html).toContain('Industry Workspace sentinel'); expect(html).not.toContain('Coding chat sentinel') })
+  it('routes P10 Runtime and Operations before the generic industry catch-all', () => {
+    expect(resolveAppRoute('/industry/runtime')).toBe('industry-runtime'); expect(routePath('industry-runtime')).toBe('/industry/runtime'); expect(renderToStaticMarkup(<AppShell initialPath="/industry/runtime" runtime={<div>Runtime sentinel</div>} />)).toContain('Runtime sentinel')
+    expect(resolveAppRoute('/industry/operations')).toBe('industry-operations'); expect(routePath('industry-operations')).toBe('/industry/operations'); expect(renderToStaticMarkup(<AppShell initialPath="/industry/operations" operations={<div>Operations sentinel</div>} />)).toContain('Operations sentinel')
+  })
   it('routes P9 management pages before the generic industry catch-all', () => {
     expect(resolveAppRoute('/industry/reports')).toBe('industry-reports'); expect(routePath('industry-reports')).toBe('/industry/reports'); expect(renderToStaticMarkup(<AppShell initialPath="/industry/reports" reportCenter={<div>Report Center sentinel</div>} />)).toContain('Report Center sentinel')
     expect(resolveAppRoute('/industry/sandbox')).toBe('industry-sandbox'); expect(routePath('industry-sandbox')).toBe('/industry/sandbox'); expect(renderToStaticMarkup(<AppShell initialPath="/industry/sandbox" sandbox={<div>Sandbox sentinel</div>} />)).toContain('Sandbox sentinel')
