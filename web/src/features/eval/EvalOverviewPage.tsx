@@ -25,16 +25,17 @@ export function EvalOverviewPage({ client = defaultEvaluationClient, initialSnap
 export function EvalOverviewView({ snapshot }: { snapshot: EvalOverviewSnapshot }) {
   const completedRuns = useMemo(() => snapshot.runs.filter((run) => run.status === 'COMPLETED'), [snapshot.runs])
   return <main className="eval-page" aria-labelledby="eval-overview-title">
-    <div className="eval-eyebrow">Evaluation Workbench · P7</div>
+    <div className="eval-eyebrow">Evaluation Workbench · P8</div>
     <div className="eval-heading-row">
-      <div><h1 id="eval-overview-title">Evaluation</h1><p>Intent, retrieval, mutation, observability, RAG, normalization, entity, tool, and context-memory evaluation are available. Production metrics remain owned by pi.</p></div>
+      <div><h1 id="eval-overview-title">Evaluation</h1><p>Intent, retrieval, mutation, observability, RAG, semantic/entity/tool/memory, multimodal, and Agent Loop evaluation are available. Production metrics remain owned by pi.</p></div>
       <div className="eval-heading-actions">
         <a className="eval-primary-link" href="/industry/eval/intent">Intent</a><a className="eval-primary-link" href="/industry/eval/playground/retrieval">Retrieval</a><a className="eval-primary-link" href="/industry/eval/mutation">Mutation</a><a className="eval-primary-link" href="/industry/eval/trace">Trace</a><a className="eval-primary-link" href="/industry/eval/rag">RAG</a>
         <a className="eval-primary-link" href="/industry/eval/normalization">Normalization</a><a className="eval-primary-link" href="/industry/eval/entity">Entity</a><a className="eval-primary-link" href="/industry/eval/tool">Tool</a><a className="eval-primary-link" href="/industry/eval/memory">Memory</a>
+        <a className="eval-primary-link" href="/industry/eval/multimodal">Multimodal</a><a className="eval-primary-link" href="/industry/eval/agent-loop">Agent Loop</a>
       </div>
     </div>
     <section className="eval-summary-grid" aria-label="Evaluation summary">
-      <article><strong>{snapshot.datasets.length}</strong><span>Intent datasets</span></article><article><strong>{completedRuns.length}</strong><span>Completed intent runs</span></article><article><strong>10</strong><span>Retrieval stages</span></article><article><strong>7</strong><span>Mutation safety gates</span></article><article><strong>6</strong><span>Trace gates</span></article><article><strong>4</strong><span>RAG evidence cases</span></article><article><strong>4</strong><span>P7 specialist labs</span></article>
+      <article><strong>{snapshot.datasets.length}</strong><span>Intent datasets</span></article><article><strong>{completedRuns.length}</strong><span>Completed intent runs</span></article><article><strong>10</strong><span>Retrieval stages</span></article><article><strong>7</strong><span>Mutation safety gates</span></article><article><strong>6</strong><span>Trace gates</span></article><article><strong>4</strong><span>RAG evidence cases</span></article><article><strong>4</strong><span>P7 specialist labs</span></article><article><strong>6</strong><span>Multimodal safety cases</span></article><article><strong>9</strong><span>Agent Loop safety cases</span></article>
     </section>
     <section className="eval-panel"><h2>Datasets</h2><table className="eval-table"><thead><tr><th>Name</th><th>Status</th><th>Cases</th><th>Version</th><th>Fingerprint</th></tr></thead><tbody>{snapshot.datasets.map((dataset) => <tr key={dataset.datasetId}><td>{dataset.name}</td><td>{dataset.status}</td><td>{dataset.caseCount}</td><td>{dataset.version}</td><td><code>{dataset.fingerprint.slice(0, 12)}</code></td></tr>)}</tbody></table></section>
     <section className="eval-panel"><h2>Recent intent runs</h2><table className="eval-table"><thead><tr><th>Run</th><th>Dataset</th><th>Variant</th><th>Status</th><th>Accuracy</th></tr></thead><tbody>{snapshot.runs.map((run) => <tr key={run.runId}><td><code>{run.runId}</code></td><td>{run.datasetId}</td><td>{run.variantId}</td><td>{run.status}</td><td>{run.metrics === undefined ? '—' : `${(run.metrics.accuracy.value * 100).toFixed(1)}%`}</td></tr>)}</tbody></table></section>
