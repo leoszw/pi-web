@@ -1,0 +1,103 @@
+import { randomUUID } from 'node:crypto'
+import type { OperationsCheck, OperationsReadiness } from '../../../../shared/industry/operations'
+import type {
+  CreateRuntimeConfigDraftRequest,
+  RuntimeAdapterStatus,
+  RuntimeComponent,
+  RuntimeConfigChange,
+  RuntimeConfigDiffEntry,
+  RuntimeConfigDraft,
+  RuntimeConfigValidationIssue,
+  RuntimeInventory,
+} from '../../../../shared/industry/runtime'
+import { RUNTIME_COMPONENTS } from '../../../../shared/industry/runtime'
+import type { TrustedRequestContext } from '../context'
+import { IndustryAgentClientError } from '../clients/industry-agent-client'
+import { MockIndustryAgentClient } from '../clients/mock-industry-agent-client'
+
+interface RuntimeProjectState {
+  version: number
+  adapters: RuntimeAdapterStatus[]
+  drafts: Map<string, RuntimeConfigDraft>
+}
+const STATES = new WeakMap<MockIndustryAgentClient, Map<string, RuntimeProjectState>>()
+
+declare module '../clients/mock-industry-agent-client' {
+  interface MockIndustryAgentClient {
+    getRuntimeInventory(context: TrustedRequestContext): Promise<RuntimeInventory>
+    listRuntimeConfigDrafts(context: TrustedRequestContext): Promise<readonly RuntimeConfigDraft[]>
+    createRuntimeConfigDraft(context: TrustedRequestContext, request: CreateRuntimeConfigDraftRequest): Promise<RuntimeConfigDraft>
+    getRuntimeConfigDraft(context: TrustedRequestContext, draftId: string): Promise<RuntimeConfigDraft>
+    validateRuntimeConfigDraft(context: TrustedRequestContext, draftId: string): Promise<RuntimeConfigDraft>
+    saveRuntimeConfigDraft(context: TrustedRequestContext, draftId: string): Promise<RuntimeConfigDraft>
+    evaluateRuntimeConfigDraft(context: TrustedRequestContext, draftId: string): Promise<RuntimeConfigDraft>
+    getOperationsReadiness(context: TrustedRequestContext): Promise<OperationsReadiness>
+  }
+}
+
+MockIndustryAgentClient.prototype.getRuntimeInventory = async function getRuntimeInventory(context) {
+  const state = runtimeState(this, requireProject(context))
+  return clone({ environment:'MOCK', configVersion:state.version, adapters:state.adapters, checkedAt:now() })
+}
+MockIndustryAgentClient.prototype.listRuntimeConfigDrafts = async function listRuntimeConfigDrafts(context) {
+  const state = runtimeState(this, requireProject(context))
+  return clone([...state.drafts.values()].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)))
+}
+MockIndustryAgentClient.prototype.createRuntimeConfigDraft = async function createRuntimeConfigDraft(context, request) {
+  const projectId=requireProject(context); const state=runtimeState(this,projectId); validateCreateRequest(request)
+  const timestamp=now(); const draft:RuntimeConfigDraft={draftId:`runtime-draft-${randomUUID()}`,projectId,baseVersion:state.version,status:'DRAFT',changes:request.changes.map((item)=>({...item})),validationIssues:[],diff:[],eligibleForPromote:false,createdAt:timestamp,updatedAt:timestamp}
+  state.drafts.set(draft.draftId,draft); return clone(draft)
+}
+MockIndustryAgentClient.prototype.getRuntimeConfigDraft = async function getRuntimeConfigDraft(context,draftId) {
+  return clone(requireDraft(runtimeState(this,requireProject(context)),draftId))
+}
+MockIndustryAgentClient.prototype.validateRuntimeConfigDraft = async function validateRuntimeConfigDraft(context,draftId) {
+  const state=runtimeState(this,requireProject(context)); const draft=requireDraft(state,draftId)
+  if(draft.status!=='DRAFT'&&draft.status!=='VALIDATED')throw new IndustryAgentClientError('RUNTIME_CONFIG_INVALID_STATE','only a draft can be validated',409)
+  const issues=validateChanges(draft.changes); const diff=buildDiff(state.adapters,draft.changes); const updated:RuntimeConfigDraft={...draft,status:'VALIDATED',validationIssues:issues,diff,eligibleForPromote:false,updatedAt:now()}
+  state.drafts.set(draftId,updated); return clone(updated)
+}
+MockIndustryAgentClient.prototype.saveRuntimeConfigDraft = async function saveRuntimeConfigDraft(context,draftId) {
+  const state=runtimeState(this,requireProject(context)); const draft=requireDraft(state,draftId)
+  if(draft.status!=='VALIDATED')throw new IndustryAgentClientError('RUNTIME_CONFIG_INVALID_STATE','draft must be validated before save',409)
+  if(draft.validationIssues.some((item)=>item.severity==='ERROR'))throw new IndustryAgentClientError('RUNTIME_CONFIG_VALIDATION_FAILED','draft contains validation errors',409)
+  if(draft.baseVersion!==state.version)throw new IndustryAgentClientError('RUNTIME_CONFIG_VERSION_CONFLICT','runtime config changed since this draft was created',409)
+  state.adapters=applyChanges(state.adapters,draft.changes); state.version+=1
+  const updated:RuntimeConfigDraft={...draft,status:'SAVED',savedVersion:state.version,eligibleForPromote:false,updatedAt:now()}; state.drafts.set(draftId,updated); return clone(updated)
+}
+MockIndustryAgentClient.prototype.evaluateRuntimeConfigDraft = async function evaluateRuntimeConfigDraft(context,draftId) {
+  const state=runtimeState(this,requireProject(context)); const draft=requireDraft(state,draftId)
+  if(draft.status!=='SAVED'&&draft.status!=='EVALUATED')throw new IndustryAgentClientError('RUNTIME_CONFIG_INVALID_STATE','draft must be saved before evaluation',409)
+  if(draft.savedVersion!==state.version)throw new IndustryAgentClientError('RUNTIME_CONFIG_VERSION_CONFLICT','saved draft is no longer the active runtime config version',409)
+  const checks=state.adapters.map((item)=>({name:`${item.component} readiness`,passed:item.configured&&item.health==='HEALTHY',detail:item.configured&&item.health==='HEALTHY'?`${item.adapter} healthy`:`${item.component} is not healthy`}))
+  const pass=checks.every((item)=>item.passed); const timestamp=now()
+  const updated:RuntimeConfigDraft={...draft,status:'EVALUATED',evalResult:{status:pass?'PASS':'FAIL',runId:`runtime-eval-${randomUUID()}`,completedAt:timestamp,checks},eligibleForPromote:pass,updatedAt:timestamp}; state.drafts.set(draftId,updated); return clone(updated)
+}
+MockIndustryAgentClient.prototype.getOperationsReadiness = async function getOperationsReadiness(context) {
+  const projectId=requireProject(context); const state=runtimeState(this,projectId); const checkedAt=now(); const adaptersHealthy=state.adapters.every((item)=>item.configured&&item.health==='HEALTHY')
+  const checks:OperationsCheck[]=[
+    check('CI','CI', 'PASS','Mock CI checks are defined; command execution depends on environment.',checkedAt,'ci://mock/latest'),
+    check('ADAPTER_READINESS','Adapter readiness',adaptersHealthy?'PASS':'FAIL',adaptersHealthy?'All ten runtime adapters are configured and healthy.':'One or more adapters are not healthy.',checkedAt,'runtime://inventory'),
+    check('STAGING_INFRA','Staging infra','PENDING','Staging infrastructure is not connected in P10 mock mode.',checkedAt),
+    check('TRACE_AUDIT','Trace / Audit','PASS','P5 trace/audit surfaces are present and redaction-gated.',checkedAt,'trace://mock/readiness'),
+    check('EVAL_GATE','Eval gate','PASS','P1-P9 deterministic mock evaluation gates are available. P11 owns unified release gating.',checkedAt,'eval://mock/p1-p9'),
+    check('E2E','E2E','PENDING','Production-like E2E is not executed in the current connector environment.',checkedAt),
+    check('RENDERER','Renderer','PASS','Mock safe renderer is configured.',checkedAt,'runtime://renderer'),
+    check('SANDBOX','Sandbox','PASS','P9 sandbox safety policies and attestation contract are configured.',checkedAt,'runtime://sandbox'),
+    check('DB_APPROVAL','DB approval','BLOCKED','No production database write approval is granted in mock mode.',checkedAt),
+    check('PRODUCTION_APPROVAL','Production approval','BLOCKED','Production promotion requires an external approval process; P10 cannot grant it.',checkedAt),
+  ]
+  return {environment:'MOCK',projectId,overall:checks.every((item)=>item.status==='PASS')?'READY':'NOT_READY',checks,lastUpdatedAt:checkedAt}
+}
+
+function runtimeState(client:MockIndustryAgentClient,projectId:string):RuntimeProjectState{let projects=STATES.get(client);if(projects===undefined){projects=new Map();STATES.set(client,projects)}let state=projects.get(projectId);if(state===undefined){state={version:1,adapters:seedAdapters(),drafts:new Map()};projects.set(projectId,state)}return state}
+function seedAdapters():RuntimeAdapterStatus[]{const stamp='2026-09-13T09:00:00.000Z';const rows:Record<RuntimeComponent,[string,string,string,boolean,'env'|'none']>={AGENT_MODEL:['Agent model','mock-agent-model-v1','agent-model-primary',true,'env'],EMBEDDING:['Embedding','mock-embedding-v1','embedding-primary',true,'env'],RERANKER:['Reranker','mock-reranker-v1','reranker-primary',true,'env'],OPENSEARCH:['OpenSearch','mock-opensearch-v1','search-primary',true,'env'],PARSER:['Parser','mock-parser-v1','parser-primary',true,'none'],OBJECT_STORAGE:['Object Storage','mock-object-storage-v1','object-storage-primary',true,'env'],MULTIMODAL:['Multimodal','mock-multimodal-v1','multimodal-primary',true,'env'],RENDERER:['Renderer','mock-renderer-v1','renderer-primary',true,'none'],SANDBOX:['Sandbox','mock-sandbox-v1','sandbox-primary',true,'none'],TRACE_AUDIT:['Trace / Audit','mock-trace-audit-v1','trace-audit-primary',true,'env']};return RUNTIME_COMPONENTS.map((component)=>{const[label,adapter,endpointAlias,configured,source]=rows[component];return{component,label,adapter,endpointAlias,configured,health:'HEALTHY',version:'1.0.0',lastCheckAt:stamp,secret:source==='none'?{configured:false,source:'none'}:{configured:true,source,reference:`${component.toLowerCase()}-secret-ref`,lastUpdatedAt:stamp}}})}
+function validateCreateRequest(request:CreateRuntimeConfigDraftRequest):void{if(request.changes.length<1||request.changes.length>10)throw new IndustryAgentClientError('RUNTIME_CONFIG_CHANGES_INVALID','changes must contain between 1 and 10 entries',400);const seen=new Set<string>();for(const change of request.changes){if(seen.has(change.component))throw new IndustryAgentClientError('RUNTIME_CONFIG_DUPLICATE_COMPONENT','each component may appear once per draft',400);seen.add(change.component);if(change.adapter===undefined&&change.endpointAlias===undefined)throw new IndustryAgentClientError('RUNTIME_CONFIG_EMPTY_CHANGE','each change must update adapter or endpointAlias',400);for(const value of [change.adapter,change.endpointAlias])if(value!==undefined&&!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,63}$/u.test(value))throw new IndustryAgentClientError('RUNTIME_CONFIG_VALUE_INVALID','adapter and endpointAlias must be aliases, not URLs or secret-bearing values',400)}}
+function validateChanges(changes:readonly RuntimeConfigChange[]):RuntimeConfigValidationIssue[]{const issues:RuntimeConfigValidationIssue[]=[];for(const change of changes){for(const[name,value]of [['adapter',change.adapter],['endpointAlias',change.endpointAlias]] as const){if(value!==undefined&&/(broken|unavailable|invalid)/iu.test(value))issues.push({component:change.component,code:'RUNTIME_CONFIG_UNHEALTHY_TARGET',severity:'ERROR',message:`${name} points to a deterministic unhealthy mock target`})}}return issues}
+function buildDiff(adapters:readonly RuntimeAdapterStatus[],changes:readonly RuntimeConfigChange[]):RuntimeConfigDiffEntry[]{const byComponent=new Map(adapters.map((item)=>[item.component,item]));const diff:RuntimeConfigDiffEntry[]=[];for(const change of changes){const current=byComponent.get(change.component);if(current===undefined)continue;if(change.adapter!==undefined&&change.adapter!==current.adapter)diff.push({component:change.component,field:'adapter',before:current.adapter,after:change.adapter});if(change.endpointAlias!==undefined&&change.endpointAlias!==current.endpointAlias)diff.push({component:change.component,field:'endpointAlias',before:current.endpointAlias,after:change.endpointAlias})}return diff}
+function applyChanges(adapters:readonly RuntimeAdapterStatus[],changes:readonly RuntimeConfigChange[]):RuntimeAdapterStatus[]{const byComponent=new Map(changes.map((item)=>[item.component,item]));return adapters.map((item)=>{const change=byComponent.get(item.component);if(change===undefined)return{...item,secret:{...item.secret}};return{...item,...(change.adapter===undefined?{}:{adapter:change.adapter}),...(change.endpointAlias===undefined?{}:{endpointAlias:change.endpointAlias}),lastCheckAt:now(),secret:{...item.secret}}})}
+function requireDraft(state:RuntimeProjectState,draftId:string):RuntimeConfigDraft{const draft=state.drafts.get(draftId);if(draft===undefined)throw new IndustryAgentClientError('RUNTIME_CONFIG_DRAFT_NOT_FOUND','runtime config draft not found',404);return draft}
+function requireProject(context:TrustedRequestContext):string{if(context.projectId===null)throw new IndustryAgentClientError('INDUSTRY_PROJECT_REQUIRED','active project is required',409);return context.projectId}
+function check(type:OperationsCheck['type'],label:string,status:OperationsCheck['status'],detail:string,checkedAt:string,evidenceRef?:string):OperationsCheck{return{type,label,status,detail,...(evidenceRef===undefined?{}:{evidenceRef}),checkedAt}}
+function now():string{return new Date().toISOString()}
+function clone<T>(value:T):T{return structuredClone(value)}
