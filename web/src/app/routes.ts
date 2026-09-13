@@ -15,6 +15,7 @@ export type AppRoute =
   | 'industry-mutation-detail'
   | 'industry-mutation-reconciliation'
   | 'industry-eval'
+  | 'industry-eval-benchmark'
   | 'industry-eval-intent'
   | 'industry-eval-retrieval'
   | 'industry-eval-retrieval-run'
@@ -38,6 +39,7 @@ export function resolveAppRoute(pathname: string): AppRoute {
   if (traceEvalRunIdFromPath(pathname) !== null) return 'industry-eval-trace-run'
   if (mutationEvalRunIdFromPath(pathname) !== null) return 'industry-eval-mutation-run'
   if (retrievalRunIdFromPath(pathname) !== null) return 'industry-eval-retrieval-run'
+  if (pathname === '/industry/eval/benchmark' || pathname.startsWith('/industry/eval/benchmark/')) return 'industry-eval-benchmark'
   if (pathname === '/industry/eval/report' || pathname.startsWith('/industry/eval/report/')) return 'industry-eval-report'
   if (pathname === '/industry/eval/sandbox' || pathname.startsWith('/industry/eval/sandbox/')) return 'industry-eval-sandbox'
   if (pathname === '/industry/eval/multimodal' || pathname.startsWith('/industry/eval/multimodal/')) return 'industry-eval-multimodal'
@@ -71,6 +73,7 @@ export function resolveAppRoute(pathname: string): AppRoute {
 }
 
 export function routePath(route: AppRoute): string {
+  if (route === 'industry-eval-benchmark') return '/industry/eval/benchmark'
   if (route === 'industry-eval-report') return '/industry/eval/report'
   if (route === 'industry-eval-sandbox') return '/industry/eval/sandbox'
   if (route === 'industry-eval-multimodal') return '/industry/eval/multimodal'
