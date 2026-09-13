@@ -1,6 +1,7 @@
 export type AppRoute =
   | 'chat'
   | 'industry'
+  | 'industry-knowledge'
   | 'industry-traces'
   | 'industry-trace-detail'
   | 'industry-retrieval-debug'
@@ -15,17 +16,22 @@ export type AppRoute =
   | 'industry-eval-mutation-run'
   | 'industry-eval-trace'
   | 'industry-eval-trace-run'
+  | 'industry-eval-rag'
+  | 'industry-eval-rag-run'
 
 export function resolveAppRoute(pathname: string): AppRoute {
+  if (ragEvalRunIdFromPath(pathname) !== null) return 'industry-eval-rag-run'
   if (traceEvalRunIdFromPath(pathname) !== null) return 'industry-eval-trace-run'
   if (mutationEvalRunIdFromPath(pathname) !== null) return 'industry-eval-mutation-run'
   if (retrievalRunIdFromPath(pathname) !== null) return 'industry-eval-retrieval-run'
+  if (pathname === '/industry/eval/rag' || pathname.startsWith('/industry/eval/rag/')) return 'industry-eval-rag'
   if (pathname === '/industry/eval/trace' || pathname.startsWith('/industry/eval/trace/')) return 'industry-eval-trace'
   if (pathname === '/industry/eval/mutation' || pathname.startsWith('/industry/eval/mutation/')) return 'industry-eval-mutation'
   if (pathname === '/industry/eval/playground/retrieval' || pathname.startsWith('/industry/eval/playground/retrieval/')) return 'industry-eval-retrieval'
   if (pathname === '/industry/eval/retrieval' || pathname.startsWith('/industry/eval/retrieval/')) return 'industry-eval-retrieval'
   if (pathname === '/industry/eval/intent' || pathname.startsWith('/industry/eval/intent/')) return 'industry-eval-intent'
   if (pathname === '/industry/eval' || pathname.startsWith('/industry/eval/')) return 'industry-eval'
+  if (pathname === '/industry/knowledge' || pathname.startsWith('/industry/knowledge/')) return 'industry-knowledge'
   if (retrievalDebugTraceIdFromPath(pathname) !== null) return 'industry-retrieval-debug'
   if (traceIdFromPath(pathname) !== null) return 'industry-trace-detail'
   if (pathname === '/industry/traces' || pathname === '/industry/traces/') return 'industry-traces'
@@ -37,16 +43,28 @@ export function resolveAppRoute(pathname: string): AppRoute {
 }
 
 export function routePath(route: AppRoute): string {
+  if (route === 'industry-eval-rag-run' || route === 'industry-eval-rag') return '/industry/eval/rag'
   if (route === 'industry-eval-trace-run' || route === 'industry-eval-trace') return '/industry/eval/trace'
   if (route === 'industry-eval-mutation-run' || route === 'industry-eval-mutation') return '/industry/eval/mutation'
   if (route === 'industry-eval-retrieval-run' || route === 'industry-eval-retrieval') return '/industry/eval/playground/retrieval'
   if (route === 'industry-eval-intent') return '/industry/eval/intent'
   if (route === 'industry-eval') return '/industry/eval'
+  if (route === 'industry-knowledge') return '/industry/knowledge'
   if (route === 'industry-retrieval-debug' || route === 'industry-trace-detail' || route === 'industry-traces') return '/industry/traces'
   if (route === 'industry-mutation-reconciliation') return '/industry/mutations/reconciliation'
   if (route === 'industry-mutation-detail' || route === 'industry-mutations') return '/industry/mutations'
   if (route === 'industry') return '/industry'
   return '/chat'
+}
+
+export function ragEvalRunPath(runId: string): string {
+  return `/industry/eval/runs/${encodeURIComponent(runId)}/rag`
+}
+
+export function ragEvalRunIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/industry\/eval\/runs\/([^/]+)\/rag\/?$/u)
+  if (match?.[1] === undefined) return null
+  try { return decodeURIComponent(match[1]) } catch { return null }
 }
 
 export function traceEvalRunPath(runId: string): string {
@@ -56,11 +74,7 @@ export function traceEvalRunPath(runId: string): string {
 export function traceEvalRunIdFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/industry\/eval\/runs\/([^/]+)\/trace\/?$/u)
   if (match?.[1] === undefined) return null
-  try {
-    return decodeURIComponent(match[1])
-  } catch {
-    return null
-  }
+  try { return decodeURIComponent(match[1]) } catch { return null }
 }
 
 export function retrievalDebugPath(traceId: string): string {
@@ -70,11 +84,7 @@ export function retrievalDebugPath(traceId: string): string {
 export function retrievalDebugTraceIdFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/industry\/debug\/retrieval\/([^/]+)\/?$/u)
   if (match?.[1] === undefined) return null
-  try {
-    return decodeURIComponent(match[1])
-  } catch {
-    return null
-  }
+  try { return decodeURIComponent(match[1]) } catch { return null }
 }
 
 export function tracePath(traceId: string): string {
@@ -84,11 +94,7 @@ export function tracePath(traceId: string): string {
 export function traceIdFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/industry\/traces\/([^/]+)\/?$/u)
   if (match?.[1] === undefined) return null
-  try {
-    return decodeURIComponent(match[1])
-  } catch {
-    return null
-  }
+  try { return decodeURIComponent(match[1]) } catch { return null }
 }
 
 export function mutationOperationPath(operationId: string): string {
@@ -98,11 +104,7 @@ export function mutationOperationPath(operationId: string): string {
 export function mutationOperationIdFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/industry\/mutations\/([^/]+)\/?$/u)
   if (match?.[1] === undefined || match[1] === 'reconciliation') return null
-  try {
-    return decodeURIComponent(match[1])
-  } catch {
-    return null
-  }
+  try { return decodeURIComponent(match[1]) } catch { return null }
 }
 
 export function mutationEvalRunPath(runId: string): string {
@@ -112,11 +114,7 @@ export function mutationEvalRunPath(runId: string): string {
 export function mutationEvalRunIdFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/industry\/eval\/runs\/([^/]+)\/mutation\/?$/u)
   if (match?.[1] === undefined) return null
-  try {
-    return decodeURIComponent(match[1])
-  } catch {
-    return null
-  }
+  try { return decodeURIComponent(match[1]) } catch { return null }
 }
 
 export function retrievalRunPath(runId: string): string {
@@ -126,11 +124,7 @@ export function retrievalRunPath(runId: string): string {
 export function retrievalRunIdFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/industry\/eval\/runs\/([^/]+)\/retrieval\/?$/u)
   if (match?.[1] === undefined) return null
-  try {
-    return decodeURIComponent(match[1])
-  } catch {
-    return null
-  }
+  try { return decodeURIComponent(match[1]) } catch { return null }
 }
 
 export function isIndustryRoute(route: AppRoute): boolean {
