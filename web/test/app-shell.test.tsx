@@ -7,6 +7,8 @@ import {
   mutationOperationIdFromPath,
   mutationOperationPath,
   resolveAppRoute,
+  retrievalDebugPath,
+  retrievalDebugTraceIdFromPath,
   retrievalRunIdFromPath,
   retrievalRunPath,
   routePath,
@@ -37,6 +39,16 @@ describe('AppShell routing', () => {
     expect(traceIdFromPath(detailPath)).toBe('trace project/1')
     expect(renderToStaticMarkup(<AppShell initialPath="/industry/traces" traceExplorer={<div>Trace list sentinel</div>} />)).toContain('Trace list sentinel')
     expect(renderToStaticMarkup(<AppShell initialPath={detailPath} traceExplorer={<div>Trace detail sentinel</div>} />)).toContain('Trace detail sentinel')
+  })
+
+  it('routes single-trace Retrieval Debug separately from Retrieval Eval', () => {
+    const path = retrievalDebugPath('trace project/1')
+    expect(path).toBe('/industry/debug/retrieval/trace%20project%2F1')
+    expect(resolveAppRoute(path)).toBe('industry-retrieval-debug')
+    expect(retrievalDebugTraceIdFromPath(path)).toBe('trace project/1')
+    const html = renderToStaticMarkup(<AppShell initialPath={path} retrievalDebug={<div>Retrieval Debug sentinel</div>} />)
+    expect(html).toContain('Retrieval Debug sentinel')
+    expect(html).not.toContain('Retrieval Lab sentinel')
   })
 
   it('routes Mutation Center list, detail, and reconciliation paths', () => {
