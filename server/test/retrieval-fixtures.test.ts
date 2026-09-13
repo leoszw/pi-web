@@ -15,6 +15,29 @@ test('retrieval fixtures cover engineering and BOQ domains', () => {
   }
 })
 
+test('engineering fixture exercises chainage, alignment, unit/category/type and hierarchy', () => {
+  const fixture = RETRIEVAL_CASE_FIXTURES.find((item) => item.domain === 'ENGINEERING')
+  assert.ok(fixture)
+  assert.equal(fixture.queryContext.chainageStart, 12300)
+  assert.equal(fixture.queryContext.chainageEnd, 12800)
+  assert.equal(fixture.queryContext.alignment, 'LEFT')
+  assert.equal(fixture.queryContext.unit, '一工区')
+  assert.equal(fixture.queryContext.category, '路基工程')
+  assert.equal(fixture.queryContext.engineeringType, '路基填方')
+  assert.deepEqual(fixture.queryContext.hierarchy, ['一工区', '路基工程', '路基填方'])
+})
+
+test('BOQ fixture exercises code, specification, grade, diameter, thickness and percentage', () => {
+  const fixture = RETRIEVAL_CASE_FIXTURES.find((item) => item.domain === 'BOQ')
+  assert.ok(fixture)
+  assert.equal(fixture.queryContext.boqCode, '403-2-a')
+  assert.equal(fixture.queryContext.specification, '混凝土基础')
+  assert.equal(fixture.queryContext.concreteGrade, 'C30')
+  assert.equal(fixture.queryContext.diameterMm, 25)
+  assert.equal(fixture.queryContext.thicknessMm, 300)
+  assert.equal(fixture.queryContext.percentage, 8)
+})
+
 test('playground fixture exposes every required retrieval stage in order', () => {
   const result = buildRetrievalPlaygroundFixture('retrieval-engineering-001')
   assert.deepEqual(result.stages.map((stage) => stage.stage), RETRIEVAL_STAGE_ORDER)
