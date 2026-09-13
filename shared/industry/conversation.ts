@@ -1,3 +1,5 @@
+import type { UiActionPresentedEventPayload } from './ui-actions'
+
 export const INDUSTRY_EVENT_VERSION = 'industry-event-v1' as const
 
 export type IndustryConversationStatus = 'ACTIVE' | 'ABORTED'
@@ -65,6 +67,7 @@ export type KnownIndustryEvent =
   | IndustryEventEnvelope<UserMessageAcceptedEventPayload>
   | IndustryEventEnvelope<AssistantMessageEventPayload>
   | IndustryEventEnvelope<ConversationAbortedEventPayload>
+  | IndustryEventEnvelope<UiActionPresentedEventPayload>
 
 export interface IndustryEventBatch {
   conversationId: string
