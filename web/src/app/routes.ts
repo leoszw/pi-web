@@ -8,9 +8,13 @@ export type AppRoute =
   | 'industry-eval-intent'
   | 'industry-eval-retrieval'
   | 'industry-eval-retrieval-run'
+  | 'industry-eval-mutation'
+  | 'industry-eval-mutation-run'
 
 export function resolveAppRoute(pathname: string): AppRoute {
+  if (mutationEvalRunIdFromPath(pathname) !== null) return 'industry-eval-mutation-run'
   if (retrievalRunIdFromPath(pathname) !== null) return 'industry-eval-retrieval-run'
+  if (pathname === '/industry/eval/mutation' || pathname.startsWith('/industry/eval/mutation/')) return 'industry-eval-mutation'
   if (pathname === '/industry/eval/playground/retrieval' || pathname.startsWith('/industry/eval/playground/retrieval/')) return 'industry-eval-retrieval'
   if (pathname === '/industry/eval/retrieval' || pathname.startsWith('/industry/eval/retrieval/')) return 'industry-eval-retrieval'
   if (pathname === '/industry/eval/intent' || pathname.startsWith('/industry/eval/intent/')) return 'industry-eval-intent'
@@ -23,6 +27,7 @@ export function resolveAppRoute(pathname: string): AppRoute {
 }
 
 export function routePath(route: AppRoute): string {
+  if (route === 'industry-eval-mutation-run' || route === 'industry-eval-mutation') return '/industry/eval/mutation'
   if (route === 'industry-eval-retrieval-run' || route === 'industry-eval-retrieval') return '/industry/eval/playground/retrieval'
   if (route === 'industry-eval-intent') return '/industry/eval/intent'
   if (route === 'industry-eval') return '/industry/eval'
@@ -39,6 +44,20 @@ export function mutationOperationPath(operationId: string): string {
 export function mutationOperationIdFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/industry\/mutations\/([^/]+)\/?$/u)
   if (match?.[1] === undefined || match[1] === 'reconciliation') return null
+  try {
+    return decodeURIComponent(match[1])
+  } catch {
+    return null
+  }
+}
+
+export function mutationEvalRunPath(runId: string): string {
+  return `/industry/eval/runs/${encodeURIComponent(runId)}/mutation`
+}
+
+export function mutationEvalRunIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/industry\/eval\/runs\/([^/]+)\/mutation\/?$/u)
+  if (match?.[1] === undefined) return null
   try {
     return decodeURIComponent(match[1])
   } catch {
