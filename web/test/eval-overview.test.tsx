@@ -10,14 +10,14 @@ const snapshot: EvalOverviewSnapshot = {
 }
 
 describe('EvalOverviewView', () => {
-  it('renders P11 unified benchmark plus all specialist evaluation entry points', () => {
+  it('renders P12 online quality alongside the governed P11 benchmark and specialist labs', () => {
     const html = renderToStaticMarkup(<EvalOverviewView snapshot={snapshot} />)
-    expect(html).toContain('Evaluation Workbench · P11')
+    expect(html).toContain('Evaluation Workbench · P12')
     expect(html).toContain('Intent Regression v1')
-    expect(html).toContain('Formal Gate status remains owned by pi')
-    for (const path of ['/industry/eval/benchmark','/industry/eval/intent','/industry/eval/playground/retrieval','/industry/eval/mutation','/industry/eval/trace','/industry/eval/rag','/industry/eval/normalization','/industry/eval/entity','/industry/eval/tool','/industry/eval/memory','/industry/eval/multimodal','/industry/eval/agent-loop','/industry/eval/report','/industry/eval/sandbox']) expect(html).toContain(path)
+    expect(html).toContain('sanitized traces')
+    expect(html).toContain('without automatic Golden promotion')
+    for (const path of ['/industry/eval/benchmark','/industry/quality','/industry/eval/intent','/industry/eval/playground/retrieval','/industry/eval/mutation','/industry/eval/trace','/industry/eval/rag','/industry/eval/normalization','/industry/eval/entity','/industry/eval/tool','/industry/eval/memory','/industry/eval/multimodal','/industry/eval/agent-loop','/industry/eval/report','/industry/eval/sandbox']) expect(html).toContain(path)
     expect(html).toContain('P11 Golden / Hard corpus')
-    expect(html).toContain('13')
-    expect(html).toContain('Unified benchmark domains')
+    expect(html).toContain('P12 online quality metrics')
   })
 })
