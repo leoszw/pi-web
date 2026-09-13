@@ -1,9 +1,5 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
-import type {
-  MutationAuditTrail,
-  MutationOperation,
-  MutationReconciliationList,
-} from '../../../../shared/industry/mutation'
+import type { MutationAuditTrail, MutationOperation, MutationReconciliationList } from '../../../../shared/industry/mutation'
 import {
   createIndustryMutationApiClient,
   IndustryMutationApiError,
@@ -28,6 +24,8 @@ interface MutationCenterError {
   message: string
   resolution?: string
 }
+
+type SnapshotSetter = Dispatch<SetStateAction<MutationCenterSnapshot | undefined>>
 
 export function MutationCenterPage({
   mode,
@@ -63,10 +61,7 @@ export function MutationCenterPage({
     if (operationId === undefined) return
     setBusy(true)
     try {
-      const [operation, audit] = await Promise.all([
-        client.getMutation(operationId),
-        client.getMutationAudit(operationId),
-      ])
+      const [operation, audit] = await Promise.all([client.getMutation(operationId), client.getMutationAudit(operationId)])
       setSnapshot((current) => ({
         operations: current?.operations ?? [],
         operation,
@@ -94,71 +89,76 @@ export function MutationCenterPage({
     const key = attemptKey ?? idempotencyKeyFactory()
     setAttemptKey(key)
     try {
-      const updated = await client.confirmMutation(
-        operation.operationId,
-        { digest: operation.digest, explicitConfirmation: true },
-        key,
-      )
+      const updated = await client.confirmMutation(operation.operationId, { digest: operation.digest, explicitConfirmation: true }, key)
       const audit = await client.getMutationAudit(operation.operationId)
-      setSnapshot((current) => ({
-        operations: replaceOperation(current?.operations ?? [], updated),
-        operation: updated,
-        audit,
-        ...(current?.reconciliation === undefined ? {} : { reconciliation: current.reconciliation }),
-      }))
-      setAttemptKey(null)
-      setExplicitConfirmation(false)
-      setConfirmationStatusUnknown(false)
+      setSnapshot((current) => mergeOperation(current, updated, audit))
+      clearAttempt()
     } catch (reason) {
-      if (reason instanceof IndustryMutationApiError) {
-        setError(errorOf(reason))
-        if (reason.code === 'MUTATION_COMMIT_FINALIZATION_FAILED') {
-          await refreshAfterFinalizationFailure(client, operation.operationId, setSnapshot)
-          setAttemptKey(null)
-          setExplicitConfirmation(false)
-        } else if (isDefinitiveMutationFailure(reason.code)) {
-          await refreshKnownOperation(client, operation.operationId, setSnapshot)
-          setAttemptKey(null)
-          setExplicitConfirmation(false)
-        } else {
-          setConfirmationStatusUnknown(true)
-          setError({
-            code: reason.code,
-            message: `${reason.message} Confirmation outcome is not proven; check server status before any retry.`,
-            resolution: 'refresh',
-          })
-        }
-      } else {
-        setError({
-          code: 'CONFIRMATION_STATUS_UNKNOWN',
-          message: 'Confirmation response is unknown. Check server status before any retry. The same Idempotency-Key is retained for this attempt.',
-          resolution: 'refresh',
-        })
-        setConfirmationStatusUnknown(true)
-      }
+      await handleConfirmFailure(reason, operation)
     } finally {
       setBusy(false)
     }
   }
 
+  async function handleConfirmFailure(reason: unknown, operation: MutationOperation): Promise<void> {
+    if (!(reason instanceof IndustryMutationApiError)) {
+      lockUnknownConfirmation('CONFIRMATION_STATUS_UNKNOWN', 'Confirmation response is unknown. Check server status before any retry. The same Idempotency-Key is retained for this attempt.')
+      return
+    }
+
+    setError(errorOf(reason))
+    if (reason.code === 'MUTATION_COMMIT_FINALIZATION_FAILED' || reason.code === 'MUTATION_UNSAFE_RETRY_FORBIDDEN') {
+      // Fail closed immediately. A follow-up GET is evidence enrichment only; it must never decide whether retry controls are visible.
+      markLocalTerminal(operation, 'RECONCILIATION_REQUIRED')
+      clearAttempt()
+      await refreshAfterFinalizationFailure(client, operation.operationId, setSnapshot)
+      return
+    }
+    if (reason.code === 'APPROVAL_REPLAY') {
+      markLocalTerminal(operation, 'COMMITTED')
+      clearAttempt()
+      await refreshKnownOperation(client, operation.operationId, setSnapshot)
+      return
+    }
+    if (isDefinitivePrecommitFailure(reason.code)) {
+      clearAttempt()
+      await refreshKnownOperation(client, operation.operationId, setSnapshot)
+      return
+    }
+
+    lockUnknownConfirmation(
+      reason.code,
+      `${reason.message} Confirmation outcome is not proven; check server status before any retry.`,
+    )
+  }
+
+  function markLocalTerminal(operation: MutationOperation, status: 'COMMITTED' | 'RECONCILIATION_REQUIRED'): void {
+    const local = { ...operation, status, safeToRetryCommit: false, updatedAt: new Date().toISOString() } satisfies MutationOperation
+    setSnapshot((current) => mergeOperation(current, local, current?.audit))
+  }
+
+  function clearAttempt(): void {
+    setAttemptKey(null)
+    setExplicitConfirmation(false)
+    setConfirmationStatusUnknown(false)
+  }
+
+  function lockUnknownConfirmation(code: string, message: string): void {
+    setConfirmationStatusUnknown(true)
+    setError({ code, message, resolution: 'refresh' })
+  }
+
   async function reject(): Promise<void> {
     const operation = snapshot?.operation
-    if (operation === undefined || operation.status !== 'PENDING_CONFIRMATION') return
+    if (operation === undefined || operation.status !== 'PENDING_CONFIRMATION' || confirmationStatusUnknown) return
     setBusy(true)
     setError(null)
     try {
       const updated = await client.rejectMutation(operation.operationId, rejectReason.trim() === '' ? {} : { reason: rejectReason.trim() })
       const audit = await client.getMutationAudit(operation.operationId)
-      setSnapshot((current) => ({
-        operations: replaceOperation(current?.operations ?? [], updated),
-        operation: updated,
-        audit,
-        ...(current?.reconciliation === undefined ? {} : { reconciliation: current.reconciliation }),
-      }))
+      setSnapshot((current) => mergeOperation(current, updated, audit))
       setRejectReason('')
-      setAttemptKey(null)
-      setExplicitConfirmation(false)
-      setConfirmationStatusUnknown(false)
+      clearAttempt()
     } catch (reason) {
       setError(errorOf(reason))
     } finally {
@@ -220,71 +220,41 @@ export function MutationCenterView({
   return (
     <main className="mutation-center" aria-labelledby="mutation-center-title">
       <header className="mutation-heading">
-        <div>
-          <span>Industry Agent · P4</span>
-          <h1 id="mutation-center-title">Mutation Center</h1>
-          <p>Explicit confirmation, idempotent commit control, audit, and reconciliation. Mock only: no real database DML.</p>
-        </div>
-        <nav aria-label="Mutation Center navigation">
-          <a href="/industry">Workspace</a>
-          <a href="/industry/mutations">Operations</a>
-          <a href="/industry/mutations/reconciliation">Reconciliation{reconciliationCount > 0 ? ` (${reconciliationCount})` : ''}</a>
-        </nav>
+        <div><span>Industry Agent · P4</span><h1 id="mutation-center-title">Mutation Center</h1><p>Explicit confirmation, idempotent commit control, audit, and reconciliation. Mock only: no real database DML.</p></div>
+        <nav aria-label="Mutation Center navigation"><a href="/industry">Workspace</a><a href="/industry/mutations">Operations</a><a href="/industry/mutations/reconciliation">Reconciliation{reconciliationCount > 0 ? ` (${reconciliationCount})` : ''}</a></nav>
       </header>
-
       {error === null ? null : <ErrorBanner error={error} />}
       {mode === 'list' ? <OperationList operations={snapshot.operations} reconciliationCount={reconciliationCount} /> : null}
-      {mode === 'detail' && snapshot.operation !== undefined ? (
-        <OperationDetail
-          operation={snapshot.operation}
-          audit={snapshot.audit}
-          busy={busy}
-          explicitConfirmation={explicitConfirmation}
-          rejectReason={rejectReason}
-          confirmationStatusUnknown={confirmationStatusUnknown}
-          hasRetainedAttempt={hasRetainedAttempt}
-          onExplicitConfirmation={onExplicitConfirmation}
-          onRejectReason={onRejectReason}
-          onConfirm={onConfirm}
-          onReject={onReject}
-          onRefresh={onRefresh}
-        />
-      ) : null}
+      {mode === 'detail' && snapshot.operation !== undefined ? <OperationDetail
+        operation={snapshot.operation}
+        audit={snapshot.audit}
+        busy={busy}
+        explicitConfirmation={explicitConfirmation}
+        rejectReason={rejectReason}
+        confirmationStatusUnknown={confirmationStatusUnknown}
+        hasRetainedAttempt={hasRetainedAttempt}
+        onExplicitConfirmation={onExplicitConfirmation}
+        onRejectReason={onRejectReason}
+        onConfirm={onConfirm}
+        onReject={onReject}
+        onRefresh={onRefresh}
+      /> : null}
       {mode === 'reconciliation' ? <ReconciliationView reconciliation={snapshot.reconciliation ?? { items: [] }} /> : null}
     </main>
   )
 }
 
 function OperationList({ operations, reconciliationCount }: { operations: readonly MutationOperation[]; reconciliationCount: number }) {
-  return (
-    <section className="mutation-section">
-      <div className="mutation-section-heading"><h2>Operations</h2><span>{operations.length} operations</span></div>
-      {reconciliationCount > 0 ? <div className="mutation-critical"><strong>Reconciliation required</strong><p>{reconciliationCount} operation(s) may have written business data but failed finalization. Never retry commit automatically.</p><a href="/industry/mutations/reconciliation">Open reconciliation</a></div> : null}
-      <div className="mutation-operation-list">
-        {operations.map((operation) => (
-          <a className="mutation-operation-card" href={mutationOperationPath(operation.operationId)} key={operation.operationId}>
-            <div><strong>{operation.title}</strong><p>{operation.summary}</p></div>
-            <div><StatusBadge status={operation.status} /><code>{operation.operationId}</code></div>
-          </a>
-        ))}
-      </div>
-    </section>
-  )
+  return <section className="mutation-section">
+    <div className="mutation-section-heading"><h2>Operations</h2><span>{operations.length} operations</span></div>
+    {reconciliationCount > 0 ? <div className="mutation-critical"><strong>Reconciliation required</strong><p>{reconciliationCount} operation(s) may have written business data but failed finalization. Never retry commit automatically.</p><a href="/industry/mutations/reconciliation">Open reconciliation</a></div> : null}
+    <div className="mutation-operation-list">{operations.map((operation) => <a className="mutation-operation-card" href={mutationOperationPath(operation.operationId)} key={operation.operationId}><div><strong>{operation.title}</strong><p>{operation.summary}</p></div><div><StatusBadge status={operation.status} /><code>{operation.operationId}</code></div></a>)}</div>
+  </section>
 }
 
 function OperationDetail({
-  operation,
-  audit,
-  busy,
-  explicitConfirmation,
-  rejectReason,
-  confirmationStatusUnknown,
-  hasRetainedAttempt,
-  onExplicitConfirmation,
-  onRejectReason,
-  onConfirm,
-  onReject,
-  onRefresh,
+  operation, audit, busy, explicitConfirmation, rejectReason, confirmationStatusUnknown, hasRetainedAttempt,
+  onExplicitConfirmation, onRejectReason, onConfirm, onReject, onRefresh,
 }: {
   operation: MutationOperation
   audit?: MutationAuditTrail
@@ -299,44 +269,32 @@ function OperationDetail({
   onReject: () => void
   onRefresh: () => void
 }) {
-  return (
-    <div className="mutation-detail-grid">
-      <section className="mutation-section">
-        <a href="/industry/mutations">← Back to operations</a>
-        <div className="mutation-detail-title"><div><h2>{operation.title}</h2><p>{operation.summary}</p></div><StatusBadge status={operation.status} /></div>
-        <dl className="mutation-meta">
-          <div><dt>Operation ID</dt><dd><code>{operation.operationId}</code></dd></div>
-          <div><dt>Project</dt><dd><code>{operation.projectId}</code></dd></div>
-          <div><dt>Target version</dt><dd><code>{operation.targetVersion}</code></dd></div>
-          <div><dt>Digest</dt><dd><code>{operation.digest}</code></dd></div>
-          <div><dt>Safe to retry commit</dt><dd><strong>{operation.safeToRetryCommit ? 'YES' : 'NO'}</strong></dd></div>
-        </dl>
-
-        <h3>Diff / Preview</h3>
-        <table className="mutation-preview"><tbody>{Object.entries(operation.preview).map(([key, value]) => <tr key={key}><th>{key}</th><td>{String(value ?? 'null')}</td></tr>)}</tbody></table>
-
-        {operation.status === 'PENDING_CONFIRMATION' ? (
-          <section className="mutation-confirmation" aria-label="Explicit mutation confirmation">
-            <h3>Explicit confirmation</h3>
-            <p>Confirming uses this exact digest. Approval material stays server-side.</p>
-            {confirmationStatusUnknown ? (
-              <div className="mutation-warning"><strong>Confirmation status unknown</strong><p>Do not start a new commit attempt. Check operation state first; the current Idempotency-Key remains retained in this browser session.</p><button type="button" disabled={busy} onClick={onRefresh}>Refresh status</button></div>
-            ) : <>
-              {hasRetainedAttempt ? <div className="mutation-warning"><strong>Resuming the same idempotent attempt</strong><p>The retained Idempotency-Key will be reused. A new commit attempt is not created.</p></div> : null}
-              <label className="mutation-checkbox"><input type="checkbox" checked={explicitConfirmation} disabled={busy} onChange={(event) => onExplicitConfirmation(event.target.checked)} />I reviewed the diff, target version, and digest and explicitly confirm this mutation.</label>
-              <button className="mutation-primary" type="button" disabled={busy || !explicitConfirmation} onClick={onConfirm}>{hasRetainedAttempt ? 'Resume same confirmation attempt' : 'Confirm mutation'}</button>
-              <div className="mutation-reject"><label>Reject reason<textarea rows={2} value={rejectReason} disabled={busy} onChange={(event) => onRejectReason(event.target.value)} /></label><button type="button" disabled={busy} onClick={onReject}>Reject operation</button></div>
-            </>}
-          </section>
-        ) : null}
-
-        {operation.status === 'COMMITTED' ? <div className="mutation-success"><strong>Committed</strong><p>The mock operation is terminal. No repeat confirmation is available.</p></div> : null}
-        {operation.status === 'REJECTED' ? <div className="mutation-neutral"><strong>Rejected</strong><p>This operation is terminal and cannot be confirmed later.</p></div> : null}
-        {operation.status === 'RECONCILIATION_REQUIRED' ? <div className="mutation-critical"><strong>Business write may have succeeded</strong><p>Finalization failed. Commit retry is forbidden. Investigate reconciliation before any further action.</p><a href="/industry/mutations/reconciliation">Open reconciliation</a></div> : null}
-      </section>
-      <AuditTimeline audit={audit} />
-    </div>
-  )
+  return <div className="mutation-detail-grid">
+    <section className="mutation-section">
+      <a href="/industry/mutations">← Back to operations</a>
+      <div className="mutation-detail-title"><div><h2>{operation.title}</h2><p>{operation.summary}</p></div><StatusBadge status={operation.status} /></div>
+      <dl className="mutation-meta">
+        <div><dt>Operation ID</dt><dd><code>{operation.operationId}</code></dd></div><div><dt>Project</dt><dd><code>{operation.projectId}</code></dd></div>
+        <div><dt>Target version</dt><dd><code>{operation.targetVersion}</code></dd></div><div><dt>Digest</dt><dd><code>{operation.digest}</code></dd></div>
+        <div><dt>Safe to retry commit</dt><dd><strong>{operation.safeToRetryCommit ? 'YES' : 'NO'}</strong></dd></div>
+      </dl>
+      <h3>Diff / Preview</h3>
+      <table className="mutation-preview"><tbody>{Object.entries(operation.preview).map(([key, value]) => <tr key={key}><th>{key}</th><td>{String(value ?? 'null')}</td></tr>)}</tbody></table>
+      {operation.status === 'PENDING_CONFIRMATION' ? <section className="mutation-confirmation" aria-label="Explicit mutation confirmation">
+        <h3>Explicit confirmation</h3><p>Confirming uses this exact digest. Approval material stays server-side.</p>
+        {confirmationStatusUnknown ? <div className="mutation-warning"><strong>Confirmation status unknown</strong><p>Do not start a new commit attempt. Check operation state first; the current Idempotency-Key remains retained in this browser session.</p><button type="button" disabled={busy} onClick={onRefresh}>Refresh status</button></div> : <>
+          {hasRetainedAttempt ? <div className="mutation-warning"><strong>Resuming the same idempotent attempt</strong><p>The retained Idempotency-Key will be reused. A new commit attempt is not created.</p></div> : null}
+          <label className="mutation-checkbox"><input type="checkbox" checked={explicitConfirmation} disabled={busy} onChange={(event) => onExplicitConfirmation(event.target.checked)} />I reviewed the diff, target version, and digest and explicitly confirm this mutation.</label>
+          <button className="mutation-primary" type="button" disabled={busy || !explicitConfirmation} onClick={onConfirm}>{hasRetainedAttempt ? 'Resume same confirmation attempt' : 'Confirm mutation'}</button>
+          <div className="mutation-reject"><label>Reject reason<textarea rows={2} value={rejectReason} disabled={busy} onChange={(event) => onRejectReason(event.target.value)} /></label><button type="button" disabled={busy} onClick={onReject}>Reject operation</button></div>
+        </>}
+      </section> : null}
+      {operation.status === 'COMMITTED' ? <div className="mutation-success"><strong>Committed</strong><p>The mock operation is terminal. No repeat confirmation is available.</p></div> : null}
+      {operation.status === 'REJECTED' ? <div className="mutation-neutral"><strong>Rejected</strong><p>This operation is terminal and cannot be confirmed later.</p></div> : null}
+      {operation.status === 'RECONCILIATION_REQUIRED' ? <div className="mutation-critical"><strong>Business write may have succeeded</strong><p>Finalization failed. Commit retry is forbidden. Investigate reconciliation before any further action.</p><a href="/industry/mutations/reconciliation">Open reconciliation</a></div> : null}
+    </section>
+    <AuditTimeline audit={audit} />
+  </div>
 }
 
 function AuditTimeline({ audit }: { audit?: MutationAuditTrail }) {
@@ -355,51 +313,40 @@ function ErrorBanner({ error }: { error: MutationCenterError }) {
   return <div className="mutation-error" role="alert"><strong>{error.code}</strong><span>{error.message}</span>{error.resolution === undefined ? null : <small>Resolution: {error.resolution}</small>}</div>
 }
 
-async function loadSnapshot(
-  client: IndustryMutationApiClient,
-  mode: MutationCenterMode,
-  operationId: string | undefined,
-): Promise<MutationCenterSnapshot> {
+async function loadSnapshot(client: IndustryMutationApiClient, mode: MutationCenterMode, operationId: string | undefined): Promise<MutationCenterSnapshot> {
   if (mode === 'detail') {
     if (operationId === undefined) throw new Error('operationId is required for mutation detail')
     const [operation, audit] = await Promise.all([client.getMutation(operationId), client.getMutationAudit(operationId)])
     return { operations: [], operation, audit }
   }
-  if (mode === 'reconciliation') {
-    const [operations, reconciliation] = await Promise.all([client.listMutations(), client.getReconciliation()])
-    return { operations, reconciliation }
-  }
   const [operations, reconciliation] = await Promise.all([client.listMutations(), client.getReconciliation()])
   return { operations, reconciliation }
 }
 
-async function refreshKnownOperation(
-  client: IndustryMutationApiClient,
-  operationId: string,
-  setSnapshot: Dispatch<SetStateAction<MutationCenterSnapshot | undefined>>,
-): Promise<void> {
+async function refreshKnownOperation(client: IndustryMutationApiClient, operationId: string, setSnapshot: SnapshotSetter): Promise<void> {
   try {
     const [operation, audit] = await Promise.all([client.getMutation(operationId), client.getMutationAudit(operationId)])
-    setSnapshot((current) => ({ operations: replaceOperation(current?.operations ?? [], operation), operation, audit }))
+    setSnapshot((current) => mergeOperation(current, operation, audit))
   } catch {
-    // Preserve the original mutation error. Refresh failure must not trigger a commit retry.
+    // Preserve the original mutation error. Refresh failure must never trigger a commit retry.
   }
 }
 
-async function refreshAfterFinalizationFailure(
-  client: IndustryMutationApiClient,
-  operationId: string,
-  setSnapshot: Dispatch<SetStateAction<MutationCenterSnapshot | undefined>>,
-): Promise<void> {
+async function refreshAfterFinalizationFailure(client: IndustryMutationApiClient, operationId: string, setSnapshot: SnapshotSetter): Promise<void> {
   try {
-    const [operation, audit, reconciliation] = await Promise.all([
-      client.getMutation(operationId),
-      client.getMutationAudit(operationId),
-      client.getReconciliation(),
-    ])
-    setSnapshot((current) => ({ operations: replaceOperation(current?.operations ?? [], operation), operation, audit, reconciliation }))
+    const [operation, audit, reconciliation] = await Promise.all([client.getMutation(operationId), client.getMutationAudit(operationId), client.getReconciliation()])
+    setSnapshot((current) => ({ ...mergeOperation(current, operation, audit), reconciliation }))
   } catch {
-    // Preserve the finalization error and never retry commit automatically.
+    // Local fail-closed state already removed commit controls; evidence refresh is best-effort only.
+  }
+}
+
+function mergeOperation(current: MutationCenterSnapshot | undefined, operation: MutationOperation, audit?: MutationAuditTrail): MutationCenterSnapshot {
+  return {
+    operations: replaceOperation(current?.operations ?? [], operation),
+    operation,
+    ...(audit === undefined ? (current?.audit === undefined ? {} : { audit: current.audit }) : { audit }),
+    ...(current?.reconciliation === undefined ? {} : { reconciliation: current.reconciliation }),
   }
 }
 
@@ -408,28 +355,16 @@ function replaceOperation(operations: readonly MutationOperation[], next: Mutati
   return found ? operations.map((item) => item.operationId === next.operationId ? next : item) : [...operations, next]
 }
 
-function isDefinitiveMutationFailure(code: string): boolean {
-  return code === 'DIGEST_MISMATCH'
-    || code === 'VERSION_CONFLICT'
-    || code === 'APPROVAL_REPLAY'
-    || code === 'IDEMPOTENCY_KEY_REUSE'
-    || code === 'MUTATION_UNSAFE_RETRY_FORBIDDEN'
-    || code === 'MUTATION_INVALID_STATE'
+function isDefinitivePrecommitFailure(code: string): boolean {
+  return code === 'DIGEST_MISMATCH' || code === 'VERSION_CONFLICT' || code === 'IDEMPOTENCY_KEY_REUSE'
 }
 
 function errorOf(reason: unknown): MutationCenterError {
-  if (reason instanceof IndustryMutationApiError) {
-    return {
-      code: reason.code,
-      message: reason.message,
-      ...(reason.resolution === undefined ? {} : { resolution: reason.resolution.type }),
-    }
-  }
+  if (reason instanceof IndustryMutationApiError) return { code: reason.code, message: reason.message, ...(reason.resolution === undefined ? {} : { resolution: reason.resolution.type }) }
   return { code: 'MUTATION_UI_ERROR', message: reason instanceof Error ? reason.message : String(reason) }
 }
 
 function createIdempotencyKey(): string {
   const uuid = globalThis.crypto?.randomUUID?.()
-  if (uuid !== undefined) return `mutation-confirm-${uuid}`
-  return `mutation-confirm-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return uuid === undefined ? `mutation-confirm-${Date.now()}-${Math.random().toString(36).slice(2)}` : `mutation-confirm-${uuid}`
 }
