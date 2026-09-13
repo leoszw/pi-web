@@ -10,13 +10,13 @@ const snapshot: EvalOverviewSnapshot = {
 }
 
 describe('EvalOverviewView', () => {
-  it('renders P8 workbench and all specialist evaluation entry points', () => {
+  it('renders P9 workbench and all specialist evaluation entry points', () => {
     const html = renderToStaticMarkup(<EvalOverviewView snapshot={snapshot} />)
-    expect(html).toContain('Evaluation Workbench · P8')
+    expect(html).toContain('Evaluation Workbench · P9')
     expect(html).toContain('Intent Regression v1')
     expect(html).toContain('Production metrics remain owned by pi')
-    for (const path of ['/industry/eval/intent','/industry/eval/playground/retrieval','/industry/eval/mutation','/industry/eval/trace','/industry/eval/rag','/industry/eval/normalization','/industry/eval/entity','/industry/eval/tool','/industry/eval/memory','/industry/eval/multimodal','/industry/eval/agent-loop']) expect(html).toContain(path)
-    expect(html).toContain('Multimodal safety cases')
-    expect(html).toContain('Agent Loop safety cases')
+    for (const path of ['/industry/eval/intent','/industry/eval/playground/retrieval','/industry/eval/mutation','/industry/eval/trace','/industry/eval/rag','/industry/eval/normalization','/industry/eval/entity','/industry/eval/tool','/industry/eval/memory','/industry/eval/multimodal','/industry/eval/agent-loop','/industry/eval/report','/industry/eval/sandbox']) expect(html).toContain(path)
+    expect(html).toContain('Report safety cases')
+    expect(html).toContain('Sandbox safety cases')
   })
 })
