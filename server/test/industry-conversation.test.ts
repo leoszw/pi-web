@@ -141,10 +141,11 @@ test('message events are monotonic and reconnect returns only events after curso
 
     const invalidCursor = await fetch(`${baseUrl}/api/industry/v1/conversations/${encodeURIComponent(conversation.conversationId)}/events?afterSequenceNo=-1`)
     assert.equal(invalidCursor.status, 400)
+    assert.equal((await invalidCursor.json() as { error: { code: string } }).error.code, 'INVALID_QUERY')
   })
 })
 
-test('abort is idempotent and blocks later messages', async () => {
+test('abort rejects scope injection, is idempotent and blocks later messages', async () => {
   await withServer(makeRouter(), async (baseUrl) => {
     await selectProject(baseUrl)
     const created = await fetch(`${baseUrl}/api/industry/v1/conversations`, {
@@ -153,6 +154,13 @@ test('abort is idempotent and blocks later messages', async () => {
       body: JSON.stringify({}),
     })
     const conversation = (await created.json() as { data: IndustryConversation }).data
+
+    const injectedAbort = await fetch(`${baseUrl}/api/industry/v1/conversations/${encodeURIComponent(conversation.conversationId)}/abort`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ projectId: 'attacker-project' }),
+    })
+    assert.equal(injectedAbort.status, 400)
 
     const firstAbort = await fetch(`${baseUrl}/api/industry/v1/conversations/${encodeURIComponent(conversation.conversationId)}/abort`, {
       method: 'POST',
