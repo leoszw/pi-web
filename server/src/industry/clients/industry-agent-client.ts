@@ -6,6 +6,13 @@ import type {
   SendConversationMessageRequest,
 } from '../../../../shared/industry/conversation'
 import type {
+  KnowledgeChunk,
+  KnowledgeDocument,
+  KnowledgeIngestion,
+  KnowledgeUploadOptions,
+  KnowledgeUploadRequest,
+} from '../../../../shared/industry/knowledge'
+import type {
   ConfirmMutationRequest,
   MutationAuditTrail,
   MutationOperation,
@@ -73,6 +80,13 @@ export interface IndustryAgentClient {
   getTraceTree(context: TrustedRequestContext, traceId: string, access: TraceAccessProfile): Promise<TraceTree>
   getTraceStats(context: TrustedRequestContext, traceId: string): Promise<TraceStats>
   getRetrievalDebug(context: TrustedRequestContext, traceId: string): Promise<RetrievalDebugResult>
+  getKnowledgeUploadOptions(context: TrustedRequestContext): Promise<KnowledgeUploadOptions>
+  listKnowledgeDocuments(context: TrustedRequestContext): Promise<readonly KnowledgeDocument[]>
+  uploadKnowledgeDocument(context: TrustedRequestContext, request: KnowledgeUploadRequest): Promise<KnowledgeDocument>
+  getKnowledgeDocument(context: TrustedRequestContext, documentId: string): Promise<KnowledgeDocument>
+  reingestKnowledgeDocument(context: TrustedRequestContext, documentId: string): Promise<KnowledgeDocument>
+  listKnowledgeChunks(context: TrustedRequestContext, documentId: string): Promise<readonly KnowledgeChunk[]>
+  getKnowledgeIngestion(context: TrustedRequestContext, ingestionId: string): Promise<KnowledgeIngestion>
 }
 
 export class IndustryAgentClientError extends Error {
