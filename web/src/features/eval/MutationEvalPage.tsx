@@ -9,6 +9,7 @@ import type {
 import { createEvaluationApiClient, type EvaluationApiClient } from '../../api/industry-client'
 import { mutationEvalRunPath } from '../../app/routes'
 import './eval.css'
+import './mutation-eval.css'
 
 const defaultClient = createEvaluationApiClient()
 const DATASET_ID = 'mutation-safety-v1'
