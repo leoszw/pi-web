@@ -12,6 +12,14 @@ import type {
   MutationReconciliationList,
   RejectMutationRequest,
 } from '../../../../shared/industry/mutation'
+import type {
+  TraceAccessProfile,
+  TraceDetail,
+  TraceStats,
+  TraceSummary,
+  TraceTimelineEvent,
+  TraceTree,
+} from '../../../../shared/industry/trace'
 import type { UiActionInteractionRequest, UiActionInteractionResult } from '../../../../shared/industry/ui-actions'
 import type { AuthPrincipal } from '../auth'
 import type { TrustedRequestContext } from '../context'
@@ -58,6 +66,11 @@ export interface IndustryAgentClient {
   ): Promise<MutationOperation>
   getMutationAudit(context: TrustedRequestContext, operationId: string): Promise<MutationAuditTrail>
   listMutationReconciliation(context: TrustedRequestContext): Promise<MutationReconciliationList>
+  listTraces(context: TrustedRequestContext): Promise<readonly TraceSummary[]>
+  getTrace(context: TrustedRequestContext, traceId: string, access: TraceAccessProfile): Promise<TraceDetail>
+  getTraceTimeline(context: TrustedRequestContext, traceId: string, access: TraceAccessProfile): Promise<readonly TraceTimelineEvent[]>
+  getTraceTree(context: TrustedRequestContext, traceId: string, access: TraceAccessProfile): Promise<TraceTree>
+  getTraceStats(context: TrustedRequestContext, traceId: string): Promise<TraceStats>
 }
 
 export class IndustryAgentClientError extends Error {
