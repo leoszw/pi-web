@@ -53,6 +53,9 @@ test('multimodal management enforces trusted scope and supports bbox low-confide
     assert.equal(reviewed.data.observations[0]?.reviewStatus,'CORRECTED');assert.deepEqual(reviewed.data.observations[0]?.missingFields,[]);assert.equal(reviewed.data.observations[0]?.selectedEntityId,'engineering-position-123456789012345678')
     const badEntity=await fetch(`${baseUrl}/api/industry/v1/multimodal/analyses/${body.data.analysisId}/observations/${observation.observationId}/review`,{method:'POST',headers:headers(),body:JSON.stringify({decision:'ACCEPT',selectedEntityId:'project-2-secret-entity'})});assert.equal(badEntity.status,400)
     const badField=await fetch(`${baseUrl}/api/industry/v1/multimodal/analyses/${body.data.analysisId}/observations/${observation.observationId}/review`,{method:'POST',headers:headers(),body:JSON.stringify({decision:'CORRECT',correctedFields:{projectId:'project-2'}})});assert.equal(badField.status,400)
+    const acceptMutation=await fetch(`${baseUrl}/api/industry/v1/multimodal/analyses/${body.data.analysisId}/observations/${observation.observationId}/review`,{method:'POST',headers:headers(),body:JSON.stringify({decision:'ACCEPT',correctedFields:{diameter_mm:'32'}})});assert.equal(acceptMutation.status,400)
+    const rejectMutation=await fetch(`${baseUrl}/api/industry/v1/multimodal/analyses/${body.data.analysisId}/observations/${observation.observationId}/review`,{method:'POST',headers:headers(),body:JSON.stringify({decision:'REJECT',selectedEntityId:observation.entityCandidates[0]!.entityId})});assert.equal(rejectMutation.status,400)
+    const emptyCorrection=await fetch(`${baseUrl}/api/industry/v1/multimodal/analyses/${body.data.analysisId}/observations/${observation.observationId}/review`,{method:'POST',headers:headers(),body:JSON.stringify({decision:'CORRECT',correctedFields:{diameter_mm:''}})});assert.equal(emptyCorrection.status,400)
     await selectProject(baseUrl,'project-2');const hidden=await fetch(`${baseUrl}/api/industry/v1/multimodal/analyses/${body.data.analysisId}`);assert.equal(hidden.status,404)
   })
 })
@@ -68,14 +71,16 @@ test('agent loop management exposes phases and fails closed for critical/scope s
   })
 })
 
-test('agent loop management enforces step tool token cost and timeout budgets in usage',async()=>{
+test('agent loop budgets are enforced before every scenario step',async()=>{
   await withServer(makeRouter(['agent.loop.read','agent.loop.run']),async(baseUrl)=>{
     await selectProject(baseUrl)
-    async function start(scenario:string,inputBudget:ReturnType<typeof budget>){const response=await fetch(`${baseUrl}/api/industry/v1/agent-loop/runs`,{method:'POST',headers:headers(),body:JSON.stringify({goal:`budget ${scenario}`,budget:inputBudget,scenario})});assert.equal(response.status,201);return await response.json() as {data:{terminationReason:string;usage:{steps:number;toolCalls:number;totalTokens:number;costUsd:number;elapsedMs:number};budget:ReturnType<typeof budget>}}}
+    async function start(scenario:string,inputBudget:ReturnType<typeof budget>){const response=await fetch(`${baseUrl}/api/industry/v1/agent-loop/runs`,{method:'POST',headers:headers(),body:JSON.stringify({goal:`budget ${scenario}`,budget:inputBudget,scenario})});assert.equal(response.status,201);return await response.json() as {data:{terminationReason:string;usage:{steps:number;toolCalls:number;totalTokens:number;costUsd:number;elapsedMs:number};budget:ReturnType<typeof budget>;steps:Array<{phase:string;toolCritical?:boolean}>}}}
     const maxSteps=await start('MAX_STEPS',budget({maxSteps:2}));assert.equal(maxSteps.data.terminationReason,'MAX_STEPS');assert.ok(maxSteps.data.usage.steps<=maxSteps.data.budget.maxSteps)
     const maxTools=await start('MAX_TOOLS',budget({maxTools:1}));assert.equal(maxTools.data.terminationReason,'MAX_TOOLS');assert.ok(maxTools.data.usage.toolCalls<=maxTools.data.budget.maxTools)
     const token=await start('TOKEN_COST',budget({maxTokens:50,maxCostUsd:.02}));assert.equal(token.data.terminationReason,'TOKEN_BUDGET');assert.ok(token.data.usage.totalTokens<=token.data.budget.maxTokens);assert.ok(token.data.usage.costUsd<=token.data.budget.maxCostUsd)
     const timeout=await start('TIMEOUT',budget({timeoutMs:250}));assert.equal(timeout.data.terminationReason,'TIMEOUT');assert.ok(timeout.data.usage.elapsedMs<=timeout.data.budget.timeoutMs)
+    const successLowStep=await start('SUCCESS',budget({maxSteps:2}));assert.equal(successLowStep.data.terminationReason,'MAX_STEPS');assert.ok(successLowStep.data.usage.steps<=2)
+    const criticalNoTools=await start('CRITICAL_TOOL',budget({maxTools:0}));assert.equal(criticalNoTools.data.terminationReason,'MAX_TOOLS');assert.equal(criticalNoTools.data.usage.toolCalls,0);assert.ok(!criticalNoTools.data.steps.some((item)=>item.toolCritical))
   })
 })
 
