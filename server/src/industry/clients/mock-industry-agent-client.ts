@@ -1,14 +1,29 @@
+import { randomUUID } from 'node:crypto'
 import type { AuthorizedProject } from '../../../../shared/industry/common'
+import type {
+  CreateConversationRequest,
+  IndustryConversation,
+  IndustryConversationMessage,
+  IndustryEventBatch,
+  IndustryEventEnvelope,
+  SendConversationMessageRequest,
+} from '../../../../shared/industry/conversation'
 import type { AuthPrincipal } from '../auth'
 import type { TrustedRequestContext } from '../context'
-import type { IndustryAgentClient, IndustryAgentHealth } from './industry-agent-client'
+import { IndustryAgentClientError, type IndustryAgentClient, type IndustryAgentHealth } from './industry-agent-client'
 
 export interface MockAuthorizedProject extends AuthorizedProject {
   tenantId: string
 }
 
+interface StoredConversation {
+  conversation: IndustryConversation
+  events: IndustryEventEnvelope[]
+}
+
 export class MockIndustryAgentClient implements IndustryAgentClient {
   readonly #projects: readonly MockAuthorizedProject[]
+  readonly #conversations = new Map<string, StoredConversation>()
 
   constructor(projects: readonly MockAuthorizedProject[]) {
     this.#projects = projects.map((project) => ({ ...project }))
@@ -22,6 +37,153 @@ export class MockIndustryAgentClient implements IndustryAgentClient {
     return this.#projects
       .filter((project) => project.tenantId === principal.tenantId && principal.companyIds.includes(project.companyId))
       .map(({ projectId, companyId, name }) => ({ projectId, companyId, name }))
+  }
+
+  async createConversation(
+    context: TrustedRequestContext,
+    request: CreateConversationRequest,
+    requestId: string,
+  ): Promise<IndustryConversation> {
+    const projectId = requireProject(context)
+    const now = new Date().toISOString()
+    const conversationId = `conversation-${randomUUID()}`
+    const traceId = `trace-${randomUUID()}`
+    const conversation: IndustryConversation = {
+      conversationId,
+      projectId,
+      ...(request.title === undefined ? {} : { title: request.title }),
+      status: 'ACTIVE',
+      createdAt: now,
+      updatedAt: now,
+      messages: [],
+      lastSequenceNo: 1,
+    }
+    const events: IndustryEventEnvelope[] = [eventEnvelope({
+      conversationId,
+      sequenceNo: 1,
+      traceId,
+      requestId,
+      type: 'conversation.created',
+      timestamp: now,
+      payload: { projectId },
+    })]
+    this.#conversations.set(conversationId, { conversation, events })
+    return cloneConversation(conversation)
+  }
+
+  async getConversation(context: TrustedRequestContext, conversationId: string): Promise<IndustryConversation> {
+    return cloneConversation(this.#requireConversation(context, conversationId).conversation)
+  }
+
+  async sendConversationMessage(
+    context: TrustedRequestContext,
+    conversationId: string,
+    request: SendConversationMessageRequest,
+    requestId: string,
+  ): Promise<IndustryConversation> {
+    const stored = this.#requireConversation(context, conversationId)
+    if (stored.conversation.status !== 'ACTIVE') {
+      throw new IndustryAgentClientError('CONVERSATION_ABORTED', 'conversation is aborted', 409)
+    }
+
+    const now = new Date().toISOString()
+    const userTraceId = `trace-${randomUUID()}`
+    const userMessage: IndustryConversationMessage = {
+      messageId: `message-${randomUUID()}`,
+      role: 'USER',
+      text: request.text,
+      createdAt: now,
+      traceId: userTraceId,
+    }
+    const assistantTraceId = `trace-${randomUUID()}`
+    const assistantMessage: IndustryConversationMessage = {
+      messageId: `message-${randomUUID()}`,
+      role: 'ASSISTANT',
+      text: mockAssistantText(request.text),
+      createdAt: now,
+      traceId: assistantTraceId,
+    }
+
+    const userSequenceNo = stored.conversation.lastSequenceNo + 1
+    const assistantSequenceNo = userSequenceNo + 1
+    stored.events.push(
+      eventEnvelope({
+        conversationId,
+        sequenceNo: userSequenceNo,
+        traceId: userTraceId,
+        requestId,
+        type: 'message.user.accepted',
+        timestamp: now,
+        payload: { messageId: userMessage.messageId, text: userMessage.text },
+      }),
+      eventEnvelope({
+        conversationId,
+        sequenceNo: assistantSequenceNo,
+        traceId: assistantTraceId,
+        requestId,
+        type: 'message.assistant.completed',
+        timestamp: now,
+        payload: { messageId: assistantMessage.messageId, text: assistantMessage.text },
+      }),
+    )
+    stored.conversation = {
+      ...stored.conversation,
+      updatedAt: now,
+      messages: [...stored.conversation.messages, userMessage, assistantMessage],
+      lastSequenceNo: assistantSequenceNo,
+    }
+    return cloneConversation(stored.conversation)
+  }
+
+  async abortConversation(
+    context: TrustedRequestContext,
+    conversationId: string,
+    requestId: string,
+  ): Promise<IndustryConversation> {
+    const stored = this.#requireConversation(context, conversationId)
+    if (stored.conversation.status === 'ABORTED') return cloneConversation(stored.conversation)
+    const now = new Date().toISOString()
+    const sequenceNo = stored.conversation.lastSequenceNo + 1
+    const traceId = `trace-${randomUUID()}`
+    stored.events.push(eventEnvelope({
+      conversationId,
+      sequenceNo,
+      traceId,
+      requestId,
+      type: 'conversation.aborted',
+      timestamp: now,
+      payload: { reason: 'USER_ABORT' },
+    }))
+    stored.conversation = {
+      ...stored.conversation,
+      status: 'ABORTED',
+      updatedAt: now,
+      lastSequenceNo: sequenceNo,
+    }
+    return cloneConversation(stored.conversation)
+  }
+
+  async getConversationEvents(
+    context: TrustedRequestContext,
+    conversationId: string,
+    afterSequenceNo: number,
+  ): Promise<IndustryEventBatch> {
+    const stored = this.#requireConversation(context, conversationId)
+    return {
+      conversationId,
+      afterSequenceNo,
+      latestSequenceNo: stored.conversation.lastSequenceNo,
+      events: structuredClone(stored.events.filter((event) => event.sequenceNo > afterSequenceNo)),
+    }
+  }
+
+  #requireConversation(context: TrustedRequestContext, conversationId: string): StoredConversation {
+    const projectId = requireProject(context)
+    const stored = this.#conversations.get(conversationId)
+    if (stored === undefined || stored.conversation.projectId !== projectId) {
+      throw new IndustryAgentClientError('CONVERSATION_NOT_FOUND', 'conversation not found', 404)
+    }
+    return stored
   }
 }
 
@@ -55,4 +217,27 @@ function requireString(value: unknown, index: number, field: string): string {
     throw new Error(`mock project ${index}.${field} must be a non-empty string`)
   }
   return value
+}
+
+function requireProject(context: TrustedRequestContext): string {
+  if (context.projectId === null) {
+    throw new IndustryAgentClientError('INDUSTRY_PROJECT_REQUIRED', 'active project is required', 409)
+  }
+  return context.projectId
+}
+
+function cloneConversation(conversation: IndustryConversation): IndustryConversation {
+  return structuredClone(conversation)
+}
+
+function mockAssistantText(text: string): string {
+  return `Mock industry response: ${text}`
+}
+
+function eventEnvelope(input: Omit<IndustryEventEnvelope, 'schemaVersion' | 'eventId'>): IndustryEventEnvelope {
+  return {
+    schemaVersion: 'industry-event-v1',
+    eventId: `event-${randomUUID()}`,
+    ...input,
+  }
 }
