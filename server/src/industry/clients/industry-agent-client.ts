@@ -1,5 +1,9 @@
 import type { AuthorizedProject } from '../../../../shared/industry/common'
 import type {
+  AgentLoopRun,
+  StartAgentLoopRunRequest,
+} from '../../../../shared/industry/agent-loop'
+import type {
   CreateConversationRequest,
   IndustryConversation,
   IndustryEventBatch,
@@ -12,6 +16,11 @@ import type {
   KnowledgeUploadOptions,
   KnowledgeUploadRequest,
 } from '../../../../shared/industry/knowledge'
+import type {
+  CreateMultimodalAnalysisRequest,
+  MultimodalAnalysis,
+  ReviewMultimodalObservationRequest,
+} from '../../../../shared/industry/multimodal'
 import type {
   ConfirmMutationRequest,
   MutationAuditTrail,
@@ -87,6 +96,18 @@ export interface IndustryAgentClient {
   reingestKnowledgeDocument(context: TrustedRequestContext, documentId: string): Promise<KnowledgeDocument>
   listKnowledgeChunks(context: TrustedRequestContext, documentId: string): Promise<readonly KnowledgeChunk[]>
   getKnowledgeIngestion(context: TrustedRequestContext, ingestionId: string): Promise<KnowledgeIngestion>
+  listMultimodalAnalyses(context: TrustedRequestContext): Promise<readonly MultimodalAnalysis[]>
+  createMultimodalAnalysis(context: TrustedRequestContext, request: CreateMultimodalAnalysisRequest): Promise<MultimodalAnalysis>
+  getMultimodalAnalysis(context: TrustedRequestContext, analysisId: string): Promise<MultimodalAnalysis>
+  reviewMultimodalObservation(
+    context: TrustedRequestContext,
+    analysisId: string,
+    observationId: string,
+    request: ReviewMultimodalObservationRequest,
+  ): Promise<MultimodalAnalysis>
+  listAgentLoopRuns(context: TrustedRequestContext): Promise<readonly AgentLoopRun[]>
+  startAgentLoopRun(context: TrustedRequestContext, request: StartAgentLoopRunRequest): Promise<AgentLoopRun>
+  getAgentLoopRun(context: TrustedRequestContext, runId: string): Promise<AgentLoopRun>
 }
 
 export class IndustryAgentClientError extends Error {
