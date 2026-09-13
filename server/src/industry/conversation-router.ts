@@ -89,7 +89,7 @@ export async function handleConversationRoute(options: ConversationRouteOptions)
 }
 
 function requireWorkspacePermission(principal: AuthPrincipal): void {
-  if (principal.permissions.includes('industry.admin') || principal.permissions.includes('industry.workspace') || principal.permissions.includes('industry.read')) return
+  if (principal.permissions.includes('industry.admin') || principal.permissions.includes('industry.workspace')) return
   throw new IndustryAgentClientError('WORKSPACE_ACCESS_DENIED', 'industry.workspace permission is required', 403)
 }
 
@@ -265,5 +265,4 @@ function sendData(response: ServerResponse, data: unknown, statusCode = 200): tr
     'cache-control': 'no-store',
   })
   response.end(JSON.stringify({ apiVersion: 'industry-api-v1', data }))
-  return true
 }
