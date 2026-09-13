@@ -72,7 +72,7 @@ export function TracePageView({
         <div><span>Industry Agent · P5</span><h1 id="trace-title">{detail.summary.name}</h1><p><code>{detail.summary.traceId}</code> · {detail.summary.kind} · {detail.summary.status}</p></div>
         <nav>
           <a href="/industry/traces">All traces</a>
-          {detail.summary.kind === 'RETRIEVAL' ? <a href={retrievalDebugPath(detail.summary.traceId)}>Open Retrieval Debug</a> : null}
+          {detail.summary.kind === 'RETRIEVAL' && detail.debug !== undefined ? <a href={retrievalDebugPath(detail.summary.traceId)}>Open Retrieval Debug</a> : null}
           <a href="/industry/eval/playground/retrieval">Retrieval Eval</a>
         </nav>
       </header>
