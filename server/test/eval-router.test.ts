@@ -179,6 +179,86 @@ test('retrieval cases and leakage report require eval.read and active project', 
   })
 })
 
+test('retrieval batch run requires eval.run and exposes metrics plus observations', async () => {
+  await withServer(makeRouter(['eval.read']), async (baseUrl) => {
+    await selectProject(baseUrl)
+    const denied = await fetch(`${baseUrl}/api/industry/v1/eval/retrieval/runs`, {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({ datasetId: 'retrieval-regression-v1', variantId: 'retrieval-candidate-v2' }),
+    })
+    assert.equal(denied.status, 403)
+  })
+
+  await withServer(makeRouter(['eval.read', 'eval.run']), async (baseUrl) => {
+    await selectProject(baseUrl)
+    const created = await fetch(`${baseUrl}/api/industry/v1/eval/retrieval/runs`, {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({ datasetId: 'retrieval-regression-v1', variantId: 'retrieval-candidate-v2' }),
+    })
+    assert.equal(created.status, 201)
+    const createdBody = await created.json() as {
+      data: { runId: string; projectId: string; metrics: { hitAt1: number; crossProjectLeakageRate: number } }
+    }
+    assert.equal(createdBody.data.projectId, 'project-1')
+    assert.equal(createdBody.data.metrics.hitAt1, 1)
+    assert.equal(createdBody.data.metrics.crossProjectLeakageRate, 0)
+
+    const observations = await fetch(`${baseUrl}/api/industry/v1/eval/retrieval/runs/${encodeURIComponent(createdBody.data.runId)}/observations`)
+    assert.equal(observations.status, 200)
+    const observationsBody = await observations.json() as {
+      data: Array<{ finalCandidates: Array<{ projectId: string }>; hitAt10: boolean }>
+    }
+    assert.equal(observationsBody.data.length, 2)
+    assert.ok(observationsBody.data.every((item) => item.hitAt10))
+    assert.ok(observationsBody.data.every((item) => item.finalCandidates.every((candidate) => candidate.projectId === 'project-1')))
+  })
+})
+
+test('retrieval A/B compare returns metric deltas, movement and INCONCLUSIVE small-sample stats', async () => {
+  await withServer(makeRouter(['eval.read']), async (baseUrl) => {
+    await selectProject(baseUrl)
+
+    const invalid = await fetch(`${baseUrl}/api/industry/v1/eval/retrieval/compare`, {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({
+        baselineRunId: 'run-retrieval-baseline-v1',
+        candidateRunId: 'run-retrieval-candidate-v2',
+        comparisonType: 'INVALID',
+      }),
+    })
+    assert.equal(invalid.status, 400)
+
+    const response = await fetch(`${baseUrl}/api/industry/v1/eval/retrieval/compare`, {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({
+        baselineRunId: 'run-retrieval-baseline-v1',
+        candidateRunId: 'run-retrieval-candidate-v2',
+        comparisonType: 'CONFIG',
+      }),
+    })
+    assert.equal(response.status, 200)
+    const body = await response.json() as {
+      data: {
+        metricDeltas: Array<{ metric: string; delta: number }>
+        improvedCaseIds: string[]
+        rankMovements: Array<{ rankDelta?: number }>
+        pairedStats: { minimumSampleWarning: boolean; conclusion: string }
+        deterministicSafetyRegression: boolean
+      }
+    }
+    assert.ok(body.data.metricDeltas.some((item) => item.metric === 'hitAt1' && item.delta > 0))
+    assert.ok(body.data.improvedCaseIds.length > 0)
+    assert.ok(body.data.rankMovements.some((item) => item.rankDelta !== undefined && item.rankDelta !== 0))
+    assert.equal(body.data.pairedStats.minimumSampleWarning, true)
+    assert.equal(body.data.pairedStats.conclusion, 'INCONCLUSIVE')
+    assert.equal(body.data.deterministicSafetyRegression, false)
+  })
+})
+
 test('batch run requires eval.run and exposes observations', async () => {
   await withServer(makeRouter(['eval.read']), async (baseUrl) => {
     const denied = await fetch(`${baseUrl}/api/industry/v1/eval/runs`, {
