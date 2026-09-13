@@ -39,6 +39,8 @@ export async function handleConversationRoute(options: ConversationRouteOptions)
 
   const abortMatch = path.match(/^\/api\/industry\/v1\/conversations\/([^/]+)\/abort$/u)
   if (abortMatch !== null && options.request.method === 'POST') {
+    const body = await readJsonBody(options.request, options.bodyLimitBytes)
+    assertOnlyKeys(requireRecord(body), [])
     const conversationId = decodeSegment(abortMatch[1])
     const aborted = await options.client.abortConversation(options.context, conversationId, options.requestId)
     return sendData(options.response, aborted)
