@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type {
   KnowledgeChunk,
   KnowledgeDocument,
@@ -104,8 +104,12 @@ export function KnowledgePageView({
 
     <section className="knowledge-panel">
       <h2>Upload document</h2>
-      <p>All scope and ACL choices below are issued by the server for the active principal/project. P6 stores metadata and deterministic chunks only.</p>
+      <p>All scope and ACL choices below are issued by the server for the active principal/project. P6 reads local file metadata only; file bytes are not uploaded or stored.</p>
       <div className="knowledge-form-grid">
+        <label>Local file (metadata only)<input type="file" accept=".pdf,.txt,.docx,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={busy} onChange={(event) => {
+          const file = event.currentTarget.files?.[0]
+          if (file !== undefined) onFormChange({ ...form, fileName: file.name, mimeType: file.type || mimeFromName(file.name), sizeBytes: file.size })
+        }} /></label>
         <label>File name<input value={form.fileName} disabled={busy} onChange={(event) => onFormChange({ ...form, fileName: event.target.value })} /></label>
         <label>MIME<select value={form.mimeType} disabled={busy} onChange={(event) => onFormChange({ ...form, mimeType: event.target.value })}><option value="application/pdf">PDF</option><option value="text/plain">Text</option><option value="application/vnd.openxmlformats-officedocument.wordprocessingml.document">DOCX</option></select></label>
         <label>Size bytes<input type="number" value={form.sizeBytes} min={1} disabled={busy} onChange={(event) => onFormChange({ ...form, sizeBytes: Number(event.target.value) })} /></label>
@@ -118,7 +122,7 @@ export function KnowledgePageView({
       <AclChoices title="ACL Users" values={options.users.map((item) => item.userId)} selected={form.aclUsers} disabled={busy} onChange={(aclUsers) => onFormChange({ ...form, aclUsers })} />
       <AclChoices title="ACL Roles" values={options.roles} selected={form.aclRoles} disabled={busy} onChange={(aclRoles) => onFormChange({ ...form, aclRoles })} />
       <AclChoices title="Security Tags" values={options.securityTags} selected={form.securityTags} disabled={busy} onChange={(securityTags) => onFormChange({ ...form, securityTags })} />
-      <button type="button" disabled={busy || form.fileName.trim() === ''} onClick={onUpload}>Create mock upload</button>
+      <button type="button" disabled={busy || form.fileName.trim() === '' || form.sizeBytes <= 0} onClick={onUpload}>Create mock upload</button>
     </section>
 
     <section className="knowledge-panel">
@@ -165,6 +169,13 @@ function defaultForm(options: KnowledgeUploadOptions): KnowledgeUploadRequest {
     department: options.departments[0] ?? '', visibility: options.visibilities[0] ?? 'PROJECT',
     aclUsers: [], aclRoles: [], securityTags: options.securityTags.includes('GENERAL') ? ['GENERAL'] : [],
   }
+}
+
+function mimeFromName(fileName: string): string {
+  const normalized = fileName.toLowerCase()
+  if (normalized.endsWith('.txt')) return 'text/plain'
+  if (normalized.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  return 'application/pdf'
 }
 
 function messageOf(reason: unknown): string { return reason instanceof Error ? reason.message : String(reason) }
