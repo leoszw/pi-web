@@ -8,6 +8,13 @@ import type {
   StartMutationEvalRunRequest,
 } from '../../../../shared/industry/eval/mutation'
 import type {
+  RagEvalCase,
+  RagEvalFailureSummary,
+  RagEvalObservation,
+  RagEvalRunSummary,
+  StartRagEvalRunRequest,
+} from '../../../../shared/industry/eval/rag'
+import type {
   RetrievalComparisonType,
   RetrievalEvalCase,
   RetrievalEvalObservation,
@@ -67,6 +74,12 @@ export interface EvaluationClient {
   getTraceEvalRun(context: TrustedRequestContext, runId: string): Promise<TraceEvalRunSummary>
   listTraceEvalObservations(context: TrustedRequestContext, runId: string): Promise<readonly TraceEvalObservation[]>
   listTraceEvalFailures(context: TrustedRequestContext, runId: string): Promise<readonly TraceEvalFailureSummary[]>
+  listRagEvalCases(context: TrustedRequestContext): Promise<readonly RagEvalCase[]>
+  listRagEvalRuns(context: TrustedRequestContext): Promise<readonly RagEvalRunSummary[]>
+  startRagEvalRun(context: TrustedRequestContext, request: StartRagEvalRunRequest): Promise<RagEvalRunSummary>
+  getRagEvalRun(context: TrustedRequestContext, runId: string): Promise<RagEvalRunSummary>
+  listRagEvalObservations(context: TrustedRequestContext, runId: string): Promise<readonly RagEvalObservation[]>
+  listRagEvalFailures(context: TrustedRequestContext, runId: string): Promise<readonly RagEvalFailureSummary[]>
   listRuns(context: TrustedRequestContext): Promise<readonly EvalRunSummary[]>
   startIntentRun(context: TrustedRequestContext, request: StartIntentRunRequest): Promise<EvalRunSummary>
   getRun(context: TrustedRequestContext, runId: string): Promise<EvalRunSummary>
