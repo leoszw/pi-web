@@ -1,6 +1,15 @@
 import type { EvalVariantSummary } from '../../../shared/industry/eval/common'
 import type { CreateIntentDraftCaseRequest, EvalDatasetSummary, IntentDatasetDetail, IntentEvalCase, IntentTurn } from '../../../shared/industry/eval/datasets'
-import type { RetrievalDomain, RetrievalEvalCase, RetrievalLeakageReport, RetrievalPlaygroundResult } from '../../../shared/industry/eval/retrieval'
+import type {
+  RetrievalComparisonType,
+  RetrievalDomain,
+  RetrievalEvalCase,
+  RetrievalEvalObservation,
+  RetrievalLeakageReport,
+  RetrievalPlaygroundResult,
+  RetrievalRunComparison,
+  RetrievalRunSummary,
+} from '../../../shared/industry/eval/retrieval'
 import type { EvalRunSummary, IntentEvalObservation, IntentPlaygroundResult, IntentRunComparison } from '../../../shared/industry/eval/runs'
 
 interface EvalApiEnvelope<T> {
@@ -27,6 +36,15 @@ export interface EvaluationApiClient {
   listRetrievalCases(): Promise<readonly RetrievalEvalCase[]>
   playgroundRetrieval(input: { query: string; domain: RetrievalDomain; variantId: string }): Promise<RetrievalPlaygroundResult>
   getRetrievalLeakageReport(): Promise<RetrievalLeakageReport>
+  listRetrievalRuns(): Promise<readonly RetrievalRunSummary[]>
+  startRetrievalRun(input: { datasetId: string; variantId: string }): Promise<RetrievalRunSummary>
+  getRetrievalRun(runId: string): Promise<RetrievalRunSummary>
+  listRetrievalObservations(runId: string): Promise<readonly RetrievalEvalObservation[]>
+  compareRetrievalRuns(
+    baselineRunId: string,
+    candidateRunId: string,
+    comparisonType: RetrievalComparisonType,
+  ): Promise<RetrievalRunComparison>
   listRuns(): Promise<readonly EvalRunSummary[]>
   startIntentRun(input: { datasetId: string; variantId: string }): Promise<EvalRunSummary>
   listObservations(runId: string): Promise<readonly IntentEvalObservation[]>
@@ -58,6 +76,15 @@ export function createEvaluationApiClient(fetcher: typeof fetch = fetch): Evalua
     listRetrievalCases: () => get('/api/industry/v1/eval/retrieval/cases'),
     playgroundRetrieval: (input) => post('/api/industry/v1/eval/playground/retrieval', input),
     getRetrievalLeakageReport: () => get('/api/industry/v1/eval/retrieval/leakage'),
+    listRetrievalRuns: () => get('/api/industry/v1/eval/retrieval/runs'),
+    startRetrievalRun: (input) => post('/api/industry/v1/eval/retrieval/runs', input),
+    getRetrievalRun: (runId) => get(`/api/industry/v1/eval/retrieval/runs/${encodeURIComponent(runId)}`),
+    listRetrievalObservations: (runId) => get(`/api/industry/v1/eval/retrieval/runs/${encodeURIComponent(runId)}/observations`),
+    compareRetrievalRuns: (baselineRunId, candidateRunId, comparisonType) => post('/api/industry/v1/eval/retrieval/compare', {
+      baselineRunId,
+      candidateRunId,
+      comparisonType,
+    }),
     listRuns: () => get('/api/industry/v1/eval/runs'),
     startIntentRun: (input) => post('/api/industry/v1/eval/runs', input),
     listObservations: (runId) => get(`/api/industry/v1/eval/runs/${encodeURIComponent(runId)}/observations`),
