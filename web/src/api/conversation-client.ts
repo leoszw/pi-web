@@ -4,6 +4,7 @@ import type {
   IndustryEventBatch,
   SendConversationMessageRequest,
 } from '../../../shared/industry/conversation'
+import type { UiActionInteractionRequest, UiActionInteractionResult } from '../../../shared/industry/ui-actions'
 
 interface IndustryApiEnvelope<T> {
   apiVersion: 'industry-api-v1'
@@ -23,6 +24,7 @@ export interface IndustryConversationApiClient {
   createConversation(input?: CreateConversationRequest): Promise<IndustryConversation>
   getConversation(conversationId: string): Promise<IndustryConversation>
   sendMessage(conversationId: string, input: SendConversationMessageRequest): Promise<IndustryConversation>
+  interactWithUiAction(conversationId: string, actionId: string, input: UiActionInteractionRequest): Promise<UiActionInteractionResult>
   abortConversation(conversationId: string): Promise<IndustryConversation>
   getEvents(conversationId: string, afterSequenceNo: number): Promise<IndustryEventBatch>
 }
@@ -46,6 +48,10 @@ export function createIndustryConversationApiClient(fetcher: typeof fetch = fetc
     createConversation: (input = {}) => post('/api/industry/v1/conversations', input),
     getConversation: (conversationId) => get(`/api/industry/v1/conversations/${encodeURIComponent(conversationId)}`),
     sendMessage: (conversationId, input) => post(`/api/industry/v1/conversations/${encodeURIComponent(conversationId)}/messages`, input),
+    interactWithUiAction: (conversationId, actionId, input) => post(
+      `/api/industry/v1/conversations/${encodeURIComponent(conversationId)}/ui-actions/${encodeURIComponent(actionId)}/interactions`,
+      input,
+    ),
     abortConversation: (conversationId) => post(`/api/industry/v1/conversations/${encodeURIComponent(conversationId)}/abort`, undefined),
     getEvents: (conversationId, afterSequenceNo) => get(
       `/api/industry/v1/conversations/${encodeURIComponent(conversationId)}/events?afterSequenceNo=${encodeURIComponent(String(afterSequenceNo))}`,
