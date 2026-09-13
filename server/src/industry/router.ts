@@ -6,6 +6,7 @@ import { IndustryAgentClientError, type IndustryAgentClient } from './clients/in
 import { handleConversationRoute } from './conversation-router'
 import { IndustryContextError, IndustryContextService } from './context'
 import type { EvaluationClient } from './eval/evaluation-client'
+import { handleRagEvalRoute } from './eval/rag-router'
 import { handleEvalRoute } from './eval/router'
 import { handleTraceEvalRoute } from './eval/trace-router'
 import { handleKnowledgeRoute } from './knowledge-router'
@@ -57,6 +58,17 @@ export function createIndustryRouter(options: IndustryRouterOptions) {
     try {
       const principal = await options.principalProvider.getPrincipal(request)
       const resolved = await options.contextService.getContext(principal, requestId)
+
+      if (await handleRagEvalRoute({
+        request,
+        response,
+        url,
+        requestId,
+        principal,
+        context: resolved.trusted,
+        client: options.evaluationClient,
+        bodyLimitBytes: bodyLimit,
+      })) return true
 
       if (await handleTraceEvalRoute({
         request,
