@@ -41,6 +41,7 @@ export function attachBridge(options: BridgeOptions): WebSocketServer {
   const wss = new WebSocketServer({
     server: options.server,
     path: '/ws',
+    maxPayload: mode === 'control-plane' ? 256 * 1024 : 100 * 1024 * 1024,
     verifyClient: mode === 'control-plane'
       ? (info, done) => {
           const allowedOrigins = options.allowedOrigins!
@@ -76,6 +77,10 @@ export function attachBridge(options: BridgeOptions): WebSocketServer {
     const continueSession = shouldContinueSession(mode, request.url)
     const connectionKey = connectionKeys.get(request)
     connectionKeys.delete(request)
+    if (mode === 'control-plane' && connectionKey === undefined) {
+      ws.close(1008, 'missing authenticated websocket context')
+      return
+    }
     const client = new RpcClient({ command: buildSpawnArgs(options.piCommand, continueSession), cwd: options.piCwd })
     client.start()
     ws.on('error', () => {
@@ -147,11 +152,7 @@ export function attachBridge(options: BridgeOptions): WebSocketServer {
 
     ws.on('message', (raw) => {
       if (mode === 'control-plane') {
-        if (connectionKey === undefined) {
-          ws.close(1008, 'missing authenticated websocket context')
-          return
-        }
-        const decision = rateLimiter.consume(`message\u0000${connectionKey}`, true)
+        const decision = rateLimiter.consume(`message\u0000${connectionKey!}`, true)
         if (!decision.allowed) {
           sendJson({ type: 'server_error', message: 'control-plane websocket message rate exceeded' })
           ws.close(1008, 'rate limit exceeded')
