@@ -93,6 +93,7 @@ export interface UiActionTablePayload {
     stableCursor: string
     nextCursor?: string
     previousCursor?: string
+    totalRows: number
   }
   sortAllowlist: readonly string[]
   filterAllowlist: readonly string[]
@@ -141,4 +142,63 @@ export type UiActionPayload =
 
 export interface UiActionPresentedEventPayload {
   action: UiActionEnvelope
+}
+
+export type UiActionSortDirection = 'asc' | 'desc'
+
+export interface UiActionTableSort {
+  key: string
+  direction: UiActionSortDirection
+}
+
+export interface UiActionTableFilter {
+  key: string
+  value: string
+}
+
+export type UiActionInteraction =
+  | {
+    kind: 'entity_selection'
+    selectedEntityIds: readonly string[]
+  }
+  | {
+    kind: 'form_submit'
+    values: Readonly<Record<string, UiActionPrimitive>>
+  }
+  | {
+    kind: 'table_query'
+    pageSize: number
+    cursor?: string
+    sort?: UiActionTableSort
+    filters?: readonly UiActionTableFilter[]
+  }
+  | {
+    kind: 'table_selection'
+    selectedRowIds: readonly string[]
+  }
+  | {
+    kind: 'multi_select'
+    selectedIds: readonly string[]
+  }
+  | {
+    kind: 'date_select'
+    value: string | null
+  }
+
+export interface UiActionInteractionRequest {
+  interaction: UiActionInteraction
+}
+
+export interface UiActionInteractionResult {
+  conversationId: string
+  interactionId: string
+  action: UiActionEnvelope
+  traceId: string
+  acceptedAt: string
+}
+
+export interface UiActionInteractionAcceptedEventPayload {
+  interactionId: string
+  actionId: string
+  kind: UiActionInteraction['kind']
 }
