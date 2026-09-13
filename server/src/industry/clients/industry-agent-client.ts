@@ -5,6 +5,13 @@ import type {
   IndustryEventBatch,
   SendConversationMessageRequest,
 } from '../../../../shared/industry/conversation'
+import type {
+  ConfirmMutationRequest,
+  MutationAuditTrail,
+  MutationOperation,
+  MutationReconciliationList,
+  RejectMutationRequest,
+} from '../../../../shared/industry/mutation'
 import type { UiActionInteractionRequest, UiActionInteractionResult } from '../../../../shared/industry/ui-actions'
 import type { AuthPrincipal } from '../auth'
 import type { TrustedRequestContext } from '../context'
@@ -34,6 +41,23 @@ export interface IndustryAgentClient {
   ): Promise<UiActionInteractionResult>
   abortConversation(context: TrustedRequestContext, conversationId: string, requestId: string): Promise<IndustryConversation>
   getConversationEvents(context: TrustedRequestContext, conversationId: string, afterSequenceNo: number): Promise<IndustryEventBatch>
+  listMutations(context: TrustedRequestContext): Promise<readonly MutationOperation[]>
+  getMutation(context: TrustedRequestContext, operationId: string): Promise<MutationOperation>
+  confirmMutation(
+    context: TrustedRequestContext,
+    operationId: string,
+    request: ConfirmMutationRequest,
+    idempotencyKey: string,
+    requestId: string,
+  ): Promise<MutationOperation>
+  rejectMutation(
+    context: TrustedRequestContext,
+    operationId: string,
+    request: RejectMutationRequest,
+    requestId: string,
+  ): Promise<MutationOperation>
+  getMutationAudit(context: TrustedRequestContext, operationId: string): Promise<MutationAuditTrail>
+  listMutationReconciliation(context: TrustedRequestContext): Promise<MutationReconciliationList>
 }
 
 export class IndustryAgentClientError extends Error {
