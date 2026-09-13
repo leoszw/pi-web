@@ -1,4 +1,7 @@
-import type { UiActionPresentedEventPayload } from './ui-actions'
+import type {
+  UiActionInteractionAcceptedEventPayload,
+  UiActionPresentedEventPayload,
+} from './ui-actions'
 
 export const INDUSTRY_EVENT_VERSION = 'industry-event-v1' as const
 
@@ -66,8 +69,9 @@ export type KnownIndustryEvent =
   | IndustryEventEnvelope<ConversationCreatedEventPayload>
   | IndustryEventEnvelope<UserMessageAcceptedEventPayload>
   | IndustryEventEnvelope<AssistantMessageEventPayload>
-  | IndustryEventEnvelope<ConversationAbortedEventPayload>
   | IndustryEventEnvelope<UiActionPresentedEventPayload>
+  | IndustryEventEnvelope<UiActionInteractionAcceptedEventPayload>
+  | IndustryEventEnvelope<ConversationAbortedEventPayload>
 
 export interface IndustryEventBatch {
   conversationId: string
