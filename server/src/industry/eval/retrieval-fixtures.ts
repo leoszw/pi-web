@@ -91,12 +91,28 @@ export function buildRetrievalPlaygroundFixture(caseId: string, variantId = 'ret
 export function buildRetrievalLeakageFixture(): RetrievalLeakageReport {
   const findings: readonly RetrievalLeakageFinding[] = [
     {
+      findingId: 'leak-exact-001',
+      kind: 'EXACT_DUPLICATE',
+      caseIds: ['retrieval-boq-dev-exact-001', 'retrieval-boq-regression-exact-001'],
+      splits: ['DEV', 'REGRESSION'],
+      severity: 'WARNING',
+      reason: 'query 与标注目标完全相同的样本跨 DEV/REGRESSION 重复。',
+    },
+    {
       findingId: 'leak-normalized-001',
       kind: 'NORMALIZED_DUPLICATE',
       caseIds: ['retrieval-engineering-001', 'retrieval-engineering-dev-copy-001'],
       splits: ['REGRESSION', 'DEV'],
       severity: 'WARNING',
       reason: '桩号表达归一化后 query 完全一致，应避免重复计入评测样本。',
+    },
+    {
+      findingId: 'leak-near-001',
+      kind: 'NEAR_DUPLICATE',
+      caseIds: ['retrieval-engineering-near-001', 'retrieval-engineering-near-002'],
+      splits: ['DEV', 'REGRESSION'],
+      severity: 'WARNING',
+      reason: '仅同义词和标点不同、工程实体完全相同，属于近重复样本。',
     },
     {
       findingId: 'leak-holdout-001',
