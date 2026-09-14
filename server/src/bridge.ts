@@ -1,7 +1,12 @@
 import type { IncomingMessage, Server } from 'node:http'
 import { WebSocket, WebSocketServer } from 'ws'
+import type { PiWebMode } from '../../shared/industry/common'
+import type { PrincipalProvider } from './industry/auth'
+import { isOriginAllowed } from './security/origin'
+import { InMemoryRateLimiter } from './security/rate-limit'
 import { RpcClient } from './rpc-client'
 import { readModelsConfig, saveModelsConfig, validateModelsConfig } from './models-config'
+import { redactModelsConfigForControlPlane } from './industry/models-config-security'
 
 /**
  * Appends --continue after the base args so the fresh pi child resumes the most
@@ -11,25 +16,71 @@ export function buildSpawnArgs(baseArgs: string[], continueSession: boolean): st
   return continueSession ? [...baseArgs, '--continue'] : [...baseArgs]
 }
 
+export function shouldContinueSession(mode: PiWebMode, requestUrl: string | undefined): boolean {
+  if (mode !== 'local') return false
+  return new URL(requestUrl ?? '/', 'http://localhost').searchParams.get('continue') === '1'
+}
+
 export interface BridgeOptions {
   server: Server
   piCommand: string[]
   piCwd: string
+  mode?: PiWebMode
+  allowedOrigins?: ReadonlySet<string>
+  principalProvider?: PrincipalProvider
+  rateLimiter?: InMemoryRateLimiter
 }
 
 export function attachBridge(options: BridgeOptions): WebSocketServer {
-  const wss = new WebSocketServer({ server: options.server, path: '/ws' })
+  const mode = options.mode ?? 'local'
+  if (mode === 'control-plane' && (options.allowedOrigins === undefined || options.principalProvider === undefined)) {
+    throw new Error('control-plane bridge requires allowedOrigins and principalProvider')
+  }
+  const rateLimiter = options.rateLimiter ?? new InMemoryRateLimiter({ readLimit: 240, writeLimit: 120 })
+  const connectionKeys = new WeakMap<IncomingMessage, string>()
+  const wss = new WebSocketServer({
+    server: options.server,
+    path: '/ws',
+    maxPayload: mode === 'control-plane' ? 256 * 1024 : 100 * 1024 * 1024,
+    verifyClient: mode === 'control-plane'
+      ? (info, done) => {
+          const allowedOrigins = options.allowedOrigins!
+          const principalProvider = options.principalProvider!
+          if (!isOriginAllowed(info.req, allowedOrigins)) {
+            done(false, 403, 'Forbidden')
+            return
+          }
+          void principalProvider.getPrincipal(info.req).then((principal) => {
+            const allowed = principal.permissions.includes('coding.admin') || principal.permissions.includes('coding.chat')
+            if (!allowed) {
+              done(false, 403, 'Forbidden')
+              return
+            }
+            const key = `${principal.tenantId}\u0000${principal.userId}\u0000${principal.sessionId}`
+            const decision = rateLimiter.consume(`upgrade\u0000${key}`, true)
+            if (!decision.allowed) {
+              done(false, 429, 'Too Many Requests')
+              return
+            }
+            connectionKeys.set(info.req, key)
+            done(true)
+          }).catch(() => done(false, 401, 'Unauthorized'))
+        }
+      : undefined,
+  })
   wss.on('error', (error) => {
     console.error('[bridge] server error:', error)
   })
   let bridgeId = 0
 
   wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
-    // /ws?continue=1 → the spawned pi child resumes the most recent session
-    // instead of starting a fresh one (used after models.json saves so the
-    // transcript survives the reconnect).
-    const continueSession =
-      new URL(request.url ?? '/', 'http://localhost').searchParams.get('continue') === '1'
+    const continueSession = shouldContinueSession(mode, request.url)
+    const connectionKey = connectionKeys.get(request)
+    connectionKeys.delete(request)
+    if (mode === 'control-plane' && connectionKey === undefined) {
+      ws.close(1008, 'missing authenticated websocket context')
+      return
+    }
     const client = new RpcClient({ command: buildSpawnArgs(options.piCommand, continueSession), cwd: options.piCwd })
     client.start()
     ws.on('error', () => {
@@ -44,13 +95,27 @@ export function attachBridge(options: BridgeOptions): WebSocketServer {
       if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(value))
     }
 
-    // Config commands are served by the bridge itself (never forwarded to pi):
-    // read/validate/save pi's models.json through the same send path as normal responses.
+    // Config commands are served by the bridge itself (never forwarded to pi).
+    // Control-plane mode is deliberately read-only and redacts provider secrets.
     const respondConfig = async (command: string, id: string, frame: Record<string, unknown>): Promise<void> => {
       if (command === 'config_get_models') {
         const result = await readModelsConfig()
-        if ('config' in result) sendJson({ type: 'response', command, id, success: true, data: result.config })
-        else sendJson({ type: 'response', command, id, success: false, error: result.error })
+        if ('config' in result) {
+          const config = mode === 'control-plane' ? redactModelsConfigForControlPlane(result.config) : result.config
+          sendJson({ type: 'response', command, id, success: true, data: config })
+        } else {
+          sendJson({ type: 'response', command, id, success: false, error: result.error })
+        }
+        return
+      }
+      if (mode === 'control-plane') {
+        sendJson({
+          type: 'response',
+          command,
+          id,
+          success: false,
+          error: 'model config writes are disabled in control-plane mode',
+        })
         return
       }
       // frame is the full ws command; its `providers` field is the map to validate.
@@ -86,6 +151,14 @@ export function attachBridge(options: BridgeOptions): WebSocketServer {
     })
 
     ws.on('message', (raw) => {
+      if (mode === 'control-plane') {
+        const decision = rateLimiter.consume(`message\u0000${connectionKey!}`, true)
+        if (!decision.allowed) {
+          sendJson({ type: 'server_error', message: 'control-plane websocket message rate exceeded' })
+          ws.close(1008, 'rate limit exceeded')
+          return
+        }
+      }
       let parsed: unknown
       try {
         parsed = JSON.parse(String(raw))
@@ -94,7 +167,7 @@ export function attachBridge(options: BridgeOptions): WebSocketServer {
         return
       }
       if (typeof parsed !== 'object' || parsed === null || typeof (parsed as { type?: unknown }).type !== 'string') {
-        sendJson({ type: 'server_error', message: 'missing command type' })
+        sendJson({ type: 'server_error', message: 'missing command type')
         return
       }
       const command = parsed as { type: string; id?: unknown } & Record<string, unknown>

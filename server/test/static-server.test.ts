@@ -33,7 +33,7 @@ function request(port: number, path: string, method = 'GET'): Promise<StaticResp
   })
 }
 
-test('GET /index.html serves html with no-cache', async () => {
+test('GET /index.html serves html with no-cache and cannot be framed', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'pi-web-static-'))
   const server = http.createServer(createRequestHandler(dir))
   try {
@@ -43,6 +43,8 @@ test('GET /index.html serves html with no-cache', async () => {
     assert.equal(res.status, 200)
     assert.equal(res.headers['content-type'], 'text/html; charset=utf-8')
     assert.equal(res.headers['cache-control'], 'no-cache')
+    assert.equal(res.headers['x-frame-options'], 'DENY')
+    assert.equal(res.headers['content-security-policy'], "frame-ancestors 'none'")
     assert.equal(res.body, '<html>index</html>')
   } finally {
     server.close()
