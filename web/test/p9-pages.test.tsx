@@ -12,7 +12,7 @@ const sandbox:SandboxRun={runId:'sandbox-safe-read-v1',projectId:'project-1',goa
 
 describe('P9 management views',()=>{
   it('renders Report preview evidence lineage security and authorization grant without a direct artifact link',()=>{
-    const html=renderToStaticMarkup(<ReportCenterView snapshot={{reports:[report],selected:report,downloadGrant:{downloadId:'d1',reportId:report.reportId,fileName:report.fileName,contentDisposition:'attachment',authorized:true,expiresAt:'2026-09-13T09:00:00Z',artifactRef:'mock-report-artifact:report-progress-v1:x'}} busy={false} error={null}/>)
+    const html=renderToStaticMarkup(<ReportCenterView snapshot={{reports:[report],selected:report,downloadGrant:{downloadId:'d1',reportId:report.reportId,fileName:report.fileName,contentDisposition:'attachment',authorized:true,expiresAt:'2026-09-13T09:00:00Z',artifactRef:'mock-report-artifact:report-progress-v1:x'}}} busy={false} error={null}/>)
     for(const text of ['Report Center','Preview','Evidence','Lineage','Security summary','Authorized grant created','mock-report-artifact:report-progress-v1:x','activeContentBlocked'])expect(html).toContain(text)
     expect(html).not.toContain('href="mock-report-artifact:')
   })

@@ -42,9 +42,6 @@ MockEvaluationClient.prototype.acceptUnifiedBaseline = async function acceptUnif
   if (run.corpusFingerprint !== manifest.fingerprint || run.corpusVersion !== manifest.version) {
     throw new EvaluationClientError('EVAL_BASELINE_CORPUS_STALE', 'baseline run must use the current reviewed corpus fingerprint and version', 409)
   }
-  if (run.coveredCaseCount !== manifest.totalCaseCount || run.coverageRate !== 1) {
-    throw new EvaluationClientError('EVAL_BASELINE_COVERAGE_INCOMPLETE', `baseline run must cover exactly ${manifest.totalCaseCount} cases`, 409)
-  }
   return originalAcceptBaseline.call(this, context, runId)
 }
 

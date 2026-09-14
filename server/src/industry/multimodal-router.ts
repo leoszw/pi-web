@@ -3,6 +3,7 @@ import type { AuthPrincipal } from './auth'
 import { IndustryAgentClientError, type IndustryAgentClient } from './clients/industry-agent-client'
 import type { TrustedRequestContext } from './context'
 import { RequestBodyError, readJsonBody } from '../security/request-limits'
+import type { ReviewMultimodalObservationRequest } from '../../../shared/industry/multimodal'
 
 export interface MultimodalRouteOptions {
   request: IncomingMessage
@@ -53,18 +54,19 @@ function parseCreate(input: unknown) {
   }
 }
 
-function parseReview(input: unknown) {
+function parseReview(input: unknown): ReviewMultimodalObservationRequest {
   const value = record(input)
   only(value, ['decision','selectedEntityId','correctedFields','note'])
-  if (value.decision !== 'ACCEPT' && value.decision !== 'CORRECT' && value.decision !== 'REJECT') throw new RequestBodyError('INVALID_JSON', 'decision is invalid', 400)
+  const decision = str(value.decision, 'decision')
+  if (decision !== 'ACCEPT' && decision !== 'CORRECT' && decision !== 'REJECT') throw new RequestBodyError('INVALID_JSON', 'decision is invalid', 400)
   const correctedFields = value.correctedFields === undefined ? undefined : stringRecord(value.correctedFields, 'correctedFields')
   const selectedEntityId = value.selectedEntityId === undefined ? undefined : str(value.selectedEntityId, 'selectedEntityId')
   const note = value.note === undefined ? undefined : str(value.note, 'note')
-  if (value.decision === 'ACCEPT' && correctedFields !== undefined) throw new RequestBodyError('INVALID_JSON', 'ACCEPT cannot include correctedFields', 400)
-  if (value.decision === 'REJECT' && (correctedFields !== undefined || selectedEntityId !== undefined)) throw new RequestBodyError('INVALID_JSON', 'REJECT cannot include correctedFields or selectedEntityId', 400)
-  if (value.decision === 'CORRECT' && correctedFields === undefined && selectedEntityId === undefined) throw new RequestBodyError('INVALID_JSON', 'CORRECT requires correctedFields or selectedEntityId', 400)
+  if (decision === 'ACCEPT' && correctedFields !== undefined) throw new RequestBodyError('INVALID_JSON', 'ACCEPT cannot include correctedFields', 400)
+  if (decision === 'REJECT' && (correctedFields !== undefined || selectedEntityId !== undefined)) throw new RequestBodyError('INVALID_JSON', 'REJECT cannot include correctedFields or selectedEntityId', 400)
+  if (decision === 'CORRECT' && correctedFields === undefined && selectedEntityId === undefined) throw new RequestBodyError('INVALID_JSON', 'CORRECT requires correctedFields or selectedEntityId', 400)
   return {
-    decision: value.decision,
+    decision,
     ...(selectedEntityId === undefined ? {} : { selectedEntityId }),
     ...(correctedFields === undefined ? {} : { correctedFields }),
     ...(note === undefined ? {} : { note }),

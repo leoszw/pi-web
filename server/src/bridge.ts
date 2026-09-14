@@ -167,7 +167,7 @@ export function attachBridge(options: BridgeOptions): WebSocketServer {
         return
       }
       if (typeof parsed !== 'object' || parsed === null || typeof (parsed as { type?: unknown }).type !== 'string') {
-        sendJson({ type: 'server_error', message: 'missing command type')
+        sendJson({ type: 'server_error', message: 'missing command type' })
         return
       }
       const command = parsed as { type: string; id?: unknown } & Record<string, unknown>

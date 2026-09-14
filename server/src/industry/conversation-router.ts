@@ -265,4 +265,5 @@ function sendData(response: ServerResponse, data: unknown, statusCode = 200): tr
     'cache-control': 'no-store',
   })
   response.end(JSON.stringify({ apiVersion: 'industry-api-v1', data }))
+  return true
 }

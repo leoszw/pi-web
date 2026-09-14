@@ -92,7 +92,13 @@ describe('IndustryEventBuffer UIAction support', () => {
   })
 
   it('reduces repeated presented events to the latest state for each action id', () => {
-    const updated = { ...actions[0], traceId: 'trace-updated', payload: { ...(actions[0]?.payload as object), selectedEntityIds: [] } } as UiActionEnvelope
+    const updated: UiActionEnvelope = {
+      schemaVersion: 'ui-action-v1',
+      actionId: 'action-1',
+      type: 'entity_picker',
+      traceId: 'trace-updated',
+      payload: { title: 'Entity', entityType: 'engineering', options: [{ id: 'e1', label: 'Position 1' }], selectedEntityIds: [], multi: false },
+    }
     const latest = actionsFromEvents([
       event(1, 'ui.action.presented', { action: actions[0] }),
       event(2, 'ui.action.interaction.accepted', { interactionId: 'interaction-1', actionId: 'action-1', kind: 'entity_selection' }),

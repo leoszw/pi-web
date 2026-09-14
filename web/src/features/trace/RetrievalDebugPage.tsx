@@ -58,7 +58,7 @@ export function RetrievalDebugView({
   const stage = useMemo(() => result.stages.find((item) => item.stage === selectedStage), [result.stages, selectedStage])
   return <main className="retrieval-debug" aria-labelledby="retrieval-debug-title">
     <header className="retrieval-debug__heading">
-      <div><span>Industry Agent · P5</span><h1 id="retrieval-debug-title">Retrieval Debug</h1><p>Single-trace troubleshooting. This is not Dataset Eval, Batch Run, A/B Compare, or a release conclusion.</p></div>
+      <div><span>Industry Agent · P5</span><h1 id="retrieval-debug-title">Retrieval Debug</h1><p>Single-trace troubleshooting. This is not Dataset Eval — it is a per-trace diagnostic snapshot, not an evaluation, comparison, or release workflow.</p></div>
       <nav><a href={`/industry/traces/${encodeURIComponent(result.traceId)}`}>Back to trace</a><a href="/industry/eval/playground/retrieval">Open Retrieval Eval</a></nav>
     </header>
 
