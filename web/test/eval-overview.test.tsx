@@ -12,12 +12,12 @@ const snapshot: EvalOverviewSnapshot = {
 describe('EvalOverviewView', () => {
   it('renders P12 online quality alongside the governed P11 benchmark and specialist labs', () => {
     const html = renderToStaticMarkup(<EvalOverviewView snapshot={snapshot} />)
-    expect(html).toContain('Evaluation Workbench · P12')
+    expect(html).toContain('评测工作台 · P12')
     expect(html).toContain('Intent Regression v1')
-    expect(html).toContain('sanitized traces')
-    expect(html).toContain('without automatic Golden promotion')
+    expect(html).toContain('脱敏追踪')
+    expect(html).toContain('不进行自动 Golden 晋升')
     for (const path of ['/industry/eval/benchmark','/industry/quality','/industry/eval/intent','/industry/eval/playground/retrieval','/industry/eval/mutation','/industry/eval/trace','/industry/eval/rag','/industry/eval/normalization','/industry/eval/entity','/industry/eval/tool','/industry/eval/memory','/industry/eval/multimodal','/industry/eval/agent-loop','/industry/eval/report','/industry/eval/sandbox']) expect(html).toContain(path)
-    expect(html).toContain('P11 Golden / Hard corpus')
-    expect(html).toContain('P12 online quality metrics')
+    expect(html).toContain('P11 Golden / 硬语料库')
+    expect(html).toContain('P12 在线质量指标')
   })
 })

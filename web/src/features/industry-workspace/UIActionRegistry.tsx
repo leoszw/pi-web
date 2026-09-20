@@ -27,10 +27,10 @@ export function UIActionRegistry({
   onInteract?: UiActionInteractionHandler
 }) {
   return (
-    <section className="ui-action" data-ui-action={action.type} aria-label={`UI action: ${action.type}`}>
+    <section className="ui-action" data-ui-action={action.type} aria-label={`UI 操作: ${action.type}`}>
       <header><strong>{action.type}</strong><code>{action.actionId}</code></header>
       <UIActionBody action={action} busy={busy} onInteract={onInteract} />
-      <footer>trace <code>{action.traceId}</code></footer>
+      <footer>追踪 <code>{action.traceId}</code></footer>
     </section>
   )
 }
@@ -80,7 +80,7 @@ function EntityPicker({
     }
     onInteract(action, { kind: 'entity_selection', selectedEntityIds: [...selected] })
   }
-  return <div><h4>{payload.title}</h4><p>{payload.entityType} · {payload.multi ? 'multi' : 'single'}</p>{payload.options.map((option) => (
+  return <div><h4>{payload.title}</h4><p>{payload.entityType} · {payload.multi ? '多选' : '单选'}</p>{payload.options.map((option) => (
     <label key={option.id} className="ui-action-option"><input type={payload.multi ? 'checkbox' : 'radio'} disabled={busy} checked={payload.selectedEntityIds.includes(option.id)} onChange={(event) => toggle(option.id, event.target.checked)} /><span><strong>{option.label}</strong>{option.description === undefined ? null : <small>{option.description}</small>}</span></label>
   ))}</div>
 }
@@ -161,17 +161,17 @@ function TableView({
   }
   return <div><h4>{payload.title}</h4>
     <div className="ui-action-table-controls">
-      <label>Sort<select value={sortKey} disabled={busy} onChange={(event) => setSortKey(event.target.value)}><option value="">Default</option>{payload.sortAllowlist.map((key) => <option value={key} key={key}>{key}</option>)}</select></label>
-      <label>Direction<select value={sortDirection} disabled={busy || sortKey === ''} onChange={(event) => setSortDirection(event.target.value as 'asc' | 'desc')}><option value="asc">asc</option><option value="desc">desc</option></select></label>
-      <label>Filter<select value={filterKey} disabled={busy} onChange={(event) => setFilterKey(event.target.value)}>{payload.filterAllowlist.map((key) => <option value={key} key={key}>{key}</option>)}</select></label>
-      <label>Contains<input value={filterValue} disabled={busy} onChange={(event) => setFilterValue(event.target.value)} /></label>
-      <button type="button" disabled={busy} onClick={() => onInteract(action, tableQuery())}>Apply server query</button>
+      <label>排序<select value={sortKey} disabled={busy} onChange={(event) => setSortKey(event.target.value)}><option value="">默认</option>{payload.sortAllowlist.map((key) => <option value={key} key={key}>{key}</option>)}</select></label>
+      <label>方向<select value={sortDirection} disabled={busy || sortKey === ''} onChange={(event) => setSortDirection(event.target.value as 'asc' | 'desc')}><option value="asc">asc</option><option value="desc">desc</option></select></label>
+      <label>筛选<select value={filterKey} disabled={busy} onChange={(event) => setFilterKey(event.target.value)}>{payload.filterAllowlist.map((key) => <option value={key} key={key}>{key}</option>)}</select></label>
+      <label>包含<input value={filterValue} disabled={busy} onChange={(event) => setFilterValue(event.target.value)} /></label>
+      <button type="button" disabled={busy} onClick={() => onInteract(action, tableQuery())}>应用服务端查询</button>
     </div>
-    <div className="ui-action-table-wrap"><table><thead><tr><th>Select</th>{payload.columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead><tbody>{payload.rows.map((row) => (
+    <div className="ui-action-table-wrap"><table><thead><tr><th>选择</th>{payload.columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead><tbody>{payload.rows.map((row) => (
       <tr key={row.rowId}><td><input type="checkbox" disabled={busy} checked={payload.selectedRowIds.includes(row.rowId)} onChange={(event) => toggleRow(row.rowId, event.target.checked)} /></td>{payload.columns.map((column) => <td key={column.key}>{String(row.cells[column.key] ?? '')}</td>)}</tr>
     ))}</tbody></table></div>
-    <div className="ui-action-table-pager"><button type="button" disabled={busy || payload.pagination.previousCursor === undefined} onClick={() => payload.pagination.previousCursor === undefined ? undefined : onInteract(action, tableQuery(payload.pagination.previousCursor))}>Previous</button><span>{payload.rows.length} / {payload.pagination.totalRows} rows</span><button type="button" disabled={busy || payload.pagination.nextCursor === undefined} onClick={() => payload.pagination.nextCursor === undefined ? undefined : onInteract(action, tableQuery(payload.pagination.nextCursor))}>Next</button></div>
-    <div className="ui-action-meta"><span>cursor <code>{payload.pagination.stableCursor}</code></span><span>next <code>{payload.pagination.nextCursor ?? '—'}</code></span><span>sort: {payload.sortAllowlist.join(', ')}</span><span>filter: {payload.filterAllowlist.join(', ')}</span><span>export <code>{payload.exportSnapshotRef}</code></span></div>
+    <div className="ui-action-table-pager"><button type="button" disabled={busy || payload.pagination.previousCursor === undefined} onClick={() => payload.pagination.previousCursor === undefined ? undefined : onInteract(action, tableQuery(payload.pagination.previousCursor))}>上一页</button><span>{payload.rows.length} / {payload.pagination.totalRows} 行</span><button type="button" disabled={busy || payload.pagination.nextCursor === undefined} onClick={() => payload.pagination.nextCursor === undefined ? undefined : onInteract(action, tableQuery(payload.pagination.nextCursor))}>下一页</button></div>
+    <div className="ui-action-meta"><span>游标 <code>{payload.pagination.stableCursor}</code></span><span>下一个 <code>{payload.pagination.nextCursor ?? '—'}</code></span><span>排序: {payload.sortAllowlist.join(', ')}</span><span>筛选: {payload.filterAllowlist.join(', ')}</span><span>导出 <code>{payload.exportSnapshotRef}</code></span></div>
   </div>
 }
 
@@ -210,17 +210,17 @@ function DatePickerView({
 }
 
 function DiffView({ payload }: { payload: DiffPayload }) {
-  return <div><h4>{payload.title}</h4><table><thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>{payload.entries.map((entry) => <tr key={entry.field}><td>{entry.label}</td><td>{String(entry.before ?? '')}</td><td>{String(entry.after ?? '')}</td></tr>)}</tbody></table></div>
+  return <div><h4>{payload.title}</h4><table><thead><tr><th>字段</th><th>修改前</th><th>修改后</th></tr></thead><tbody>{payload.entries.map((entry) => <tr key={entry.field}><td>{entry.label}</td><td>{String(entry.before ?? '')}</td><td>{String(entry.after ?? '')}</td></tr>)}</tbody></table></div>
 }
 
 function MutationConfirmationView({ payload }: { payload: MutationConfirmationPayload }) {
-  return <div><h4>{payload.title}</h4><p>{payload.summary}</p><p className="workspace-warning">{payload.warning}</p><dl><div><dt>operation</dt><dd><code>{payload.operationId}</code></dd></div><div><dt>digest</dt><dd><code>{payload.digest}</code></dd></div></dl><button type="button" disabled>Confirmation handled in P4</button></div>
+  return <div><h4>{payload.title}</h4><p>{payload.summary}</p><p className="workspace-warning">{payload.warning}</p><dl><div><dt>操作</dt><dd><code>{payload.operationId}</code></dd></div><div><dt>摘要</dt><dd><code>{payload.digest}</code></dd></div></dl><button type="button" disabled>确认在 P4 处理</button></div>
 }
 
 function ReportPreviewView({ payload }: { payload: ReportPreviewPayload }) {
-  return <div><h4>{payload.title}</h4><p>{payload.summary}</p><p>{payload.format} · <code>{payload.snapshotRef}</code></p><button type="button" disabled>Export placeholder</button></div>
+  return <div><h4>{payload.title}</h4><p>{payload.summary}</p><p>{payload.format} · <code>{payload.snapshotRef}</code></p><button type="button" disabled>导出占位</button></div>
 }
 
 function ErrorResolutionView({ payload }: { payload: ErrorResolutionPayload }) {
-  return <div><h4>{payload.title}</h4><p className="workspace-error">{payload.code}: {payload.message}</p><p>Resolution: <strong>{payload.resolution}</strong></p></div>
+  return <div><h4>{payload.title}</h4><p className="workspace-error">{payload.code}: {payload.message}</p><p>解决方案: <strong>{payload.resolution}</strong></p></div>
 }

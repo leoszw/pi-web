@@ -9,7 +9,7 @@ import {
 
 describe('AppShell routing', () => {
   it('keeps root and chat paths on the existing coding chat', () => { expect(resolveAppRoute('/')).toBe('chat'); expect(resolveAppRoute('/chat')).toBe('chat'); expect(routePath('chat')).toBe('/chat') })
-  it('routes /industry to the workspace slot', () => { expect(resolveAppRoute('/industry')).toBe('industry'); const html = renderToStaticMarkup(<AppShell initialPath="/industry" industryWorkspace={<div>Industry Workspace sentinel</div>} codingChat={<div>Coding chat sentinel</div>} />); expect(html).toContain('Industry Workspace sentinel'); expect(html).not.toContain('Coding chat sentinel') })
+  it('merges /industry into the coding chat as the single conversation entry', () => { expect(resolveAppRoute('/industry')).toBe('chat'); const html = renderToStaticMarkup(<AppShell initialPath="/industry" codingChat={<div>Coding chat sentinel</div>} />); expect(html).toContain('Coding chat sentinel'); expect(html).toContain('对话') })
   it('routes P10 Runtime and Operations before the generic industry catch-all', () => {
     expect(resolveAppRoute('/industry/runtime')).toBe('industry-runtime'); expect(routePath('industry-runtime')).toBe('/industry/runtime'); expect(renderToStaticMarkup(<AppShell initialPath="/industry/runtime" runtime={<div>Runtime sentinel</div>} />)).toContain('Runtime sentinel')
     expect(resolveAppRoute('/industry/operations')).toBe('industry-operations'); expect(routePath('industry-operations')).toBe('/industry/operations'); expect(renderToStaticMarkup(<AppShell initialPath="/industry/operations" operations={<div>Operations sentinel</div>} />)).toContain('Operations sentinel')

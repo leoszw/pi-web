@@ -56,14 +56,14 @@ const result: RetrievalDebugResult = {
 describe('RetrievalDebugView', () => {
   it('renders all ten retrieval stages while staying distinct from Eval semantics', () => {
     const html = renderToStaticMarkup(<RetrievalDebugView result={result} selectedStage="FINAL" />)
-    for (const label of ['Semantic Parse', 'Hard Filters', 'Exact', 'BM25', 'Dense', 'Entity-aware', 'RRF', 'Reranker', 'Business Feature', 'Final']) {
+    for (const label of ['语义解析', '硬过滤', '精确', 'BM25', '密集', '实体感知', 'RRF', '重排器', '业务特征', '最终']) {
       expect(html).toContain(label)
     }
-    expect(html).toContain('Single-trace troubleshooting')
-    expect(html).toContain('not Dataset Eval')
-    expect(html).not.toContain('Batch Run')
-    expect(html).not.toContain('A/B Compare')
-    expect(html).not.toContain('Release Gate')
+    expect(html).toContain('单追踪排查')
+    expect(html).toContain('这不是数据集评测')
+    expect(html).not.toContain('批次运行')
+    expect(html).not.toContain('A/B 对比')
+    expect(html).not.toContain('发布门禁')
   })
 
   it('shows final candidate score provenance and hard-negative flags', () => {
@@ -72,8 +72,8 @@ describe('RetrievalDebugView', () => {
     expect(html).toContain('0.960')
     expect(html).toContain('chainage overlap')
     expect(html).toContain('exact, dense')
-    expect(html).toContain('Hard Negative')
-    expect(html).toContain('Critical Spec Conflict')
+    expect(html).toContain('硬负样本')
+    expect(html).toContain('关键规格冲突')
   })
 
   it('shows entities removed by hard filters', () => {

@@ -18,16 +18,16 @@ import './eval.css'
 const defaultEvaluationClient = createEvaluationApiClient()
 const RETRIEVAL_DATASET_ID = 'retrieval-regression-v1'
 const STAGE_LABELS: Record<RetrievalStage, string> = {
-  SEMANTIC_PARSE: 'Semantic Parse',
-  HARD_FILTERS: 'Hard Filters',
-  EXACT: 'Exact',
+  SEMANTIC_PARSE: '语义解析',
+  HARD_FILTERS: '硬过滤',
+  EXACT: '精确',
   BM25: 'BM25',
-  DENSE: 'Dense',
-  ENTITY_AWARE: 'Entity-aware',
+  DENSE: '密集',
+  ENTITY_AWARE: '实体感知',
   RRF: 'RRF',
-  RERANKER: 'Reranker',
-  BUSINESS_FEATURE: 'Business Feature',
-  FINAL: 'Final',
+  RERANKER: '重排器',
+  BUSINESS_FEATURE: '业务特征',
+  FINAL: '最终',
 }
 
 export interface RetrievalLabSnapshot {
@@ -156,9 +156,9 @@ export function RetrievalLabPage({
   }
 
   if (error !== null && snapshot === undefined) {
-    return <main className="eval-page"><h1>Retrieval Lab</h1><p className="eval-error" role="alert">{error}</p></main>
+    return <main className="eval-page"><h1>检索实验</h1><p className="eval-error" role="alert">{error}</p></main>
   }
-  if (snapshot === undefined) return <main className="eval-page"><h1>Retrieval Lab</h1><p>Loading retrieval fixtures…</p></main>
+  if (snapshot === undefined) return <main className="eval-page"><h1>检索实验</h1><p>加载检索夹具中…</p></main>
 
   return (
     <RetrievalLabView
@@ -247,13 +247,13 @@ export function RetrievalLabView({
 
   return (
     <main className="eval-page" aria-labelledby="retrieval-lab-title">
-      <div className="eval-eyebrow">Evaluation Workbench · P2</div>
+      <div className="eval-eyebrow">评测工作台 · P2</div>
       <div className="eval-heading-row">
         <div>
-          <h1 id="retrieval-lab-title">Retrieval Lab</h1>
-          <p>Engineering / BOQ hybrid retrieval fixture workbench. Every retrieval layer remains inspectable; no real OpenSearch or model calls are used.</p>
+          <h1 id="retrieval-lab-title">检索实验</h1>
+          <p>工程 / BOQ 混合检索夹具工作台。每个检索层均可查看;不使用真实的 OpenSearch 或模型调用。</p>
         </div>
-        <a className="eval-primary-link" href="/industry/eval/intent">Intent Lab</a>
+        <a className="eval-primary-link" href="/industry/eval/intent">意图实验</a>
       </div>
 
       {error === null ? null : <p className="eval-error" role="alert">{error}</p>}
@@ -261,40 +261,40 @@ export function RetrievalLabView({
       <section className="eval-panel">
         <div className="eval-form-row">
           <label>
-            Domain
+            领域
             <select value={domain} onChange={(event) => onDomainChange(event.target.value as RetrievalDomain)}>
-              <option value="ENGINEERING">Engineering</option>
+              <option value="ENGINEERING">工程</option>
               <option value="BOQ">BOQ</option>
             </select>
           </label>
           <label>
-            Fixture case
+            夹具用例
             <select value={selectedCaseId} onChange={(event) => onCaseSelect(event.target.value)}>
               {filteredCases.map((testCase) => <option value={testCase.caseId} key={testCase.caseId}>{testCase.caseId}</option>)}
             </select>
           </label>
           <label>
-            Variant
+            变体
             <select value={variantId} onChange={(event) => onVariantChange(event.target.value)}>
-              <option value="retrieval-stable-v1">Stable v1</option>
-              <option value="retrieval-candidate-v2">Candidate v2</option>
+              <option value="retrieval-stable-v1">稳定 v1</option>
+              <option value="retrieval-candidate-v2">候选 v2</option>
             </select>
           </label>
         </div>
 
         <form className="eval-retrieval-query" onSubmit={onSubmit}>
           <label>
-            Query
+            查询
             <textarea rows={3} value={query} onChange={(event) => onQueryChange(event.target.value)} />
           </label>
-          <button type="submit" disabled={running || query.trim() === ''}>{running ? 'Running…' : 'Run Retrieval'}</button>
+          <button type="submit" disabled={running || query.trim() === ''}>{running ? '运行中…' : '运行检索'}</button>
         </form>
 
         {selectedCase === undefined ? null : <CaseExpectation testCase={selectedCase} />}
       </section>
 
       {snapshot.result === undefined ? (
-        <section className="eval-panel"><h2>Layer inspection</h2><p>Run a fixture query to inspect every retrieval stage.</p></section>
+        <section className="eval-panel"><h2>层级查看</h2><p>运行夹具查询以查看每个检索阶段。</p></section>
       ) : (
         <>
           <SemanticParsePanel result={snapshot.result} />
@@ -327,10 +327,10 @@ export function RetrievalLabView({
 function CaseExpectation({ testCase }: { testCase: RetrievalEvalCase }) {
   return (
     <div className="eval-retrieval-expectation">
-      <strong>Expected</strong>
-      <span>Relevant: {testCase.expected.relevantEntityIds.join(', ')}</span>
-      <span>Hard negatives: {testCase.expected.hardNegativeEntityIds.join(', ')}</span>
-      <span>Split: {testCase.split}</span>
+      <strong>期望</strong>
+      <span>相关: {testCase.expected.relevantEntityIds.join(', ')}</span>
+      <span>硬负例: {testCase.expected.hardNegativeEntityIds.join(', ')}</span>
+      <span>划分: {testCase.split}</span>
       <div className="eval-tags">{testCase.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
     </div>
   )
@@ -341,7 +341,7 @@ function SemanticParsePanel({ result }: { result: RetrievalPlaygroundResult }) {
   return (
     <section className="eval-panel">
       <div className="eval-panel-heading">
-        <h2>Semantic Parse</h2>
+        <h2>语义解析</h2>
         <code>{result.traceId}</code>
       </div>
       <dl className="eval-retrieval-context">
@@ -364,8 +364,8 @@ function StageNavigator({
 }) {
   return (
     <section className="eval-panel">
-      <h2>Retrieval pipeline</h2>
-      <div className="eval-stage-grid" aria-label="Retrieval stages">
+      <h2>检索管道</h2>
+      <div className="eval-stage-grid" aria-label="检索阶段">
         {RETRIEVAL_STAGE_ORDER.map((stage, index) => {
           const stageSnapshot = result.stages.find((item) => item.stage === stage)
           return (
@@ -377,7 +377,7 @@ function StageNavigator({
             >
               <span>{index + 1}</span>
               <strong>{STAGE_LABELS[stage]}</strong>
-              <small>{stageSnapshot?.candidates.length ?? 0} candidates</small>
+              <small>{stageSnapshot?.candidates.length ?? 0} 候选</small>
             </button>
           )
         })}
@@ -387,18 +387,18 @@ function StageNavigator({
 }
 
 function StageDetail({ snapshot }: { snapshot: RetrievalStageSnapshot | undefined }) {
-  if (snapshot === undefined) return <section className="eval-panel"><p>Stage data unavailable.</p></section>
+  if (snapshot === undefined) return <section className="eval-panel"><p>暂无阶段数据。</p></section>
   return (
     <section className="eval-panel" aria-labelledby="retrieval-stage-title">
       <div className="eval-panel-heading">
         <h2 id="retrieval-stage-title">{STAGE_LABELS[snapshot.stage]}</h2>
-        <span className="eval-muted">{snapshot.candidates.length} candidates</span>
+        <span className="eval-muted">{snapshot.candidates.length} 候选</span>
       </div>
       {snapshot.notes?.map((note) => <p className="eval-muted" key={note}>{note}</p>)}
       {snapshot.removedEntityIds === undefined || snapshot.removedEntityIds.length === 0 ? null : (
-        <p className="eval-retrieval-removed"><strong>Removed by hard filters:</strong> {snapshot.removedEntityIds.join(', ')}</p>
+        <p className="eval-retrieval-removed"><strong>硬过滤移除:</strong> {snapshot.removedEntityIds.join(', ')}</p>
       )}
-      {snapshot.candidates.length === 0 ? <p>No ranked candidates at this stage.</p> : <CandidateTable candidates={snapshot.candidates} />}
+      {snapshot.candidates.length === 0 ? <p>此阶段无排序候选。</p> : <CandidateTable candidates={snapshot.candidates} />}
     </section>
   )
 }
@@ -409,8 +409,8 @@ function CandidateTable({ candidates }: { candidates: readonly RetrievalCandidat
       <table className="eval-table eval-retrieval-table">
         <thead>
           <tr>
-            <th>Rank</th><th>Entity</th><th>Name</th><th>Flags</th><th>Source arms</th>
-            <th>Exact</th><th>BM25</th><th>Dense</th><th>Entity</th><th>RRF</th><th>Rerank</th><th>Business</th><th>Final</th><th>Reason</th>
+            <th>排名</th><th>实体</th><th>名称</th><th>标志</th><th>源分支</th>
+            <th>精确</th><th>BM25</th><th>密集</th><th>实体</th><th>RRF</th><th>重排</th><th>业务</th><th>最终</th><th>原因</th>
           </tr>
         </thead>
         <tbody>
@@ -442,8 +442,8 @@ function CandidateFlags({ candidate }: { candidate: RetrievalCandidate }) {
   if (!candidate.hardNegative && !candidate.criticalSpecConflict) return <span className="eval-muted">—</span>
   return (
     <div className="eval-candidate-flags">
-      {candidate.hardNegative ? <span data-kind="warning">Hard Negative</span> : null}
-      {candidate.criticalSpecConflict ? <span data-kind="danger">Critical Spec Conflict</span> : null}
+      {candidate.hardNegative ? <span data-kind="warning">硬负例</span> : null}
+      {candidate.criticalSpecConflict ? <span data-kind="danger">关键规格冲突</span> : null}
     </div>
   )
 }
@@ -485,35 +485,35 @@ function BatchRunPanel({
     <section className="eval-panel">
       <div className="eval-panel-heading">
         <div>
-          <h2>Batch runs & metrics</h2>
-          <p>Formal metric values are returned by the evaluation service. The UI only displays them.</p>
+          <h2>批次运行与指标</h2>
+          <p>正式指标值由评测服务返回。UI 仅展示这些值。</p>
         </div>
         <button type="button" disabled={batchRunning} onClick={onStartBatch}>
-          {batchRunning ? 'Running batch…' : `Run ${variantId}`}
+          {batchRunning ? '批次运行中…' : `运行 ${variantId}`}
         </button>
       </div>
       <RetrievalMetricsTable runs={runs} />
 
       <div className="eval-compare-controls">
-        <label>Baseline
+        <label>基线
           <select value={baselineRunId} onChange={(event) => onBaselineRunChange(event.target.value)}>
             {runs.map((run) => <option value={run.runId} key={`baseline-${run.runId}`}>{run.variantId} · {run.runId}</option>)}
           </select>
         </label>
-        <label>Candidate
+        <label>候选
           <select value={candidateRunId} onChange={(event) => onCandidateRunChange(event.target.value)}>
             {runs.map((run) => <option value={run.runId} key={`candidate-${run.runId}`}>{run.variantId} · {run.runId}</option>)}
           </select>
         </label>
-        <label>Compare as
+        <label>对比方式
           <select value={comparisonType} onChange={(event) => onComparisonTypeChange(event.target.value as RetrievalComparisonType)}>
-            <option value="EMBEDDING">Embedding A vs B</option>
-            <option value="RERANKER">Reranker A vs B</option>
-            <option value="CONFIG">Config A vs B</option>
+            <option value="EMBEDDING">向量 A vs B</option>
+            <option value="RERANKER">重排器 A vs B</option>
+            <option value="CONFIG">配置 A vs B</option>
           </select>
         </label>
         <button type="button" disabled={comparing || baselineRunId === '' || candidateRunId === ''} onClick={onCompare}>
-          {comparing ? 'Comparing…' : 'Compare runs'}
+          {comparing ? '对比中…' : '对比运行'}
         </button>
       </div>
 
@@ -527,8 +527,8 @@ function RetrievalMetricsTable({ runs }: { runs: readonly RetrievalRunSummary[] 
     <div className="eval-scroll">
       <table className="eval-table eval-metrics-wide">
         <thead><tr>
-          <th>Variant</th><th>Recall@1</th><th>@5</th><th>@10</th><th>@20</th><th>@50</th><th>Hit@1</th>
-          <th>MRR</th><th>MAP</th><th>nDCG@10</th><th>Zero result</th><th>Cross-project</th><th>Cross-alignment</th><th>Critical spec</th><th>Wrong entity HC</th>
+          <th>变体</th><th>Recall@1</th><th>@5</th><th>@10</th><th>@20</th><th>@50</th><th>Hit@1</th>
+          <th>MRR</th><th>MAP</th><th>nDCG@10</th><th>零结果</th><th>跨项目</th><th>跨对齐</th><th>关键规格</th><th>实体误判HC</th>
         </tr></thead>
         <tbody>
           {runs.map((run) => {
@@ -562,38 +562,38 @@ function ComparisonPanel({ comparison }: { comparison: RetrievalRunComparison })
   return (
     <div className="eval-comparison-result">
       <div className="eval-comparison-summary">
-        <strong>{comparison.comparisonType} comparison</strong>
-        <span>Win / Loss / Tie: {comparison.pairedStats.wins} / {comparison.pairedStats.losses} / {comparison.pairedStats.ties}</span>
-        <span>Sample: {comparison.pairedStats.sampleSize}</span>
+        <strong>{comparison.comparisonType} 对比</strong>
+        <span>胜 / 负 / 平: {comparison.pairedStats.wins} / {comparison.pairedStats.losses} / {comparison.pairedStats.ties}</span>
+        <span>样本: {comparison.pairedStats.sampleSize}</span>
         <span className={comparison.pairedStats.conclusion === 'INCONCLUSIVE' ? 'eval-status-warning' : 'eval-status-ok'}>
           {comparison.pairedStats.conclusion}
         </span>
         {comparison.pairedStats.bootstrap95Ci === undefined ? null : (
-          <span>Bootstrap 95% CI: [{comparison.pairedStats.bootstrap95Ci[0].toFixed(4)}, {comparison.pairedStats.bootstrap95Ci[1].toFixed(4)}]</span>
+          <span>Bootstrap 95% 置信区间: [{comparison.pairedStats.bootstrap95Ci[0].toFixed(4)}, {comparison.pairedStats.bootstrap95Ci[1].toFixed(4)}]</span>
         )}
       </div>
       {comparison.pairedStats.minimumSampleWarning ? (
-        <p className="eval-status-warning">Minimum sample warning: statistical conclusion remains INCONCLUSIVE.</p>
+        <p className="eval-status-warning">最小样本警告:统计结论仍为 INCONCLUSIVE。</p>
       ) : null}
       {comparison.deterministicSafetyRegression ? (
-        <p className="eval-error">Deterministic safety regression: {comparison.safetyRegressionReasons.join('; ')}</p>
+        <p className="eval-error">确定性安全回归: {comparison.safetyRegressionReasons.join('; ')}</p>
       ) : (
-        <p className="eval-status-ok">No deterministic safety regression.</p>
+        <p className="eval-status-ok">无确定性安全回归。</p>
       )}
-      <p>Improved cases: {comparison.improvedCaseIds.join(', ') || '—'} · Regressed cases: {comparison.regressedCaseIds.join(', ') || '—'}</p>
+      <p>改善用例: {comparison.improvedCaseIds.join(', ') || '—'} · 退化用例: {comparison.regressedCaseIds.join(', ') || '—'}</p>
 
-      <h3>Metric deltas</h3>
+      <h3>指标增量</h3>
       <table className="eval-table">
-        <thead><tr><th>Metric</th><th>Baseline</th><th>Candidate</th><th>Delta</th></tr></thead>
+        <thead><tr><th>指标</th><th>基线</th><th>候选</th><th>增量</th></tr></thead>
         <tbody>{comparison.metricDeltas.map((delta) => (
           <tr key={delta.metric}><td>{delta.metric}</td><td>{delta.baseline.toFixed(4)}</td><td>{delta.candidate.toFixed(4)}</td><td>{signed(delta.delta)}</td></tr>
         ))}</tbody>
       </table>
 
-      <h3>Rank / score movement</h3>
+      <h3>排名 / 分数变动</h3>
       <div className="eval-scroll">
         <table className="eval-table">
-          <thead><tr><th>Case</th><th>Entity</th><th>Rank A</th><th>Rank B</th><th>Rank Δ</th><th>Score A</th><th>Score B</th><th>Score Δ</th></tr></thead>
+          <thead><tr><th>用例</th><th>实体</th><th>排名 A</th><th>排名 B</th><th>排名 Δ</th><th>分数 A</th><th>分数 B</th><th>分数 Δ</th></tr></thead>
           <tbody>{moved.map((movement) => (
             <tr key={`${movement.caseId}:${movement.entityId}`}>
               <td>{movement.caseId}</td><td><code>{movement.entityId}</code></td>
@@ -611,13 +611,13 @@ function LeakagePanel({ report }: { report: RetrievalLeakageReport }) {
   return (
     <section className="eval-panel">
       <div className="eval-panel-heading">
-        <h2>Dataset leakage check</h2>
+        <h2>数据集泄露检查</h2>
         <span className={report.releaseHoldoutContaminated ? 'eval-status-danger' : 'eval-status-ok'}>
-          {report.releaseHoldoutContaminated ? 'RELEASE_HOLDOUT contaminated' : 'No holdout contamination'}
+          {report.releaseHoldoutContaminated ? 'RELEASE_HOLDOUT 已污染' : '无留出集污染'}
         </span>
       </div>
       <table className="eval-table">
-        <thead><tr><th>Kind</th><th>Cases</th><th>Splits</th><th>Severity</th><th>Reason</th></tr></thead>
+        <thead><tr><th>类型</th><th>用例</th><th>划分</th><th>严重度</th><th>原因</th></tr></thead>
         <tbody>
           {report.findings.map((finding) => (
             <tr key={finding.findingId}>

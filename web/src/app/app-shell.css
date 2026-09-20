@@ -29,6 +29,39 @@
   color: var(--text, #f2f4f7);
 }
 
+.app-shell__context {
+  position: fixed;
+  z-index: 40;
+  top: 12px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border: 1px solid var(--border, #2b2f36);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg, #111318) 92%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.app-shell__context select {
+  padding: 5px 8px;
+  border: 1px solid var(--border, #2b2f36);
+  border-radius: 7px;
+  background: var(--surface, #1b1f27);
+  color: var(--text, #f2f4f7);
+  font-size: 12px;
+}
+
+.app-shell__context-error {
+  max-width: 260px;
+  overflow: hidden;
+  color: #f87171;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .app-shell__content {
   min-height: 100vh;
 }

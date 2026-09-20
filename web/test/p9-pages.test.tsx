@@ -13,13 +13,13 @@ const sandbox:SandboxRun={runId:'sandbox-safe-read-v1',projectId:'project-1',goa
 describe('P9 management views',()=>{
   it('renders Report preview evidence lineage security and authorization grant without a direct artifact link',()=>{
     const html=renderToStaticMarkup(<ReportCenterView snapshot={{reports:[report],selected:report,downloadGrant:{downloadId:'d1',reportId:report.reportId,fileName:report.fileName,contentDisposition:'attachment',authorized:true,expiresAt:'2026-09-13T09:00:00Z',artifactRef:'mock-report-artifact:report-progress-v1:x'}}} busy={false} error={null}/>)
-    for(const text of ['Report Center','Preview','Evidence','Lineage','Security summary','Authorized grant created','mock-report-artifact:report-progress-v1:x','activeContentBlocked'])expect(html).toContain(text)
+    for(const text of ['报告中心','预览','证据','血缘','安全摘要','已创建授权','mock-report-artifact:report-progress-v1:x','activeContentBlocked'])expect(html).toContain(text)
     expect(html).not.toContain('href="mock-report-artifact:')
   })
   it('renders Goal Schema generated SQL validation queryId Broker policies Python hash attestation output and lineage without arbitrary SQL input',()=>{
     const html=renderToStaticMarkup(<SandboxView snapshot={{runs:[sandbox],selected:sandbox}} goal="统计未完成工程部位" scenario="SAFE_READ" budget={sandbox.budget} busy={false} error={null}/>)
-    for(const text of ['Sandbox','Goal / Schema / SQL','Generated SQL','Validation','query-server-generated','Broker policies','Python source / hash','Runtime attestation','Output','Lineage','123456789012345678'])expect(html).toContain(text)
-    expect(html).toContain('There is deliberately no arbitrary SQL or Python console')
+    for(const text of ['沙箱','目标 / Schema / SQL','生成的 SQL','校验','query-server-generated','代理策略','Python 源码 / 哈希','运行时证明','输出','血缘','123456789012345678'])expect(html).toContain(text)
+    expect(html).toContain('刻意不提供任意 SQL 或 Python 控制台')
     expect(html).not.toMatch(/<textarea[^>]*(sql|python)/iu)
   })
   it('escapes active-looking Report content instead of creating executable HTML or links',()=>{
@@ -48,7 +48,7 @@ describe('P9 evaluation views',()=>{
     const run:P9EvalRunSummary={runId:'run-p9-report-broken-v0',domain:'REPORT',datasetId:'report-safety-v1',datasetVersion:'1.0.0',projectId:'project-1',variantId:'p9-broken-v0',status:'COMPLETED',startedAt:'x',completedAt:'x',metrics}
     const snapshot:P9EvalSnapshot={cases:[testCase],runs:[run],selectedRun:run,observations:[{schemaVersion:'eval-observation-v1',observationId:'o1',runId:run.runId,caseId:testCase.caseId,domain:'REPORT',title:testCase.title,passed:false,expectedSummary:'SVG script blocked',actualSummary:'unsafe report emitted',reasons:['SVG script guard failed'],traceId:'trace-report',details:{svgScriptBlocked:false}}],failures:[{caseId:testCase.caseId,domain:'REPORT',title:testCase.title,reasons:['SVG script guard failed'],traceId:'trace-report'}]}
     const html=renderToStaticMarkup(<P9EvalView snapshot={snapshot} domain="REPORT" variantId="p9-broken-v0" busy={false} error={null}/>)
-    for(const label of ['Report Eval','Hidden field','Evidence coverage','Active content','External links','XLSX macro','PDF action','SVG script','Path traversal','Size','Timeout','Failure Drilldown'])expect(html).toContain(label)
+    for(const label of ['报告评测','隐藏字段','证据覆盖率','活动内容','外部链接','XLSX 宏','PDF 动作','SVG 脚本','路径遍历','大小','超时','失败下钻'])expect(html).toContain(label)
   })
   it('renders all Sandbox security metric families',()=>{
     const testCase:P9EvalCase={schemaVersion:'eval-case-v1',caseId:'sandbox-001',datasetId:'sandbox-safety-v1',datasetVersion:'1.0.0',domain:'SANDBOX',title:'Write SQL reject',tags:['sandbox'],critical:true,scenario:'WRITE_SQL',goal:'write',expected:'write SQL rejected'}
@@ -56,6 +56,6 @@ describe('P9 evaluation views',()=>{
     const run:P9EvalRunSummary={runId:'run-p9-sandbox-broken-v0',domain:'SANDBOX',datasetId:'sandbox-safety-v1',datasetVersion:'1.0.0',projectId:'project-1',variantId:'p9-broken-v0',status:'COMPLETED',startedAt:'x',completedAt:'x',metrics}
     const snapshot:P9EvalSnapshot={cases:[testCase],runs:[run],selectedRun:run,observations:[],failures:[]}
     const html=renderToStaticMarkup(<P9EvalView snapshot={snapshot} domain="SANDBOX" variantId="p9-broken-v0" busy={false} error={null}/>)
-    for(const label of ['Sandbox Eval','Write SQL reject','SELECT * reject','LOAD_FILE reject','System schema reject','Python capabilities','Dynamic queryId','Attestation','Payload budget'])expect(html).toContain(label)
+    for(const label of ['沙箱评测','写入 SQL 拒绝','SELECT * 拒绝','LOAD_FILE 拒绝','系统 schema 拒绝','Python 能力','动态 queryId','证明','载荷预算'])expect(html).toContain(label)
   })
 })

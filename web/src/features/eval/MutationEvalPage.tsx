@@ -73,7 +73,7 @@ export function MutationEvalPage({ runId, client = defaultClient, initialSnapsho
   }
 
   if (snapshot === undefined) {
-    return <main className="eval-page"><h1>Mutation Eval</h1>{error === null ? <p>Loading mutation safety evaluation…</p> : <p role="alert">{error}</p>}</main>
+    return <main className="eval-page"><h1>变更评测</h1>{error === null ? <p>加载变更安全评测…</p> : <p role="alert">{error}</p>}</main>
   }
 
   return <MutationEvalView snapshot={snapshot} variantId={variantId} busy={busy} error={error} onVariantChange={setVariantId} onStartRun={() => void startRun()} onSelectRun={(value) => void selectRun(value)} />
@@ -102,65 +102,65 @@ export function MutationEvalView({
 
   return (
     <main className="eval-page" aria-labelledby="mutation-eval-title">
-      <div className="eval-eyebrow">Evaluation Workbench · P4</div>
+      <div className="eval-eyebrow">评测工作台 · P4</div>
       <div className="eval-heading-row">
-        <div><h1 id="mutation-eval-title">Mutation Eval</h1><p>Deterministic safety evaluation for target resolution, scope isolation, explicit confirmation, digest binding, replay, version conflicts, and reconciliation.</p></div>
-        <div className="eval-heading-actions"><a className="eval-primary-link" href="/industry/mutations">Mutation Center</a><a href="/industry/eval">Evaluation</a></div>
+        <div><h1 id="mutation-eval-title">变更评测</h1><p>针对目标解析、范围隔离、显式确认、摘要绑定、重放、版本冲突与对账的确定性安全评测。</p></div>
+        <div className="eval-heading-actions"><a className="eval-primary-link" href="/industry/mutations">变更中心</a><a href="/industry/eval">评测</a></div>
       </div>
       {error === null ? null : <p role="alert" className="eval-error">{error}</p>}
 
       <section className="eval-panel">
         <div className="eval-heading-row">
-          <div><h2>Batch Run</h2><p>Dataset <code>{DATASET_ID}</code> · 7 critical safety cases.</p></div>
+          <div><h2>批次运行</h2><p>数据集 <code>{DATASET_ID}</code> · 7 个关键安全用例。</p></div>
           <div className="eval-heading-actions">
-            <select aria-label="Mutation eval variant" value={variantId} disabled={busy} onChange={(event) => onVariantChange(event.target.value as MutationEvalVariant)}>
+            <select aria-label="变更评测变体" value={variantId} disabled={busy} onChange={(event) => onVariantChange(event.target.value as MutationEvalVariant)}>
               <option value="mutation-unsafe-v0">mutation-unsafe-v0</option>
               <option value="mutation-guarded-v1">mutation-guarded-v1</option>
             </select>
-            <button type="button" disabled={busy} onClick={onStartRun}>Run mutation eval</button>
+            <button type="button" disabled={busy} onClick={onStartRun}>运行变更评测</button>
           </div>
         </div>
       </section>
 
-      {run === undefined || metrics === undefined ? <section className="eval-panel"><p>Select or start a run to inspect metrics.</p></section> : <>
-        <section className="eval-summary-grid" aria-label="Mutation evaluation summary">
-          <MetricCard label="Release gate" value={metrics.releaseGate} critical={metrics.releaseGate === 'FAIL'} />
-          <MetricCard label="Pass rate" value={percent(metrics.passRate)} critical={metrics.passRate < 1} />
-          <MetricCard label="Critical pass" value={percent(metrics.criticalPassRate)} critical={metrics.criticalPassRate < 1} />
-          <MetricCard label="Wrong target failure" value={percent(metrics.wrongTargetFailureRate)} critical={metrics.wrongTargetFailureRate > 0} />
-          <MetricCard label="Scope leakage" value={percent(metrics.scopeLeakageRate)} critical={metrics.scopeLeakageRate > 0} />
-          <MetricCard label="Confirmation bypass" value={percent(metrics.confirmationBypassRate)} critical={metrics.confirmationBypassRate > 0} />
-          <MetricCard label="Digest guard" value={percent(metrics.digestMismatchGuardRate)} critical={metrics.digestMismatchGuardRate < 1} />
-          <MetricCard label="Replay guard" value={percent(metrics.approvalReplayGuardRate)} critical={metrics.approvalReplayGuardRate < 1} />
-          <MetricCard label="Version guard" value={percent(metrics.versionConflictGuardRate)} critical={metrics.versionConflictGuardRate < 1} />
-          <MetricCard label="Reconciliation safety" value={percent(metrics.reconciliationSafetyRate)} critical={metrics.reconciliationSafetyRate < 1} />
-          <MetricCard label="Unsafe retry" value={percent(metrics.unsafeCommitRetryRate)} critical={metrics.unsafeCommitRetryRate > 0} />
-          <MetricCard label="Approval exposure" value={percent(metrics.approvalMaterialExposureRate)} critical={metrics.approvalMaterialExposureRate > 0} />
+      {run === undefined || metrics === undefined ? <section className="eval-panel"><p>选择或开始一次运行以查看指标。</p></section> : <>
+        <section className="eval-summary-grid" aria-label="变更评测摘要">
+          <MetricCard label="发布门禁" value={metrics.releaseGate} critical={metrics.releaseGate === 'FAIL'} />
+          <MetricCard label="通过率" value={percent(metrics.passRate)} critical={metrics.passRate < 1} />
+          <MetricCard label="关键通过" value={percent(metrics.criticalPassRate)} critical={metrics.criticalPassRate < 1} />
+          <MetricCard label="目标误判失败" value={percent(metrics.wrongTargetFailureRate)} critical={metrics.wrongTargetFailureRate > 0} />
+          <MetricCard label="范围泄露" value={percent(metrics.scopeLeakageRate)} critical={metrics.scopeLeakageRate > 0} />
+          <MetricCard label="确认绕过" value={percent(metrics.confirmationBypassRate)} critical={metrics.confirmationBypassRate > 0} />
+          <MetricCard label="摘要门禁" value={percent(metrics.digestMismatchGuardRate)} critical={metrics.digestMismatchGuardRate < 1} />
+          <MetricCard label="重放门禁" value={percent(metrics.approvalReplayGuardRate)} critical={metrics.approvalReplayGuardRate < 1} />
+          <MetricCard label="版本门禁" value={percent(metrics.versionConflictGuardRate)} critical={metrics.versionConflictGuardRate < 1} />
+          <MetricCard label="对账安全" value={percent(metrics.reconciliationSafetyRate)} critical={metrics.reconciliationSafetyRate < 1} />
+          <MetricCard label="不安全重试" value={percent(metrics.unsafeCommitRetryRate)} critical={metrics.unsafeCommitRetryRate > 0} />
+          <MetricCard label="审批暴露" value={percent(metrics.approvalMaterialExposureRate)} critical={metrics.approvalMaterialExposureRate > 0} />
         </section>
-        {metrics.releaseGateReasons.length === 0 ? <section className="eval-panel"><strong>Release Gate PASS</strong><p>All deterministic mutation safety gates passed for this run.</p></section> : <section className="eval-panel"><h2>Release Gate FAIL</h2><ul>{metrics.releaseGateReasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></section>}
+        {metrics.releaseGateReasons.length === 0 ? <section className="eval-panel"><strong>发布门禁 通过</strong><p>本次运行的所有确定性变更安全门禁均已通过。</p></section> : <section className="eval-panel"><h2>发布门禁 未通过</h2><ul>{metrics.releaseGateReasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></section>}
       </>}
 
       <section className="eval-panel">
-        <h2>Runs</h2>
-        <table className="eval-table"><thead><tr><th>Run</th><th>Variant</th><th>Project</th><th>Gate</th><th>Pass</th><th>Open</th></tr></thead><tbody>{snapshot.runs.map((item) => <tr key={item.runId} data-selected={run?.runId === item.runId}><td><code>{item.runId}</code></td><td>{item.variantId}</td><td><code>{item.projectId}</code></td><td>{item.metrics?.releaseGate ?? '—'}</td><td>{item.metrics === undefined ? '—' : `${item.metrics.passedCount}/${item.metrics.sampleCount}`}</td><td><button type="button" disabled={busy} onClick={() => onSelectRun(item.runId)}>Inspect</button> <a href={mutationEvalRunPath(item.runId)}>Result page</a></td></tr>)}</tbody></table>
+        <h2>运行记录</h2>
+        <table className="eval-table"><thead><tr><th>运行</th><th>变体</th><th>项目</th><th>门禁</th><th>通过</th><th>打开</th></tr></thead><tbody>{snapshot.runs.map((item) => <tr key={item.runId} data-selected={run?.runId === item.runId}><td><code>{item.runId}</code></td><td>{item.variantId}</td><td><code>{item.projectId}</code></td><td>{item.metrics?.releaseGate ?? '—'}</td><td>{item.metrics === undefined ? '—' : `${item.metrics.passedCount}/${item.metrics.sampleCount}`}</td><td><button type="button" disabled={busy} onClick={() => onSelectRun(item.runId)}>查看</button> <a href={mutationEvalRunPath(item.runId)}>结果页</a></td></tr>)}</tbody></table>
       </section>
 
       <section className="eval-panel">
-        <h2>Safety Dataset</h2>
-        <table className="eval-table"><thead><tr><th>Scenario</th><th>Expected</th><th>Code</th><th>Split</th><th>Result</th></tr></thead><tbody>{snapshot.cases.map((testCase) => {
+        <h2>安全数据集</h2>
+        <table className="eval-table"><thead><tr><th>场景</th><th>期望</th><th>代码</th><th>拆分</th><th>结果</th></tr></thead><tbody>{snapshot.cases.map((testCase) => {
           const observation = observationsByCase.get(testCase.caseId)
           return <tr key={testCase.caseId}><td><strong>{testCase.scenario}</strong><br /><small>{testCase.title}</small></td><td>{testCase.expected.outcome}</td><td><code>{testCase.expected.code ?? '—'}</code></td><td>{testCase.split}</td><td>{observation === undefined ? '—' : observation.passed ? 'PASS' : 'FAIL'}</td></tr>
         })}</tbody></table>
       </section>
 
       <section className="eval-panel">
-        <h2>Failure Drilldown</h2>
-        {snapshot.failures.length === 0 ? <p>No failed mutation safety cases in the selected run.</p> : snapshot.failures.map((failure) => {
+        <h2>失败下钻</h2>
+        {snapshot.failures.length === 0 ? <p>所选运行中没有失败的变更安全用例。</p> : snapshot.failures.map((failure) => {
           const observation = snapshot.observations.find((item) => item.caseId === failure.caseId)
           return <article className="eval-panel" key={failure.caseId} data-mutation-failure={failure.scenario}>
-            <div className="eval-heading-row"><div><strong>{failure.scenario}</strong><p><code>{failure.caseId}</code></p></div><a href={`/industry/traces/${encodeURIComponent(failure.traceId)}`}>trace</a></div>
-            <p>Expected <strong>{failure.expectedOutcome}</strong> / actual <strong>{failure.actualOutcome}</strong></p>
-            <p>Expected code <code>{failure.expectedCode ?? '—'}</code> / actual <code>{failure.actualCode ?? '—'}</code></p>
+            <div className="eval-heading-row"><div><strong>{failure.scenario}</strong><p><code>{failure.caseId}</code></p></div><a href={`/industry/traces/${encodeURIComponent(failure.traceId)}`}>追踪</a></div>
+            <p>期望 <strong>{failure.expectedOutcome}</strong> / 实际 <strong>{failure.actualOutcome}</strong></p>
+            <p>期望代码 <code>{failure.expectedCode ?? '—'}</code> / 实际 <code>{failure.actualCode ?? '—'}</code></p>
             <ul>{failure.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
             {observation === undefined ? null : <ObservationDetail observation={observation} />}
           </article>
@@ -171,7 +171,7 @@ export function MutationEvalView({
 }
 
 function ObservationDetail({ observation }: { observation: MutationEvalObservation }) {
-  return <div><dl className="eval-kv-grid"><div><dt>Commit attempts</dt><dd>{observation.commitAttempts}</dd></div><div><dt>Scope leakage</dt><dd>{yesNo(observation.scopeLeakage)}</dd></div><div><dt>Confirmation bypassed</dt><dd>{yesNo(observation.confirmationBypassed)}</dd></div><div><dt>Automatic retry attempted</dt><dd>{yesNo(observation.automaticRetryAttempted)}</dd></div><div><dt>Approval material exposed</dt><dd>{yesNo(observation.approvalMaterialExposed)}</dd></div></dl><ol>{observation.steps.map((step, index) => <li key={`${step.step}-${index}`}><strong>{step.step}</strong> · {step.outcome} — {step.detail}</li>)}</ol></div>
+  return <div><dl className="eval-kv-grid"><div><dt>提交尝试</dt><dd>{observation.commitAttempts}</dd></div><div><dt>范围泄露</dt><dd>{yesNo(observation.scopeLeakage)}</dd></div><div><dt>已跳过确认</dt><dd>{yesNo(observation.confirmationBypassed)}</dd></div><div><dt>已尝试自动重试</dt><dd>{yesNo(observation.automaticRetryAttempted)}</dd></div><div><dt>审批材料已暴露</dt><dd>{yesNo(observation.approvalMaterialExposed)}</dd></div></dl><ol>{observation.steps.map((step, index) => <li key={`${step.step}-${index}`}><strong>{step.step}</strong> · {step.outcome} — {step.detail}</li>)}</ol></div>
 }
 
 function MetricCard({ label, value, critical = false }: { label: string; value: string; critical?: boolean }) {

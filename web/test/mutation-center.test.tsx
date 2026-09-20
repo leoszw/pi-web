@@ -55,39 +55,39 @@ function renderDetail(status: MutationOperation['status'], unknown = false, reta
 describe('MutationCenterView', () => {
   it('renders pending diff, digest, audit, and explicit confirmation without approval token material', () => {
     const html = renderDetail('PENDING_CONFIRMATION')
-    expect(html).toContain('Diff / Preview')
+    expect(html).toContain('差异 / 预览')
     expect(html).toContain('123456789012345678')
     expect(html).toContain(digest)
-    expect(html).toContain('Audit timeline')
-    expect(html).toContain('Confirm mutation')
-    expect(html).toContain('Reject operation')
+    expect(html).toContain('审计时间线')
+    expect(html).toContain('确认变更')
+    expect(html).toContain('拒绝操作')
     expect(html.toLowerCase()).not.toContain('approvaltoken')
     expect(html.toLowerCase()).not.toContain('approval_token')
   })
 
   it('removes confirmation controls when finalization requires reconciliation', () => {
     const html = renderDetail('RECONCILIATION_REQUIRED')
-    expect(html).toContain('Business write may have succeeded')
-    expect(html).toContain('Commit retry is forbidden')
-    expect(html).toContain('Open reconciliation')
-    expect(html).not.toContain('Confirm mutation')
-    expect(html).not.toContain('Reject operation')
+    expect(html).toContain('业务写入可能已成功')
+    expect(html).toContain('禁止重试提交')
+    expect(html).toContain('打开对账')
+    expect(html).not.toContain('确认变更')
+    expect(html).not.toContain('拒绝操作')
   })
 
   it('locks an uncertain confirmation attempt until status is refreshed', () => {
     const html = renderDetail('PENDING_CONFIRMATION', true, true)
-    expect(html).toContain('Confirmation status unknown')
-    expect(html).toContain('Refresh status')
-    expect(html).toContain('Idempotency-Key remains retained')
-    expect(html).not.toContain('Confirm mutation')
-    expect(html).not.toContain('Reject operation')
+    expect(html).toContain('确认状态未知')
+    expect(html).toContain('刷新状态')
+    expect(html).toContain('Idempotency-Key 在此浏览器会话中保持保留')
+    expect(html).not.toContain('确认变更')
+    expect(html).not.toContain('拒绝操作')
   })
 
   it('resumes a refreshed pending confirmation with the retained Idempotency-Key instead of creating a new attempt', () => {
     const html = renderDetail('PENDING_CONFIRMATION', false, true)
-    expect(html).toContain('Resuming the same idempotent attempt')
-    expect(html).toContain('Resume same confirmation attempt')
-    expect(html).toContain('A new commit attempt is not created')
+    expect(html).toContain('恢复同一幂等尝试')
+    expect(html).toContain('恢复同一确认尝试')
+    expect(html).toContain('不会创建新的提交尝试')
   })
 
   it('surfaces reconciliation backlog and forbids automatic retry', () => {
@@ -114,8 +114,8 @@ describe('MutationCenterView', () => {
       />,
     )
     expect(html).toContain('MUTATION_COMMIT_FINALIZATION_FAILED')
-    expect(html).toContain('Business write may have succeeded')
-    expect(html).toContain('Automatic retry forbidden')
-    expect(html).not.toContain('Confirm mutation')
+    expect(html).toContain('业务写入可能已成功')
+    expect(html).toContain('禁止自动重试')
+    expect(html).not.toContain('确认变更')
   })
 })

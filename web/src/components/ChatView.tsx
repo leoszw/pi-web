@@ -54,7 +54,7 @@ function ItemView({ item }: { item: ChatItem }) {
     <div className="assistant-message">
       {item.thinking !== '' && (
         <details className="thinking">
-          <summary>thinking</summary>
+          <summary>思考</summary>
           <div className="thinking-body">{item.thinking}</div>
         </details>
       )}

@@ -18,13 +18,13 @@ const criticalRun: AgentLoopRun = {
 describe('P8 management views',()=>{
   it('renders bbox low confidence missing fields and 18-digit entity IDs',()=>{
     const html=renderToStaticMarkup(<MultimodalView snapshot={{analyses:[analysis],selected:analysis}} busy={false} error={null}/>)
-    expect(html).toContain('Multimodal Review');expect(html).toContain('LOW CONFIDENCE');expect(html).toContain('x=0.18, y=0.14, w=0.52, h=0.68');expect(html).toContain('diameter_mm');expect(html).toContain('engineering-position-123456789012345678');expect(html).toContain('prompt injection blocked');expect(html).toContain('Image bytes are not sent')
+    expect(html).toContain('多模态评审');expect(html).toContain('LOW CONFIDENCE');expect(html).toContain('x=0.18, y=0.14, w=0.52, h=0.68');expect(html).toContain('diameter_mm');expect(html).toContain('engineering-position-123456789012345678');expect(html).toContain('提示注入已阻止');expect(html).toContain('图片字节不会发送')
   })
   it('renders full loop phases budgets usage and critical-tool warning',()=>{
     const html=renderToStaticMarkup(<AgentLoopView snapshot={{runs:[criticalRun],selected:criticalRun}} goal="修改负责人" scenario="CRITICAL_TOOL" budget={criticalRun.budget} busy={false} error={null}/>)
-    for(const label of ['PLAN','ACT','TERMINATE','CRITICAL_TOOL_CONFIRMATION_REQUIRED','Tokens','Cost','Usage complete'])expect(html).toContain(label)
-    expect(html).toContain('Critical tool was not executed')
-    expect(html).toContain('P4 Mutation Center')
+    for(const label of ['PLAN','ACT','TERMINATE','CRITICAL_TOOL_CONFIRMATION_REQUIRED','Token','成本','用量完整'])expect(html).toContain(label)
+    expect(html).toContain('关键工具未执行')
+    expect(html).toContain('P4 变更中心')
   })
 })
 
@@ -34,7 +34,7 @@ describe('P8 evaluation views',()=>{
     const run:P8EvalRunSummary={runId:'run-p8-multimodal-broken-v0',domain:'MULTIMODAL',datasetId:'multimodal-safety-v1',datasetVersion:'1.0.0',projectId:'project-1',variantId:'p8-broken-v0',status:'COMPLETED',startedAt:'2026-09-13T07:00:00Z',completedAt:'2026-09-13T07:00:00Z',metrics:{sampleCount:1,passedCount:0,passRate:0,releaseGate:'FAIL',releaseGateReasons:['prompt injection'],observationPrecision:1,observationRecall:1,fieldExtractionAccuracy:1,entityMatchRate:1,noEvidenceRejectRate:1,promptInjectionBlockedRate:0,wrongTargetRate:0}}
     const snapshot:P8EvalSnapshot={cases:[testCase],runs:[run],selectedRun:run,observations:[{schemaVersion:'eval-observation-v1',observationId:'o1',runId:run.runId,caseId:testCase.caseId,domain:'MULTIMODAL',title:testCase.title,passed:false,expectedSummary:'blocked',actualSummary:'followed embedded instruction',reasons:['image prompt injection was not blocked'],traceId:'trace-mm',details:{promptInjectionBlocked:false}}],failures:[{caseId:testCase.caseId,domain:'MULTIMODAL',title:testCase.title,reasons:['image prompt injection was not blocked'],traceId:'trace-mm'}]}
     const html=renderToStaticMarkup(<P8EvalView snapshot={snapshot} domain="MULTIMODAL" variantId="p8-broken-v0" busy={false} error={null}/>)
-    expect(html).toContain('Multimodal Eval');expect(html).toContain('Prompt injection block');expect(html).toContain('Wrong target');expect(html).toContain('Failure Drilldown');expect(html).toContain('followed embedded instruction')
+    expect(html).toContain('多模态评测');expect(html).toContain('Prompt injection block');expect(html).toContain('错误目标');expect(html).toContain('失败下钻');expect(html).toContain('followed embedded instruction')
   })
   it('renders all Agent Loop safety metric families',()=>{
     const testCase:P8EvalCase={schemaVersion:'eval-case-v1',caseId:'loop-009',datasetId:'agent-loop-safety-v1',datasetVersion:'1.0.0',domain:'AGENT_LOOP',title:'Critical tool',tags:['agent-loop'],critical:true,scenario:'CRITICAL_TOOL',goal:'write',expectedTermination:'CRITICAL_TOOL_CONFIRMATION_REQUIRED'}
@@ -42,6 +42,6 @@ describe('P8 evaluation views',()=>{
     const run:P8EvalRunSummary={runId:'run-p8-agent_loop-broken-v0',domain:'AGENT_LOOP',datasetId:'agent-loop-safety-v1',datasetVersion:'1.0.0',projectId:'project-1',variantId:'p8-broken-v0',status:'COMPLETED',startedAt:'x',completedAt:'x',metrics}
     const snapshot:P8EvalSnapshot={cases:[testCase],runs:[run],selectedRun:run,observations:[],failures:[]}
     const html=renderToStaticMarkup(<P8EvalView snapshot={snapshot} domain="AGENT_LOOP" variantId="p8-broken-v0" busy={false} error={null}/>)
-    for(const label of ['Success','Replan','Max step','Max tool','Token budget','Cost budget','Timeout','Usage accounting gate','Scope blocked','Critical tool safe'])expect(html).toContain(label)
+    for(const label of ['成功率','重规划','最大步数','最大工具数','Token 预算','成本预算','超时','用量核算门禁','范围已拦截','关键工具安全'])expect(html).toContain(label)
   })
 })

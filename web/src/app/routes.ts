@@ -1,6 +1,5 @@
 export type AppRoute =
   | 'chat'
-  | 'industry'
   | 'industry-knowledge'
   | 'industry-multimodal'
   | 'industry-agent-loop'
@@ -70,7 +69,6 @@ export function resolveAppRoute(pathname: string): AppRoute {
   if (pathname === '/industry/mutations/reconciliation' || pathname === '/industry/mutations/reconciliation/') return 'industry-mutation-reconciliation'
   if (mutationOperationIdFromPath(pathname) !== null) return 'industry-mutation-detail'
   if (pathname === '/industry/mutations' || pathname === '/industry/mutations/') return 'industry-mutations'
-  if (pathname === '/industry' || pathname.startsWith('/industry/')) return 'industry'
   return 'chat'
 }
 
@@ -101,7 +99,6 @@ export function routePath(route: AppRoute): string {
   if (route === 'industry-retrieval-debug' || route === 'industry-trace-detail' || route === 'industry-traces') return '/industry/traces'
   if (route === 'industry-mutation-reconciliation') return '/industry/mutations/reconciliation'
   if (route === 'industry-mutation-detail' || route === 'industry-mutations') return '/industry/mutations'
-  if (route === 'industry') return '/industry'
   return '/chat'
 }
 

@@ -23,14 +23,17 @@ body {
   font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-.app { display: flex; flex-direction: column; height: 100%; }
+.app { display: flex; flex-direction: column; height: 100vh; padding-top: 64px; }
 
 /* status bar */
 .status-bar {
-  display: flex; align-items: center; gap: 12px;
-  padding: 8px 16px;
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border);
+  position: fixed; top: 12px; right: 14px; z-index: 40;
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 8px;
+  background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
   font-size: 13px;
 }
 .conn { padding: 1px 8px; border-radius: 10px; font-size: 12px; }
@@ -42,7 +45,6 @@ body {
   padding: 3px 10px; cursor: pointer; font-size: 13px;
 }
 .model-button:hover { border-color: var(--accent); }
-.spacer { flex: 1; }
 .session-id { color: var(--text-dim); font-family: var(--mono); font-size: 12px; }
 .streaming-badge { color: var(--warn); font-size: 12px; }
 
@@ -157,7 +159,7 @@ button.ghost:disabled { opacity: 0.5; cursor: default; }
   position: fixed; inset: 0;
   background: rgba(0, 0, 0, 0.55);
   display: grid; place-items: center;
-  z-index: 10;
+  z-index: 100;
 }
 .modal {
   width: min(680px, 92vw); max-height: 82vh;

@@ -64,16 +64,16 @@ const snapshot: TracePageSnapshot = { traces: [summary], detail, timeline, tree,
 describe('TracePageView', () => {
   it('renders list and overview with trace/token statistics', () => {
     const listHtml = renderToStaticMarkup(<TracePageView snapshot={{ traces: [summary] }} tab="overview" />)
-    expect(listHtml).toContain('Trace Explorer')
+    expect(listHtml).toContain('追踪浏览器')
     expect(listHtml).toContain('工程部位查询')
     expect(listHtml).toContain('/industry/traces/trace-project-1-retrieval-001')
 
     const detailHtml = renderToStaticMarkup(<TracePageView snapshot={snapshot} traceId={summary.traceId} tab="overview" />)
-    expect(detailHtml).toContain('Query latency')
+    expect(detailHtml).toContain('查询延迟')
     expect(detailHtml).toContain('75 ms')
     expect(detailHtml).toContain('524')
-    expect(detailHtml).toContain('LLM calls')
-    expect(detailHtml).toContain('Tool calls')
+    expect(detailHtml).toContain('LLM 调用次数')
+    expect(detailHtml).toContain('工具调用次数')
   })
 
   it('renders monotonic timeline and span tree surfaces', () => {
@@ -83,7 +83,7 @@ describe('TracePageView', () => {
     expect(timelineHtml).toContain('TRACE_COMPLETED')
 
     const treeHtml = renderToStaticMarkup(<TracePageView snapshot={snapshot} traceId={summary.traceId} tab="tree" />)
-    expect(treeHtml).toContain('Span Tree')
+    expect(treeHtml).toContain('跨度树')
     expect(treeHtml).toContain('industry.request')
   })
 
@@ -93,17 +93,17 @@ describe('TracePageView', () => {
       expect(html).not.toContain(forbidden)
     }
     expect(html).toContain('MASKED')
-    expect(html).toContain('Raw / Debug')
-    expect(html).toContain('Prompt')
-    expect(html).toContain('Audit')
+    expect(html).toContain('原始 / 调试')
+    expect(html).toContain('提示词')
+    expect(html).toContain('审计')
   })
 
   it('shows permission guidance when debug prompt and audit are absent', () => {
     const basic: TracePageSnapshot = { traces: [summary], detail: { summary, spans: detail.spans }, timeline, tree, stats }
     const html = renderToStaticMarkup(<TracePageView snapshot={basic} traceId={summary.traceId} tab="raw" />)
-    expect(html).toContain('trace.read.debug permission required')
-    expect(html).toContain('trace.read.prompt permission required')
-    expect(html).toContain('audit.read permission required')
+    expect(html).toContain('需要 trace.read.debug 权限')
+    expect(html).toContain('需要 trace.read.prompt 权限')
+    expect(html).toContain('需要 audit.read 权限')
   })
 })
 

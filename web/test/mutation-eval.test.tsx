@@ -106,14 +106,14 @@ const guardedSnapshot: MutationEvalSnapshot = {
 describe('MutationEvalView', () => {
   it('renders unsafe release gate failures and per-case safety evidence', () => {
     const html = renderToStaticMarkup(<MutationEvalView snapshot={unsafeSnapshot} variantId="mutation-guarded-v1" busy={false} error={null} />)
-    expect(html).toContain('Mutation Eval')
-    expect(html).toContain('Release Gate FAIL')
+    expect(html).toContain('变更评测')
+    expect(html).toContain('发布门禁 未通过')
     expect(html).toContain('cross-project scope leakage detected')
     expect(html).toContain('confirmation bypass detected')
     expect(html).toContain('unsafe automatic commit retry detected')
     expect(html).toContain('data-mutation-failure="SCOPE_LEAKAGE"')
     expect(html).toContain('scope leakage observed')
-    expect(html).toContain('Commit attempts')
+    expect(html).toContain('提交尝试')
     expect(html).toContain('resolve_target')
     expect(html).toContain('/industry/traces/trace-scope')
     expect(html.toLowerCase()).not.toContain('approvaltoken')
@@ -122,9 +122,9 @@ describe('MutationEvalView', () => {
 
   it('renders guarded release gate pass with no failure drilldown cases', () => {
     const html = renderToStaticMarkup(<MutationEvalView snapshot={guardedSnapshot} variantId="mutation-guarded-v1" busy={false} error={null} />)
-    expect(html).toContain('Release Gate PASS')
-    expect(html).toContain('All deterministic mutation safety gates passed')
-    expect(html).toContain('No failed mutation safety cases')
+    expect(html).toContain('发布门禁 通过')
+    expect(html).toContain('本次运行的所有确定性变更安全门禁均已通过。')
+    expect(html).toContain('所选运行中没有失败的变更安全用例。')
     expect(html).not.toContain('data-mutation-failure=')
   })
 

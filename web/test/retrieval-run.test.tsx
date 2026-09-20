@@ -82,10 +82,10 @@ describe('RetrievalRunView', () => {
     const html = renderToStaticMarkup(
       <RetrievalRunView snapshot={snapshot} selectedCaseId="retrieval-engineering-001" />,
     )
-    expect(html).toContain('Retrieval Failure Analysis')
-    expect(html).toContain('1 failures')
-    expect(html).toContain('Cross-alignment')
-    expect(html).toContain('Wrong entity HC')
+    expect(html).toContain('检索失败分析')
+    expect(html).toContain('1 失败')
+    expect(html).toContain('跨对齐')
+    expect(html).toContain('实体误判 HC')
     expect(html).toContain('FAILURE')
   })
 
@@ -93,7 +93,7 @@ describe('RetrievalRunView', () => {
     const html = renderToStaticMarkup(
       <RetrievalRunView snapshot={snapshot} selectedCaseId="retrieval-engineering-001" />,
     )
-    expect(html).toContain('Case Drilldown · retrieval-engineering-001')
+    expect(html).toContain('用例下钻 · retrieval-engineering-001')
     expect(html).toContain('eng-002')
     expect(html).toContain('eng-001')
     expect(html).toContain('mock-trace-engineering-001')

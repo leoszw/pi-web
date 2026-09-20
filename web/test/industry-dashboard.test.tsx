@@ -5,10 +5,10 @@ import { IndustryDashboard } from '../src/features/industry-dashboard/IndustryDa
 describe('IndustryDashboard', () => {
   it('states the P1 evaluation mock and no-infrastructure boundary', () => {
     const html = renderToStaticMarkup(<IndustryDashboard />)
-    expect(html).toContain('Control Plane · P1')
-    expect(html).toContain('Evaluation Workbench')
-    expect(html).toContain('deterministic mock')
-    expect(html).toContain('does not connect to MySQL')
+    expect(html).toContain('控制台 · P1')
+    expect(html).toContain('评测工作台')
+    expect(html).toContain('确定性模拟')
+    expect(html).toContain('不连接 MySQL')
     expect(html).toContain('OpenSearch')
   })
 })

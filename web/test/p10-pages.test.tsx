@@ -25,12 +25,12 @@ const operations:OperationsReadiness={environment:'MOCK',projectId:'project-1',o
 describe('P10 Runtime view',()=>{
   it('renders all ten adapters with required runtime fields and secret references only',()=>{
     const html=renderToStaticMarkup(<RuntimeView snapshot={{inventory,drafts:[draft],selectedDraft:draft}} component="AGENT_MODEL" adapter="" endpointAlias="" busy={false} error={null}/>)
-    for(const text of ['Runtime / Adapter · P10','Adapter','Endpoint alias','Configured','Health','Version','Last check','Secret source','10/10 runtime components present','AGENT_MODEL','TRACE_AUDIT','env · configured','agent_model-secret-ref'])expect(html).toContain(text)
+    for(const text of ['运行时 / 适配器 · P10','适配器','端点别名','已配置','健康','版本','上次检查','密钥来源','10/10 个运行时组件已存在','AGENT_MODEL','TRACE_AUDIT','env · 已配置','agent_model-secret-ref'])expect(html).toContain(text)
     expect(html).not.toContain('apiKey');expect(html).not.toContain('password=');expect(html).not.toContain('sk-')
   })
   it('renders the full config draft flow and eligibility without a promote action',()=>{
     const html=renderToStaticMarkup(<RuntimeView snapshot={{inventory,drafts:[draft],selectedDraft:draft}} component="AGENT_MODEL" adapter="" endpointAlias="" busy={false} error={null}/>)
-    for(const text of ['Draft → Validate → Diff → Save → version bump → Eval → eligible for promote','EVALUATED','mock-agent-model-v2','agent-model-candidate','Eligible for promote:','YES','P11 owns unified benchmark/release gating'])expect(html).toContain(text)
+    for(const text of ['草稿 → 校验 → 差异 → 保存 → 版本提升 → 评测 → 可提升','EVALUATED','mock-agent-model-v2','agent-model-candidate','可提升:','是','P11 负责统一基准评测/发布门禁'])expect(html).toContain(text)
     expect(html).not.toMatch(/<button[^>]*>\s*Promote\s*<\/button>/u)
   })
 })
@@ -38,7 +38,7 @@ describe('P10 Runtime view',()=>{
 describe('P10 Operations view',()=>{
   it('renders all readiness families and keeps approvals display-only',()=>{
     const html=renderToStaticMarkup(<OperationsView snapshot={operations} error={null}/>)
-    for(const text of ['Operations · P10','CI','Adapter readiness','Staging infra','Trace / Audit','Eval gate','E2E','Renderer','Sandbox','DB approval','Production approval','NOT_READY','display-only readiness signals'])expect(html).toContain(text)
+    for(const text of ['运维 · P10','CI','Adapter readiness','Staging infra','Trace / Audit','Eval gate','E2E','Renderer','Sandbox','DB approval','Production approval','NOT_READY','展示用的就绪信号'])expect(html).toContain(text)
     expect(html).not.toMatch(/<button[^>]*>[^<]*(Approve|Force Pass|Manual PASS|Promote)/iu)
   })
 })

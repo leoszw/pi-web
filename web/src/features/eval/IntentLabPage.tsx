@@ -126,7 +126,7 @@ export function IntentLabPage({
 
   const saveAsDraftCase = async (): Promise<void> => {
     if (expectedIntent === '') {
-      setError('Choose an expected intent before saving a Draft case.')
+      setError('保存草稿用例前请选择期望意图。')
       return
     }
     setBusy(true)
@@ -143,7 +143,7 @@ export function IntentLabPage({
         tags: ['playground'],
         difficulty: 'HARD',
         critical: expectedIntent === 'MUTATION',
-        notes: 'Saved from Intent Lab playground for human review.',
+        notes: '从意图实验试验场保存，供人工评审。',
       })
       setSavedDraftCaseId(created.caseId)
       const datasets = await client.listDatasets()
@@ -160,48 +160,48 @@ export function IntentLabPage({
     }
   }
 
-  if (error !== null && snapshot === undefined) return <main className="eval-page"><h1>Intent Lab</h1><p role="alert">{error}</p></main>
-  if (snapshot === undefined) return <main className="eval-page"><h1>Intent Lab</h1><p>Loading Intent Lab…</p></main>
+  if (error !== null && snapshot === undefined) return <main className="eval-page"><h1>意图实验</h1><p role="alert">{error}</p></main>
+  if (snapshot === undefined) return <main className="eval-page"><h1>意图实验</h1><p>加载意图实验…</p></main>
 
   return (
     <main className="eval-page" aria-labelledby="intent-lab-title">
-      <div className="eval-eyebrow">Intent Evaluation · P1</div>
+      <div className="eval-eyebrow">意图评测 · P1</div>
       <div className="eval-heading-row">
         <div>
-          <h1 id="intent-lab-title">Intent Lab</h1>
-          <p>Playground, batch evaluation, confusion matrix, failure drilldown, and baseline/candidate comparison.</p>
+          <h1 id="intent-lab-title">意图实验</h1>
+          <p>试验场、批量评测、混淆矩阵、失败下钻，以及基线/候选对比。</p>
         </div>
-        <a href="/industry/eval">Evaluation overview</a>
+        <a href="/industry/eval">评测概览</a>
       </div>
       {error === null ? null : <p className="eval-error" role="alert">{error}</p>}
 
       <section className="eval-panel">
-        <h2>Run configuration</h2>
+        <h2>运行配置</h2>
         <div className="eval-form-row">
-          <label>Dataset
+          <label>数据集
             <select value={datasetId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setDatasetId(event.currentTarget.value)}>
               {snapshot.datasets.filter((dataset) => dataset.domain === 'INTENT').map((dataset) => (
                 <option key={dataset.datasetId} value={dataset.datasetId}>{dataset.name} · {dataset.status}</option>
               ))}
             </select>
           </label>
-          <label>Variant
+          <label>变体
             <select value={variantId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setVariantId(event.currentTarget.value)}>
               {snapshot.variants.map((variant) => <option key={variant.variantId} value={variant.variantId}>{variant.label}</option>)}
             </select>
           </label>
-          <button type="button" disabled={busy} onClick={() => void startRun()}>Run dataset</button>
-          <button type="button" disabled={busy} onClick={() => void compareSeedRuns()}>Compare seeded runs</button>
+          <button type="button" disabled={busy} onClick={() => void startRun()}>运行数据集</button>
+          <button type="button" disabled={busy} onClick={() => void compareSeedRuns()}>对比种子运行</button>
         </div>
-        <p className="eval-muted">Loaded {cases.length} cases. DRAFT datasets are visible for development but are not baseline-ready.</p>
+        <p className="eval-muted">已加载 {cases.length} 个用例。DRAFT 数据集在开发中可见，但尚未达到基线就绪状态。</p>
       </section>
 
       <section className="eval-panel">
-        <h2>Dataset cases</h2>
+        <h2>数据集用例</h2>
         <div className="eval-case-browser">
           <div className="eval-scroll">
             <table className="eval-table">
-              <thead><tr><th>Case</th><th>Query</th><th>Expected</th><th>Difficulty</th><th>Reviewed</th></tr></thead>
+              <thead><tr><th>用例</th><th>查询</th><th>期望</th><th>难度</th><th>已评审</th></tr></thead>
               <tbody>
                 {cases.map((testCase) => (
                   <tr key={testCase.caseId} data-selected={selectedCaseId === testCase.caseId}>
@@ -209,55 +209,55 @@ export function IntentLabPage({
                     <td>{testCase.query}</td>
                     <td>{testCase.expected.primaryIntent}</td>
                     <td>{testCase.difficulty}</td>
-                    <td>{testCase.reviewed ? 'Yes' : 'Draft'}</td>
+                    <td>{testCase.reviewed ? '是' : '草稿'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {selectedCase === null ? <p className="eval-muted">No case selected.</p> : (
+          {selectedCase === null ? <p className="eval-muted">未选择用例。</p> : (
             <aside className="eval-case-detail">
               <h3>{selectedCase.caseId}</h3>
               <p>{selectedCase.query}</p>
               <dl>
-                <div><dt>Expected</dt><dd>{selectedCase.expected.primaryIntent}</dd></div>
-                <div><dt>Label version</dt><dd>{selectedCase.labelVersion}</dd></div>
-                <div><dt>Reviewed</dt><dd>{selectedCase.reviewed ? 'Yes' : 'No'}</dd></div>
-                <div><dt>Critical</dt><dd>{selectedCase.critical ? 'Yes' : 'No'}</dd></div>
+                <div><dt>期望</dt><dd>{selectedCase.expected.primaryIntent}</dd></div>
+                <div><dt>标签版本</dt><dd>{selectedCase.labelVersion}</dd></div>
+                <div><dt>已评审</dt><dd>{selectedCase.reviewed ? '是' : '否'}</dd></div>
+                <div><dt>关键</dt><dd>{selectedCase.critical ? '是' : '否'}</dd></div>
               </dl>
               <div className="eval-tags">{selectedCase.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
-              <p className="eval-muted">Label history entries: {selectedCase.labelHistory.length}</p>
+              <p className="eval-muted">标签历史条目: {selectedCase.labelHistory.length}</p>
             </aside>
           )}
         </div>
       </section>
 
       <section className="eval-panel">
-        <h2>Intent Playground</h2>
+        <h2>意图试验场</h2>
         <form onSubmit={(event: FormEvent<HTMLFormElement>) => { void runPlayground(event) }}>
-          <label>Query
+          <label>查询
             <textarea value={query} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setQuery(event.currentTarget.value)} rows={3} />
           </label>
-          <label>Previous resolved intent (optional)
+          <label>上一轮已解析意图（可选）
             <select value={previousIntent} onChange={(event: ChangeEvent<HTMLSelectElement>) => setPreviousIntent(event.currentTarget.value)}>
-              <option value="">None</option>
+              <option value="">无</option>
               {INTENT_NAMES.map((intent) => <option key={intent} value={intent}>{intent}</option>)}
             </select>
           </label>
-          <button type="submit" disabled={busy || query.trim() === ''}>Evaluate query</button>
+          <button type="submit" disabled={busy || query.trim() === ''}>评测查询</button>
         </form>
         {playground === null ? null : (
           <>
             <PlaygroundResult result={playground} />
             <div className="eval-draft-save">
-              <label>Expected intent for Draft case
+              <label>草稿用例的期望意图
                 <select value={expectedIntent} onChange={(event: ChangeEvent<HTMLSelectElement>) => setExpectedIntent(event.currentTarget.value as IntentName | '')}>
-                  <option value="">Choose explicitly…</option>
+                  <option value="">显式选择…</option>
                   {INTENT_NAMES.map((intent) => <option key={intent} value={intent}>{intent}</option>)}
                 </select>
               </label>
-              <button type="button" disabled={busy || expectedIntent === ''} onClick={() => void saveAsDraftCase()}>Save as Draft Case</button>
-              {savedDraftCaseId === null ? null : <span>Saved <code>{savedDraftCaseId}</code> · reviewed=false</span>}
+              <button type="button" disabled={busy || expectedIntent === ''} onClick={() => void saveAsDraftCase()}>保存为草稿用例</button>
+              {savedDraftCaseId === null ? null : <span>已保存 <code>{savedDraftCaseId}</code> · reviewed=false</span>}
             </div>
           </>
         )}
@@ -266,16 +266,16 @@ export function IntentLabPage({
       {activeRun?.metrics === undefined ? null : (
         <>
           <section className="eval-panel">
-            <h2>Latest batch run</h2>
+            <h2>最新批次运行</h2>
             <p><code>{activeRun.runId}</code> · {activeRun.variantId} · {activeRun.status}</p>
             <MetricTable metrics={activeRun.metrics} />
           </section>
           <section className="eval-panel">
-            <h2>Confusion matrix</h2>
+            <h2>混淆矩阵</h2>
             <ConfusionMatrix matrix={activeRun.metrics.confusionMatrix} />
           </section>
           <section className="eval-panel">
-            <h2>Failure Explorer</h2>
+            <h2>失败浏览器</h2>
             <FailureList observations={observations} />
           </section>
         </>
@@ -283,9 +283,9 @@ export function IntentLabPage({
 
       {comparison === null ? null : (
         <section className="eval-panel">
-          <h2>Baseline vs Candidate</h2>
+          <h2>基线 vs 候选</h2>
           <table className="eval-table">
-            <thead><tr><th>Metric</th><th>Baseline</th><th>Candidate</th><th>Delta</th></tr></thead>
+            <thead><tr><th>指标</th><th>基线</th><th>候选</th><th>增量</th></tr></thead>
             <tbody>
               {comparison.metricDeltas.map((item) => (
                 <tr key={item.metric}>
@@ -297,7 +297,7 @@ export function IntentLabPage({
               ))}
             </tbody>
           </table>
-          <p>Improved cases: {comparison.improvedCaseIds.length}; regressed cases: {comparison.regressedCaseIds.length}; unchanged: {comparison.unchangedCaseCount}.</p>
+          <p>改善用例: {comparison.improvedCaseIds.length}; 退化用例: {comparison.regressedCaseIds.length}; 未变: {comparison.unchangedCaseCount}.</p>
         </section>
       )}
     </main>
@@ -307,12 +307,12 @@ export function IntentLabPage({
 export function PlaygroundResult({ result }: { result: IntentPlaygroundResult }) {
   return (
     <div className="eval-playground-result">
-      <div><span>Primary intent</span><strong>{result.primaryIntent}</strong></div>
-      <div><span>Confidence</span><strong>{formatPercent(result.confidence)}</strong></div>
-      <div><span>Variant</span><strong>{result.variantId}</strong></div>
-      <div><span>Project</span><strong>{result.semanticFrame.projectId ?? 'none'}</strong></div>
-      <div className="eval-playground-result__wide"><span>Candidates</span><strong>{result.candidates.map((item) => `${item.intent} ${formatPercent(item.confidence)}`).join(' · ')}</strong></div>
-      <div className="eval-playground-result__wide"><span>Trace</span><code>{result.traceId}</code></div>
+      <div><span>主意图</span><strong>{result.primaryIntent}</strong></div>
+      <div><span>置信度</span><strong>{formatPercent(result.confidence)}</strong></div>
+      <div><span>变体</span><strong>{result.variantId}</strong></div>
+      <div><span>项目</span><strong>{result.semanticFrame.projectId ?? '无'}</strong></div>
+      <div className="eval-playground-result__wide"><span>候选</span><strong>{result.candidates.map((item) => `${item.intent} ${formatPercent(item.confidence)}`).join(' · ')}</strong></div>
+      <div className="eval-playground-result__wide"><span>追踪</span><code>{result.traceId}</code></div>
     </div>
   )
 }

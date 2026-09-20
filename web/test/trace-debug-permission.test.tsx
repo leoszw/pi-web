@@ -11,9 +11,9 @@ const spans: TraceDetail['spans'] = [{ spanId: 'span-1', name: 'request', kind: 
 describe('Retrieval Debug capability link', () => {
   it('is hidden for basic trace access and shown only when debug data is granted', () => {
     const basic = renderToStaticMarkup(<TracePageView snapshot={{ traces: [summary], detail: { summary, spans } }} traceId={summary.traceId} tab="overview" />)
-    expect(basic).not.toContain('Open Retrieval Debug')
+    expect(basic).not.toContain('打开检索调试')
     const debug = renderToStaticMarkup(<TracePageView snapshot={{ traces: [summary], detail: { summary, spans, debug: { request: {}, response: {}, toolCalls: [] } } }} traceId={summary.traceId} tab="overview" />)
-    expect(debug).toContain('Open Retrieval Debug')
+    expect(debug).toContain('打开检索调试')
     expect(debug).toContain('/industry/debug/retrieval/trace-project-1-retrieval-001')
   })
 })

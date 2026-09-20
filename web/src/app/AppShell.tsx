@@ -11,7 +11,6 @@ import { RetrievalLabPage } from '../features/eval/RetrievalLabPage'
 import { RetrievalRunPage } from '../features/eval/RetrievalRunPage'
 import { TraceEvalPage } from '../features/eval/TraceEvalPage'
 import { UnifiedBenchmarkPage } from '../features/eval/UnifiedBenchmarkPage'
-import { IndustryWorkspacePage } from '../features/industry-workspace/IndustryWorkspacePage'
 import { KnowledgePage } from '../features/knowledge/KnowledgePage'
 import { MutationCenterPage } from '../features/mutation-center/MutationCenterPage'
 import { AgentLoopPage } from '../features/p8/AgentLoopPage'
@@ -23,6 +22,7 @@ import { RuntimePage } from '../features/p10/RuntimePage'
 import { OnlineQualityPage } from '../features/p12/OnlineQualityPage'
 import { RetrievalDebugPage } from '../features/trace/RetrievalDebugPage'
 import { TracePage } from '../features/trace/TracePage'
+import { ProjectSelector } from './ProjectSelector'
 import {
   isEvaluationRoute,isMutationRoute,isTraceRoute,mutationEvalRunIdFromPath,mutationOperationIdFromPath,
   ragEvalRunIdFromPath,resolveAppRoute,retrievalDebugTraceIdFromPath,retrievalRunIdFromPath,routePath,
@@ -33,7 +33,6 @@ import './app-shell.css'
 export interface AppShellProps {
   initialPath?: string
   codingChat?: ReactNode
-  industryWorkspace?: ReactNode
   knowledge?: ReactNode
   multimodal?: ReactNode
   agentLoop?: ReactNode
@@ -63,8 +62,8 @@ export function AppShell(props:AppShellProps){
   useEffect(()=>{if(initialPath!==undefined)return undefined;const onPopState=():void=>setRoute(resolveAppRoute(window.location.pathname));window.addEventListener('popstate',onPopState);return()=>window.removeEventListener('popstate',onPopState)},[initialPath])
   const navigate=(target:AppRoute)=>(event:MouseEvent<HTMLAnchorElement>):void=>{if(initialPath!==undefined)return;event.preventDefault();const path=routePath(target);if(window.location.pathname!==path)window.history.pushState({},'',path);setRoute(target)}
   return <div className="app-shell"><nav className="app-shell__nav" aria-label="主导航">
-    <a href="/chat" data-active={route==='chat'} onClick={navigate('chat')}>Coding Chat</a><a href="/industry" data-active={route==='industry'} onClick={navigate('industry')}>Industry Agent</a><a href="/industry/knowledge" data-active={route==='industry-knowledge'} onClick={navigate('industry-knowledge')}>Knowledge</a><a href="/industry/multimodal" data-active={route==='industry-multimodal'} onClick={navigate('industry-multimodal')}>Multimodal</a><a href="/industry/agent-loop" data-active={route==='industry-agent-loop'} onClick={navigate('industry-agent-loop')}>Agent Loop</a><a href="/industry/reports" data-active={route==='industry-reports'} onClick={navigate('industry-reports')}>Reports</a><a href="/industry/sandbox" data-active={route==='industry-sandbox'} onClick={navigate('industry-sandbox')}>Sandbox</a><a href="/industry/runtime" data-active={route==='industry-runtime'} onClick={navigate('industry-runtime')}>Runtime</a><a href="/industry/operations" data-active={route==='industry-operations'} onClick={navigate('industry-operations')}>Operations</a><a href="/industry/quality" data-active={route==='industry-quality'} onClick={navigate('industry-quality')}>Quality</a><a href="/industry/traces" data-active={isTraceRoute(route)} onClick={navigate('industry-traces')}>Trace</a><a href="/industry/mutations" data-active={isMutationRoute(route)} onClick={navigate('industry-mutations')}>Mutation Center</a><a href="/industry/eval" data-active={isEvaluationRoute(route)} onClick={navigate('industry-eval')}>Evaluation</a>
-  </nav><div className="app-shell__content"><AppContent {...props} route={route} traceId={traceId} retrievalDebugTraceId={retrievalDebugTraceId} retrievalRunId={retrievalRunId} mutationEvalRunId={mutationEvalRunId} traceEvalRunId={traceEvalRunId} ragEvalRunId={ragEvalRunId} mutationOperationId={mutationOperationId}/></div></div>
+    <a href="/chat" data-active={route==='chat'} onClick={navigate('chat')}>对话</a><a href="/industry/knowledge" data-active={route==='industry-knowledge'} onClick={navigate('industry-knowledge')}>知识库</a><a href="/industry/multimodal" data-active={route==='industry-multimodal'} onClick={navigate('industry-multimodal')}>多模态</a><a href="/industry/agent-loop" data-active={route==='industry-agent-loop'} onClick={navigate('industry-agent-loop')}>智能体循环</a><a href="/industry/reports" data-active={route==='industry-reports'} onClick={navigate('industry-reports')}>报告</a><a href="/industry/sandbox" data-active={route==='industry-sandbox'} onClick={navigate('industry-sandbox')}>沙箱</a><a href="/industry/runtime" data-active={route==='industry-runtime'} onClick={navigate('industry-runtime')}>运行时</a><a href="/industry/operations" data-active={route==='industry-operations'} onClick={navigate('industry-operations')}>运维</a><a href="/industry/quality" data-active={route==='industry-quality'} onClick={navigate('industry-quality')}>质量</a><a href="/industry/traces" data-active={isTraceRoute(route)} onClick={navigate('industry-traces')}>追踪</a><a href="/industry/mutations" data-active={isMutationRoute(route)} onClick={navigate('industry-mutations')}>变更中心</a><a href="/industry/eval" data-active={isEvaluationRoute(route)} onClick={navigate('industry-eval')}>评测</a>
+  </nav><ProjectSelector/><div className="app-shell__content"><AppContent {...props} route={route} traceId={traceId} retrievalDebugTraceId={retrievalDebugTraceId} retrievalRunId={retrievalRunId} mutationEvalRunId={mutationEvalRunId} traceEvalRunId={traceEvalRunId} ragEvalRunId={ragEvalRunId} mutationOperationId={mutationOperationId}/></div></div>
 }
 
 function AppContent(props:AppShellProps&{route:AppRoute;traceId:string|null;retrievalDebugTraceId:string|null;retrievalRunId:string|null;mutationEvalRunId:string|null;traceEvalRunId:string|null;ragEvalRunId:string|null;mutationOperationId:string|null}){
@@ -102,7 +101,6 @@ function AppContent(props:AppShellProps&{route:AppRoute;traceId:string|null;retr
   if(route==='industry-mutation-detail'&&mutationOperationId!==null)return props.mutationCenter??<MutationCenterPage mode="detail" operationId={mutationOperationId}/>
   if(route==='industry-mutation-reconciliation')return props.mutationCenter??<MutationCenterPage mode="reconciliation"/>
   if(route==='industry-mutations')return props.mutationCenter??<MutationCenterPage mode="list"/>
-  if(route==='industry')return props.industryWorkspace??<IndustryWorkspacePage/>
   return props.codingChat??<CodingChatApp/>
 }
 function currentPath():string{return typeof window==='undefined'?'/chat':window.location.pathname}

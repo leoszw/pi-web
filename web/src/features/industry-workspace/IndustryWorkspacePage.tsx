@@ -68,7 +68,7 @@ export function IndustryWorkspacePage({
     setBusy(true)
     setError(null)
     try {
-      const conversation = await conversationClient.createConversation({ title: 'Industry Workspace' })
+      const conversation = await conversationClient.createConversation({ title: '行业工作区' })
       gatewayRef.current = new IndustryEventGateway(conversationClient)
       const synced = await gatewayRef.current.reconnect(conversation.conversationId)
       const events = gatewayRef.current.knownEvents
@@ -78,7 +78,7 @@ export function IndustryWorkspacePage({
         events,
         actions: actionsFromEvents(events),
       })
-      if (synced.gapAtSequenceNo !== undefined) setError(`Event sequence gap at ${synced.gapAtSequenceNo}`)
+      if (synced.gapAtSequenceNo !== undefined) setError(`事件序列在 ${synced.gapAtSequenceNo} 处出现间隙`)
     } catch (reason) {
       setError(messageOf(reason))
     } finally {
@@ -160,11 +160,11 @@ export function IndustryWorkspacePage({
       events,
       actions: actionsFromEvents(events),
     })
-    if (synced.gapAtSequenceNo !== undefined) setError(`Event sequence gap at ${synced.gapAtSequenceNo}`)
+    if (synced.gapAtSequenceNo !== undefined) setError(`事件序列在 ${synced.gapAtSequenceNo} 处出现间隙`)
   }
 
   if (snapshot === undefined) {
-    return <main className="industry-workspace-page"><h1>Industry Workspace</h1>{error === null ? <p>Loading project context…</p> : <p className="workspace-error" role="alert">{error}</p>}</main>
+    return <main className="industry-workspace-page"><h1>行业工作区</h1>{error === null ? <p>加载项目上下文中…</p> : <p className="workspace-error" role="alert">{error}</p>}</main>
   }
 
   return <IndustryWorkspaceView
@@ -213,56 +213,56 @@ export function IndustryWorkspaceView({
   return (
     <main className="industry-workspace-page" aria-labelledby="industry-workspace-title">
       <header className="workspace-heading">
-        <div><span>Industry Agent · P3</span><h1 id="industry-workspace-title">Industry Workspace</h1><p>Mock end-to-end workspace. Scope is server-derived; no real MySQL/OpenSearch/LLM/mutation is used.</p></div>
-        <a href="/industry/eval">Evaluation</a>
+        <div><span>行业智能体 · P3</span><h1 id="industry-workspace-title">行业工作区</h1><p>模拟的端到端工作区。范围由服务端派生;未使用真实的 MySQL/OpenSearch/LLM/变更。</p></div>
+        <a href="/industry/eval">评测</a>
       </header>
       {error === null ? null : <p className="workspace-error" role="alert">{error}</p>}
 
       <div className="workspace-grid">
-        <aside className="workspace-panel workspace-project" aria-label="Project Context">
-          <h2>Project Context</h2>
-          <label>Active project
+        <aside className="workspace-panel workspace-project" aria-label="项目上下文">
+          <h2>项目上下文</h2>
+          <label>当前项目
             <select value={snapshot.context.context.projectId ?? ''} disabled={busy} onChange={(event) => onProjectChange(event.target.value)}>
-              <option value="">Select project</option>
+              <option value="">选择项目</option>
               {snapshot.context.authorizedProjects.map((item) => <option value={item.projectId} key={item.projectId}>{item.name}</option>)}
             </select>
           </label>
           <dl>
-            <div><dt>Tenant</dt><dd><code>{snapshot.context.context.tenantId}</code></dd></div>
-            <div><dt>Company</dt><dd><code>{snapshot.context.context.companyId ?? '—'}</code></dd></div>
-            <div><dt>Project</dt><dd><code>{snapshot.context.context.projectId ?? '—'}</code></dd></div>
-            <div><dt>Name</dt><dd>{project?.name ?? '—'}</dd></div>
+            <div><dt>租户</dt><dd><code>{snapshot.context.context.tenantId}</code></dd></div>
+            <div><dt>公司</dt><dd><code>{snapshot.context.context.companyId ?? '—'}</code></dd></div>
+            <div><dt>项目</dt><dd><code>{snapshot.context.context.projectId ?? '—'}</code></dd></div>
+            <div><dt>名称</dt><dd>{project?.name ?? '—'}</dd></div>
           </dl>
-          <button type="button" disabled={busy || snapshot.context.context.projectId === null} onClick={onCreateConversation}>New conversation</button>
-          <p className="workspace-note">Project selection is the only browser-provided scope input. Tenant/user/company remain server-controlled.</p>
+          <button type="button" disabled={busy || snapshot.context.context.projectId === null} onClick={onCreateConversation}>新建会话</button>
+          <p className="workspace-note">项目选择是浏览器端提供的唯一范围输入。租户/用户/公司仍由服务端控制。</p>
         </aside>
 
-        <section className="workspace-panel workspace-conversation" aria-label="Conversation">
-          <div className="workspace-panel-heading"><h2>Conversation</h2>{conversation === undefined ? null : <span data-status={conversation.status}>{conversation.status}</span>}</div>
-          {conversation === undefined ? <div className="workspace-empty">Select a project and create a conversation.</div> : <>
+        <section className="workspace-panel workspace-conversation" aria-label="会话">
+          <div className="workspace-panel-heading"><h2>会话</h2>{conversation === undefined ? null : <span data-status={conversation.status}>{conversation.status}</span>}</div>
+          {conversation === undefined ? <div className="workspace-empty">请选择项目并创建会话。</div> : <>
             <div className="workspace-messages">
-              {conversation.messages.length === 0 ? <p className="workspace-note">No messages yet. Send “演示全部 UIAction” to render the full registry.</p> : conversation.messages.map((item) => <article key={item.messageId} data-role={item.role}>
-                <header><strong>{item.role === 'USER' ? 'You' : 'Industry Agent'}</strong><a href={`/industry/traces/${encodeURIComponent(item.traceId)}`}>trace</a></header>
+              {conversation.messages.length === 0 ? <p className="workspace-note">暂无消息。发送“演示全部 UIAction”以渲染完整注册表。</p> : conversation.messages.map((item) => <article key={item.messageId} data-role={item.role}>
+                <header><strong>{item.role === 'USER' ? '你' : '行业智能体'}</strong><a href={`/industry/traces/${encodeURIComponent(item.traceId)}`}>追踪</a></header>
                 <p>{item.text}</p>
               </article>)}
               {snapshot.actions.map((action) => <UIActionRegistry action={action} busy={busy} onInteract={onActionInteract} key={action.actionId} />)}
             </div>
             <form className="workspace-composer" onSubmit={onSendMessage}>
-              <textarea rows={3} value={message} disabled={busy || conversation.status !== 'ACTIVE'} onChange={(event) => onMessageChange(event.target.value)} placeholder="Ask about engineering data or type 演示全部 UIAction" />
-              <div><button type="submit" disabled={busy || conversation.status !== 'ACTIVE' || message.trim() === ''}>Send</button><button type="button" disabled={busy} onClick={onReconnect}>Reconnect events</button><button type="button" disabled={busy || conversation.status !== 'ACTIVE'} onClick={onAbort}>Abort</button></div>
+              <textarea rows={3} value={message} disabled={busy || conversation.status !== 'ACTIVE'} onChange={(event) => onMessageChange(event.target.value)} placeholder="询问工程数据,或输入 演示全部 UIAction" />
+              <div><button type="submit" disabled={busy || conversation.status !== 'ACTIVE' || message.trim() === ''}>发送</button><button type="button" disabled={busy} onClick={onReconnect}>重新连接事件</button><button type="button" disabled={busy || conversation.status !== 'ACTIVE'} onClick={onAbort}>中止</button></div>
             </form>
           </>}
         </section>
 
-        <aside className="workspace-panel workspace-inspector" aria-label="Context Inspector">
-          <h2>Context Inspector</h2>
-          <InspectorCard title="Tool Card"><strong>MockIndustryAgentClient</strong><span>fixture adapter · read-only P3</span></InspectorCard>
-          <InspectorCard title="Citation"><span>Project fixture: {project?.name ?? 'no active project'}</span><span>Conversation events are the current evidence source.</span></InspectorCard>
-          <InspectorCard title="Working Memory"><span>projectId: <code>{snapshot.context.context.projectId ?? '—'}</code></span><span>conversation: <code>{conversation?.conversationId ?? '—'}</code></span><span>event cursor: {conversation?.lastSequenceNo ?? 0}</span><span>UIActions: {snapshot.actions.length}</span></InspectorCard>
-          <InspectorCard title="Trace link">{latestTrace === undefined ? <span>—</span> : <a href={`/industry/traces/${encodeURIComponent(latestTrace)}`}><code>{latestTrace}</code></a>}</InspectorCard>
-          <InspectorCard title="Image upload"><input type="file" disabled aria-label="Image upload placeholder" /><span>Placeholder · enabled in a later phase</span></InspectorCard>
-          <InspectorCard title="Export"><button type="button" disabled>Export placeholder</button><span>DataTable actions expose immutable snapshot references.</span></InspectorCard>
-          <InspectorCard title="Event Gateway"><span>{snapshot.events.length} known events</span><span>eventId dedupe + monotonic sequence + reconnect cursor</span></InspectorCard>
+        <aside className="workspace-panel workspace-inspector" aria-label="上下文检查器">
+          <h2>上下文检查器</h2>
+          <InspectorCard title="工具卡片"><strong>MockIndustryAgentClient</strong><span>夹具适配器 · 只读 P3</span></InspectorCard>
+          <InspectorCard title="引用"><span>项目夹具: {project?.name ?? '无当前项目'}</span><span>会话事件是当前的证据来源。</span></InspectorCard>
+          <InspectorCard title="工作内存"><span>projectId: <code>{snapshot.context.context.projectId ?? '—'}</code></span><span>conversation: <code>{conversation?.conversationId ?? '—'}</code></span><span>事件游标: {conversation?.lastSequenceNo ?? 0}</span><span>UIActions: {snapshot.actions.length}</span></InspectorCard>
+          <InspectorCard title="追踪链接">{latestTrace === undefined ? <span>—</span> : <a href={`/industry/traces/${encodeURIComponent(latestTrace)}`}><code>{latestTrace}</code></a>}</InspectorCard>
+          <InspectorCard title="图片上传"><input type="file" disabled aria-label="图片上传占位" /><span>占位 · 在后续阶段启用</span></InspectorCard>
+          <InspectorCard title="导出"><button type="button" disabled>导出占位</button><span>DataTable 操作暴露不可变的快照引用。</span></InspectorCard>
+          <InspectorCard title="事件网关"><span>已知 {snapshot.events.length} 个事件</span><span>eventId 去重 + 单调序列 + 重连游标</span></InspectorCard>
         </aside>
       </div>
     </main>

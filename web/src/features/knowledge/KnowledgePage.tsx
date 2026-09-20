@@ -68,7 +68,7 @@ export function KnowledgePage({ client = defaultClient, initialSnapshot }: { cli
     } catch (reason) { setError(messageOf(reason)) } finally { setBusy(false) }
   }
 
-  if (snapshot === undefined || form === undefined) return <main className="knowledge-page"><h1>Knowledge</h1><p>{error ?? 'Loading knowledge workspace…'}</p></main>
+  if (snapshot === undefined || form === undefined) return <main className="knowledge-page"><h1>知识库</h1><p>{error ?? '加载知识工作区…'}</p></main>
   return <KnowledgePageView
     snapshot={snapshot}
     form={form}
@@ -97,37 +97,37 @@ export function KnowledgePageView({
   const options = snapshot.options
   return <main className="knowledge-page" aria-labelledby="knowledge-title">
     <header className="knowledge-heading">
-      <div><span>Industry Agent · P6</span><h1 id="knowledge-title">Knowledge / RAG</h1><p>Mock-backed document management, ACL review, ingestion, chunks, and source versions. No object storage or OpenSearch is connected.</p></div>
-      <nav><a href="/industry">Workspace</a><a href="/industry/eval/rag">RAG Eval</a></nav>
+      <div><span>行业智能体 · P6</span><h1 id="knowledge-title">知识库 / RAG</h1><p>基于模拟的文档管理、ACL 评审、摄入、分块和源版本。未连接对象存储或 OpenSearch。</p></div>
+      <nav><a href="/industry">工作区</a><a href="/industry/eval/rag">RAG 评测</a></nav>
     </header>
     {error === null ? null : <p className="knowledge-error" role="alert">{error}</p>}
 
     <section className="knowledge-panel">
-      <h2>Upload document</h2>
-      <p>All scope and ACL choices below are issued by the server for the active principal/project. P6 reads local file metadata only; file bytes are not uploaded or stored.</p>
+      <h2>上传文档</h2>
+      <p>以下所有范围和 ACL 选项由服务端为当前主体/项目签发。P6 仅读取本地文件元数据;文件字节不会上传或存储。</p>
       <div className="knowledge-form-grid">
-        <label>Local file (metadata only)<input type="file" accept=".pdf,.txt,.docx,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={busy} onChange={(event) => {
+        <label>本地文件(仅元数据)<input type="file" accept=".pdf,.txt,.docx,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={busy} onChange={(event) => {
           const file = event.currentTarget.files?.[0]
           if (file !== undefined) onFormChange({ ...form, fileName: file.name, mimeType: file.type || mimeFromName(file.name), sizeBytes: file.size })
         }} /></label>
-        <label>File name<input value={form.fileName} disabled={busy} onChange={(event) => onFormChange({ ...form, fileName: event.target.value })} /></label>
-        <label>MIME<select value={form.mimeType} disabled={busy} onChange={(event) => onFormChange({ ...form, mimeType: event.target.value })}><option value="application/pdf">PDF</option><option value="text/plain">Text</option><option value="application/vnd.openxmlformats-officedocument.wordprocessingml.document">DOCX</option></select></label>
-        <label>Size bytes<input type="number" value={form.sizeBytes} min={1} disabled={busy} onChange={(event) => onFormChange({ ...form, sizeBytes: Number(event.target.value) })} /></label>
-        <Select label="Industry" value={form.industry} values={options.industries} disabled={busy} onChange={(value) => onFormChange({ ...form, industry: value })} />
-        <Select label="Company" value={form.companyId} values={options.companies.map((item) => item.companyId)} disabled={busy} onChange={(value) => onFormChange({ ...form, companyId: value })} />
-        <Select label="Project" value={form.projectId} values={options.projects.map((item) => item.projectId)} disabled={busy} onChange={(value) => onFormChange({ ...form, projectId: value })} />
-        <Select label="Department" value={form.department} values={options.departments} disabled={busy} onChange={(value) => onFormChange({ ...form, department: value })} />
-        <label>Visibility<select value={form.visibility} disabled={busy} onChange={(event) => onFormChange({ ...form, visibility: event.target.value as KnowledgeVisibility })}>{options.visibilities.map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label>文件名<input value={form.fileName} disabled={busy} onChange={(event) => onFormChange({ ...form, fileName: event.target.value })} /></label>
+        <label>MIME<select value={form.mimeType} disabled={busy} onChange={(event) => onFormChange({ ...form, mimeType: event.target.value })}><option value="application/pdf">PDF</option><option value="text/plain">文本</option><option value="application/vnd.openxmlformats-officedocument.wordprocessingml.document">DOCX</option></select></label>
+        <label>大小(字节)<input type="number" value={form.sizeBytes} min={1} disabled={busy} onChange={(event) => onFormChange({ ...form, sizeBytes: Number(event.target.value) })} /></label>
+        <Select label="行业" value={form.industry} values={options.industries} disabled={busy} onChange={(value) => onFormChange({ ...form, industry: value })} />
+        <Select label="公司" value={form.companyId} values={options.companies.map((item) => item.companyId)} disabled={busy} onChange={(value) => onFormChange({ ...form, companyId: value })} />
+        <Select label="项目" value={form.projectId} values={options.projects.map((item) => item.projectId)} disabled={busy} onChange={(value) => onFormChange({ ...form, projectId: value })} />
+        <Select label="部门" value={form.department} values={options.departments} disabled={busy} onChange={(value) => onFormChange({ ...form, department: value })} />
+        <label>可见性<select value={form.visibility} disabled={busy} onChange={(event) => onFormChange({ ...form, visibility: event.target.value as KnowledgeVisibility })}>{options.visibilities.map((item) => <option key={item}>{item}</option>)}</select></label>
       </div>
-      <AclChoices title="ACL Users" values={options.users.map((item) => item.userId)} selected={form.aclUsers} disabled={busy} onChange={(aclUsers) => onFormChange({ ...form, aclUsers })} />
-      <AclChoices title="ACL Roles" values={options.roles} selected={form.aclRoles} disabled={busy} onChange={(aclRoles) => onFormChange({ ...form, aclRoles })} />
-      <AclChoices title="Security Tags" values={options.securityTags} selected={form.securityTags} disabled={busy} onChange={(securityTags) => onFormChange({ ...form, securityTags })} />
-      <button type="button" disabled={busy || form.fileName.trim() === '' || form.sizeBytes <= 0} onClick={onUpload}>Create mock upload</button>
+      <AclChoices title="ACL 用户" values={options.users.map((item) => item.userId)} selected={form.aclUsers} disabled={busy} onChange={(aclUsers) => onFormChange({ ...form, aclUsers })} />
+      <AclChoices title="ACL 角色" values={options.roles} selected={form.aclRoles} disabled={busy} onChange={(aclRoles) => onFormChange({ ...form, aclRoles })} />
+      <AclChoices title="安全标签" values={options.securityTags} selected={form.securityTags} disabled={busy} onChange={(securityTags) => onFormChange({ ...form, securityTags })} />
+      <button type="button" disabled={busy || form.fileName.trim() === '' || form.sizeBytes <= 0} onClick={onUpload}>创建模拟上传</button>
     </section>
 
     <section className="knowledge-panel">
-      <h2>Documents</h2>
-      <div className="knowledge-table-wrap"><table className="knowledge-table"><thead><tr><th>Document</th><th>Scope</th><th>Visibility</th><th>Status</th><th>Version</th><th>Chunks</th><th /></tr></thead><tbody>{snapshot.documents.map((document) => <tr key={document.documentId} data-selected={snapshot.selectedDocument?.documentId === document.documentId}><td><strong>{document.fileName}</strong><br /><code>{document.documentId}</code></td><td>{document.department}<br /><small>{document.projectId}</small></td><td>{document.acl.visibility}<br /><small>{document.acl.securityTags.join(', ') || 'no tags'}</small></td><td>{document.ingestionStatus}</td><td>{document.sourceVersion}</td><td>{document.chunkCount}</td><td><button type="button" disabled={busy} onClick={() => onSelectDocument(document.documentId)}>Inspect</button></td></tr>)}</tbody></table></div>
+      <h2>文档</h2>
+      <div className="knowledge-table-wrap"><table className="knowledge-table"><thead><tr><th>文档</th><th>范围</th><th>可见性</th><th>状态</th><th>版本</th><th>分块</th><th /></tr></thead><tbody>{snapshot.documents.map((document) => <tr key={document.documentId} data-selected={snapshot.selectedDocument?.documentId === document.documentId}><td><strong>{document.fileName}</strong><br /><code>{document.documentId}</code></td><td>{document.department}<br /><small>{document.projectId}</small></td><td>{document.acl.visibility}<br /><small>{document.acl.securityTags.join(', ') || '无标签'}</small></td><td>{document.ingestionStatus}</td><td>{document.sourceVersion}</td><td>{document.chunkCount}</td><td><button type="button" disabled={busy} onClick={() => onSelectDocument(document.documentId)}>查看</button></td></tr>)}</tbody></table></div>
     </section>
 
     {snapshot.selectedDocument === undefined ? null : <DocumentInspector snapshot={snapshot} busy={busy} onReingest={onReingest} />}
@@ -138,11 +138,11 @@ function DocumentInspector({ snapshot, busy, onReingest }: { snapshot: Knowledge
   const document = snapshot.selectedDocument!
   return <>
     <section className="knowledge-panel">
-      <div className="knowledge-section-heading"><div><h2>Document Inspector</h2><p><code>{document.documentId}</code> · {document.sourceVersion}</p></div><button type="button" disabled={busy} onClick={onReingest}>Reingest mock source</button></div>
-      <dl className="knowledge-kv"><div><dt>Industry</dt><dd>{document.industry}</dd></div><div><dt>Company</dt><dd>{document.companyId}</dd></div><div><dt>Project</dt><dd>{document.projectId}</dd></div><div><dt>Department</dt><dd>{document.department}</dd></div><div><dt>ACL Users</dt><dd>{document.acl.aclUsers.join(', ') || '—'}</dd></div><div><dt>ACL Roles</dt><dd>{document.acl.aclRoles.join(', ') || '—'}</dd></div></dl>
+      <div className="knowledge-section-heading"><div><h2>文档检查器</h2><p><code>{document.documentId}</code> · {document.sourceVersion}</p></div><button type="button" disabled={busy} onClick={onReingest}>重新摄入模拟来源</button></div>
+      <dl className="knowledge-kv"><div><dt>行业</dt><dd>{document.industry}</dd></div><div><dt>公司</dt><dd>{document.companyId}</dd></div><div><dt>项目</dt><dd>{document.projectId}</dd></div><div><dt>部门</dt><dd>{document.department}</dd></div><div><dt>ACL 用户</dt><dd>{document.acl.aclUsers.join(', ') || '—'}</dd></div><div><dt>ACL 角色</dt><dd>{document.acl.aclRoles.join(', ') || '—'}</dd></div></dl>
     </section>
-    <section className="knowledge-panel"><h2>Ingestion pipeline</h2>{snapshot.ingestion === undefined ? <p>Ingestion unavailable.</p> : <ol className="knowledge-pipeline">{snapshot.ingestion.steps.map((step) => <li key={`${step.status}-${step.timestamp}`} data-current={step.status === snapshot.ingestion?.status}><strong>{step.status}</strong><span>{step.detail}</span><small>{step.timestamp}</small></li>)}</ol>}</section>
-    <section className="knowledge-panel"><h2>Chunks</h2><div className="knowledge-table-wrap"><table className="knowledge-table"><thead><tr><th>#</th><th>Page / Section</th><th>Parent Context</th><th>Text</th><th>Source</th></tr></thead><tbody>{snapshot.chunks.map((chunk) => <tr key={chunk.chunkId}><td>{chunk.ordinal}</td><td>p.{chunk.page}<br />{chunk.section}</td><td>{chunk.parentContext}</td><td>{chunk.text}</td><td>{chunk.sourceVersion}<br /><code>{chunk.chunkId}</code></td></tr>)}</tbody></table></div></section>
+    <section className="knowledge-panel"><h2>摄入管道</h2>{snapshot.ingestion === undefined ? <p>摄入不可用。</p> : <ol className="knowledge-pipeline">{snapshot.ingestion.steps.map((step) => <li key={`${step.status}-${step.timestamp}`} data-current={step.status === snapshot.ingestion?.status}><strong>{step.status}</strong><span>{step.detail}</span><small>{step.timestamp}</small></li>)}</ol>}</section>
+    <section className="knowledge-panel"><h2>分块</h2><div className="knowledge-table-wrap"><table className="knowledge-table"><thead><tr><th>#</th><th>页 / 章节</th><th>父级上下文</th><th>文本</th><th>来源</th></tr></thead><tbody>{snapshot.chunks.map((chunk) => <tr key={chunk.chunkId}><td>{chunk.ordinal}</td><td>页{chunk.page}<br />{chunk.section}</td><td>{chunk.parentContext}</td><td>{chunk.text}</td><td>{chunk.sourceVersion}<br /><code>{chunk.chunkId}</code></td></tr>)}</tbody></table></div></section>
   </>
 }
 
@@ -151,7 +151,7 @@ function Select({ label, value, values, disabled, onChange }: { label: string; v
 }
 
 function AclChoices({ title, values, selected, disabled, onChange }: { title: string; values: readonly string[]; selected: readonly string[]; disabled: boolean; onChange: (values: readonly string[]) => void }) {
-  return <fieldset className="knowledge-acl"><legend>{title}</legend>{values.length === 0 ? <span>None authorized</span> : values.map((value) => <label key={value}><input type="checkbox" checked={selected.includes(value)} disabled={disabled} onChange={(event) => onChange(event.target.checked ? [...selected, value] : selected.filter((item) => item !== value))} />{value}</label>)}</fieldset>
+  return <fieldset className="knowledge-acl"><legend>{title}</legend>{values.length === 0 ? <span>无授权</span> : values.map((value) => <label key={value}><input type="checkbox" checked={selected.includes(value)} disabled={disabled} onChange={(event) => onChange(event.target.checked ? [...selected, value] : selected.filter((item) => item !== value))} />{value}</label>)}</fieldset>
 }
 
 async function loadInitial(client: KnowledgeApiClient): Promise<KnowledgeSnapshot> {

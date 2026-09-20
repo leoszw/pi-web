@@ -16,15 +16,15 @@ const snapshot:OnlineQualityWorkspaceSnapshot={
 describe('OnlineQualityView',()=>{
   it('renders all P12 monitoring and Dataset Health dimensions with explicit fixture source',()=>{
     const html=renderToStaticMarkup(<OnlineQualityView snapshot={snapshot} error={null} busy={false} traceId="" domain="INTENT" label="" tags="online" difficulty="HARD" notes="" reviewNote=""/>)
-    expect(html).toContain('Online Quality Feedback Loop · P12');expect(html).toContain('500');for(const[,label]of metrics)expect(html).toContain(label)
+    expect(html).toContain('在线质量反馈循环 · P12');expect(html).toContain('500');for(const[,label]of metrics)expect(html).toContain(label)
     expect(html).toContain('MOCK_FIXTURE')
-    expect(html).toContain('Trace → sanitize → Draft Case → Human Label → Review → Dataset Version')
-    for(const text of ['Reviewed %','Hard / adversarial','Duplicates','Near duplicates','Holdout leakage','Label churn','Last review age'])expect(html).toContain(text)
+    expect(html).toContain('追踪 → 净化 → 草稿用例 → 人工标注 → 评审 → 数据集版本')
+    for(const text of ['已评审 %','困难 / 对抗','重复项','近似重复项','留出集泄露','标注变动','上次评审距今'])expect(html).toContain(text)
     expect(html).toContain('trace-project-1-conversation-001');expect(html).toContain('CLARIFICATION_REQUIRED');expect(html).toContain('Golden:');expect(html).toContain('false')
   })
   it('does not render an executable Golden or promote control',()=>{
     const html=renderToStaticMarkup(<OnlineQualityView snapshot={snapshot} error={null} busy={false} traceId="" domain="INTENT" label="" tags="online" difficulty="HARD" notes="" reviewNote=""/>)
     expect(html).not.toContain('>Make Golden<');expect(html).not.toContain('>Promote to Golden<');expect(html).not.toContain('>Promote<')
-    expect(html).toContain('no Make Golden / Promote-to-Golden action')
+    expect(html).toContain('没有 Make Golden / Promote-to-Golden 操作')
   })
 })

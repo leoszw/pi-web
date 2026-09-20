@@ -127,39 +127,39 @@ const viewProps = {
 describe('RetrievalLabView', () => {
   it('renders every required retrieval stage instead of only final results', () => {
     const html = renderToStaticMarkup(<RetrievalLabView {...viewProps} />)
-    for (const label of ['Semantic Parse', 'Hard Filters', 'Exact', 'BM25', 'Dense', 'Entity-aware', 'RRF', 'Reranker', 'Business Feature', 'Final']) {
+    for (const label of ['语义解析', '硬过滤', '精确', 'BM25', '密集', '实体感知', 'RRF', '重排器', '业务特征', '最终']) {
       expect(html).toContain(label)
     }
   })
 
   it('highlights hard negatives, critical specification conflicts and leakage', () => {
     const html = renderToStaticMarkup(<RetrievalLabView {...viewProps} />)
-    expect(html).toContain('Hard Negative')
-    expect(html).toContain('Critical Spec Conflict')
+    expect(html).toContain('硬负例')
+    expect(html).toContain('关键规格冲突')
     expect(html).toContain('基础构件命中但强度等级冲突')
-    expect(html).toContain('RELEASE_HOLDOUT contaminated')
+    expect(html).toContain('RELEASE_HOLDOUT 已污染')
     expect(html).toContain('SAME_SOURCE_DUPLICATE')
   })
 
   it('shows hard-filter removals in the selected stage drilldown', () => {
     const hardFilterProps = { ...viewProps, selectedStage: 'HARD_FILTERS' as const }
     const html = renderToStaticMarkup(<RetrievalLabView {...hardFilterProps} />)
-    expect(html).toContain('Removed by hard filters')
+    expect(html).toContain('硬过滤移除')
     expect(html).toContain('cross-project-001')
   })
 
   it('renders batch retrieval metrics and A/B statistical warning', () => {
     const html = renderToStaticMarkup(<RetrievalLabView {...viewProps} />)
-    expect(html).toContain('Batch runs &amp; metrics')
+    expect(html).toContain('批次运行与指标')
     expect(html).toContain('Recall@1')
     expect(html).toContain('nDCG@10')
-    expect(html).toContain('Cross-project')
-    expect(html).toContain('Wrong entity HC')
-    expect(html).toContain('Win / Loss / Tie')
+    expect(html).toContain('跨项目')
+    expect(html).toContain('实体误判HC')
+    expect(html).toContain('胜 / 负 / 平')
     expect(html).toContain('INCONCLUSIVE')
-    expect(html).toContain('Minimum sample warning')
-    expect(html).toContain('Rank / score movement')
-    expect(html).toContain('No deterministic safety regression')
+    expect(html).toContain('最小样本警告')
+    expect(html).toContain('排名 / 分数变动')
+    expect(html).toContain('无确定性安全回归')
   })
 })
 

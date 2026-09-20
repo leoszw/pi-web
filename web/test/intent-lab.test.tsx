@@ -72,12 +72,12 @@ const snapshot: IntentLabSnapshot = {
 describe('IntentLabPage', () => {
   it('renders case governance, playground and draft-only guidance', () => {
     const html = renderToStaticMarkup(<IntentLabPage initialSnapshot={snapshot} initialCases={[testCase]} />)
-    expect(html).toContain('Intent Evaluation · P1')
-    expect(html).toContain('Dataset cases')
+    expect(html).toContain('意图评测 · P1')
+    expect(html).toContain('数据集用例')
     expect(html).toContain('intent-001')
     expect(html).toContain('label-v1')
-    expect(html).toContain('Intent Playground')
-    expect(html).toContain('DRAFT datasets are visible for development but are not baseline-ready')
+    expect(html).toContain('意图试验场')
+    expect(html).toContain('DRAFT 数据集在开发中可见，但尚未达到基线就绪状态')
   })
 
   it('renders playground result with server-derived project context', () => {

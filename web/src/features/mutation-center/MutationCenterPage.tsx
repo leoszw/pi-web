@@ -167,7 +167,7 @@ export function MutationCenterPage({
   }
 
   if (snapshot === undefined) {
-    return <main className="mutation-center"><h1>Mutation Center</h1>{error === null ? <p>Loading mutation state…</p> : <ErrorBanner error={error} />}</main>
+    return <main className="mutation-center"><h1>变更中心</h1>{error === null ? <p>加载变更状态中…</p> : <ErrorBanner error={error} />}</main>
   }
 
   return <MutationCenterView
@@ -220,8 +220,8 @@ export function MutationCenterView({
   return (
     <main className="mutation-center" aria-labelledby="mutation-center-title">
       <header className="mutation-heading">
-        <div><span>Industry Agent · P4</span><h1 id="mutation-center-title">Mutation Center</h1><p>Explicit confirmation, idempotent commit control, audit, and reconciliation. Mock only: no real database DML.</p></div>
-        <nav aria-label="Mutation Center navigation"><a href="/industry">Workspace</a><a href="/industry/mutations">Operations</a><a href="/industry/mutations/reconciliation">Reconciliation{reconciliationCount > 0 ? ` (${reconciliationCount})` : ''}</a></nav>
+        <div><span>行业智能体 · P4</span><h1 id="mutation-center-title">变更中心</h1><p>显式确认、幂等提交控制、审计与对账。仅模拟:无真实数据库 DML。</p></div>
+        <nav aria-label="变更中心导航"><a href="/industry">工作区</a><a href="/industry/mutations">操作</a><a href="/industry/mutations/reconciliation">对账{reconciliationCount > 0 ? ` (${reconciliationCount})` : ''}</a></nav>
       </header>
       {error === null ? null : <ErrorBanner error={error} />}
       {mode === 'list' ? <OperationList operations={snapshot.operations} reconciliationCount={reconciliationCount} /> : null}
@@ -246,8 +246,8 @@ export function MutationCenterView({
 
 function OperationList({ operations, reconciliationCount }: { operations: readonly MutationOperation[]; reconciliationCount: number }) {
   return <section className="mutation-section">
-    <div className="mutation-section-heading"><h2>Operations</h2><span>{operations.length} operations</span></div>
-    {reconciliationCount > 0 ? <div className="mutation-critical"><strong>Reconciliation required</strong><p>{reconciliationCount} operation(s) may have written business data but failed finalization. Never retry commit automatically.</p><a href="/industry/mutations/reconciliation">Open reconciliation</a></div> : null}
+    <div className="mutation-section-heading"><h2>操作</h2><span>{operations.length} 条操作</span></div>
+    {reconciliationCount > 0 ? <div className="mutation-critical"><strong>需要对账</strong><p>{reconciliationCount} 个操作可能已写入业务数据但最终化失败。切勿自动重试提交。</p><a href="/industry/mutations/reconciliation">打开对账</a></div> : null}
     <div className="mutation-operation-list">{operations.map((operation) => <a className="mutation-operation-card" href={mutationOperationPath(operation.operationId)} key={operation.operationId}><div><strong>{operation.title}</strong><p>{operation.summary}</p></div><div><StatusBadge status={operation.status} /><code>{operation.operationId}</code></div></a>)}</div>
   </section>
 }
@@ -271,38 +271,38 @@ function OperationDetail({
 }) {
   return <div className="mutation-detail-grid">
     <section className="mutation-section">
-      <a href="/industry/mutations">← Back to operations</a>
+      <a href="/industry/mutations">← 返回操作</a>
       <div className="mutation-detail-title"><div><h2>{operation.title}</h2><p>{operation.summary}</p></div><StatusBadge status={operation.status} /></div>
       <dl className="mutation-meta">
-        <div><dt>Operation ID</dt><dd><code>{operation.operationId}</code></dd></div><div><dt>Project</dt><dd><code>{operation.projectId}</code></dd></div>
-        <div><dt>Target version</dt><dd><code>{operation.targetVersion}</code></dd></div><div><dt>Digest</dt><dd><code>{operation.digest}</code></dd></div>
-        <div><dt>Safe to retry commit</dt><dd><strong>{operation.safeToRetryCommit ? 'YES' : 'NO'}</strong></dd></div>
+        <div><dt>操作 ID</dt><dd><code>{operation.operationId}</code></dd></div><div><dt>项目</dt><dd><code>{operation.projectId}</code></dd></div>
+        <div><dt>目标版本</dt><dd><code>{operation.targetVersion}</code></dd></div><div><dt>摘要</dt><dd><code>{operation.digest}</code></dd></div>
+        <div><dt>可安全重试提交</dt><dd><strong>{operation.safeToRetryCommit ? '是' : '否'}</strong></dd></div>
       </dl>
-      <h3>Diff / Preview</h3>
+      <h3>差异 / 预览</h3>
       <table className="mutation-preview"><tbody>{Object.entries(operation.preview).map(([key, value]) => <tr key={key}><th>{key}</th><td>{String(value ?? 'null')}</td></tr>)}</tbody></table>
-      {operation.status === 'PENDING_CONFIRMATION' ? <section className="mutation-confirmation" aria-label="Explicit mutation confirmation">
-        <h3>Explicit confirmation</h3><p>Confirming uses this exact digest. Approval material stays server-side.</p>
-        {confirmationStatusUnknown ? <div className="mutation-warning"><strong>Confirmation status unknown</strong><p>Do not start a new commit attempt. Check operation state first; the current Idempotency-Key remains retained in this browser session.</p><button type="button" disabled={busy} onClick={onRefresh}>Refresh status</button></div> : <>
-          {hasRetainedAttempt ? <div className="mutation-warning"><strong>Resuming the same idempotent attempt</strong><p>The retained Idempotency-Key will be reused. A new commit attempt is not created.</p></div> : null}
-          <label className="mutation-checkbox"><input type="checkbox" checked={explicitConfirmation} disabled={busy} onChange={(event) => onExplicitConfirmation(event.target.checked)} />I reviewed the diff, target version, and digest and explicitly confirm this mutation.</label>
-          <button className="mutation-primary" type="button" disabled={busy || !explicitConfirmation} onClick={onConfirm}>{hasRetainedAttempt ? 'Resume same confirmation attempt' : 'Confirm mutation'}</button>
-          <div className="mutation-reject"><label>Reject reason<textarea rows={2} value={rejectReason} disabled={busy} onChange={(event) => onRejectReason(event.target.value)} /></label><button type="button" disabled={busy} onClick={onReject}>Reject operation</button></div>
+      {operation.status === 'PENDING_CONFIRMATION' ? <section className="mutation-confirmation" aria-label="显式变更确认">
+        <h3>显式确认</h3><p>确认将使用此精确摘要。审批材料保留在服务端。</p>
+        {confirmationStatusUnknown ? <div className="mutation-warning"><strong>确认状态未知</strong><p>请勿发起新的提交尝试。先检查操作状态;当前 Idempotency-Key 在此浏览器会话中保持保留。</p><button type="button" disabled={busy} onClick={onRefresh}>刷新状态</button></div> : <>
+          {hasRetainedAttempt ? <div className="mutation-warning"><strong>恢复同一幂等尝试</strong><p>保留的 Idempotency-Key 将被复用。不会创建新的提交尝试。</p></div> : null}
+          <label className="mutation-checkbox"><input type="checkbox" checked={explicitConfirmation} disabled={busy} onChange={(event) => onExplicitConfirmation(event.target.checked)} />我已查看差异、目标版本和摘要,并显式确认此变更。</label>
+          <button className="mutation-primary" type="button" disabled={busy || !explicitConfirmation} onClick={onConfirm}>{hasRetainedAttempt ? '恢复同一确认尝试' : '确认变更'}</button>
+          <div className="mutation-reject"><label>拒绝原因<textarea rows={2} value={rejectReason} disabled={busy} onChange={(event) => onRejectReason(event.target.value)} /></label><button type="button" disabled={busy} onClick={onReject}>拒绝操作</button></div>
         </>}
       </section> : null}
-      {operation.status === 'COMMITTED' ? <div className="mutation-success"><strong>Committed</strong><p>The mock operation is terminal. No repeat confirmation is available.</p></div> : null}
-      {operation.status === 'REJECTED' ? <div className="mutation-neutral"><strong>Rejected</strong><p>This operation is terminal and cannot be confirmed later.</p></div> : null}
-      {operation.status === 'RECONCILIATION_REQUIRED' ? <div className="mutation-critical"><strong>Business write may have succeeded</strong><p>Finalization failed. Commit retry is forbidden. Investigate reconciliation before any further action.</p><a href="/industry/mutations/reconciliation">Open reconciliation</a></div> : null}
+      {operation.status === 'COMMITTED' ? <div className="mutation-success"><strong>已提交</strong><p>模拟操作已终止。无法重复确认。</p></div> : null}
+      {operation.status === 'REJECTED' ? <div className="mutation-neutral"><strong>已拒绝</strong><p>此操作已终止,无法稍后确认。</p></div> : null}
+      {operation.status === 'RECONCILIATION_REQUIRED' ? <div className="mutation-critical"><strong>业务写入可能已成功</strong><p>最终化失败。禁止重试提交。在采取任何进一步操作前,请调查对账。</p><a href="/industry/mutations/reconciliation">打开对账</a></div> : null}
     </section>
     <AuditTimeline audit={audit} />
   </div>
 }
 
 function AuditTimeline({ audit }: { audit?: MutationAuditTrail }) {
-  return <aside className="mutation-section mutation-audit" aria-label="Mutation audit timeline"><h2>Audit timeline</h2>{audit === undefined || audit.events.length === 0 ? <p>No audit events.</p> : <ol>{audit.events.map((event) => <li key={event.auditId}><div><strong>{event.type}</strong><span>#{event.sequenceNo}</span></div><p>{event.detail}</p><small>{event.timestamp} · request <code>{event.requestId}</code> · trace <code>{event.traceId}</code></small></li>)}</ol>}</aside>
+  return <aside className="mutation-section mutation-audit" aria-label="变更审计时间线"><h2>审计时间线</h2>{audit === undefined || audit.events.length === 0 ? <p>暂无审计事件。</p> : <ol>{audit.events.map((event) => <li key={event.auditId}><div><strong>{event.type}</strong><span>#{event.sequenceNo}</span></div><p>{event.detail}</p><small>{event.timestamp} · 请求 <code>{event.requestId}</code> · 追踪 <code>{event.traceId}</code></small></li>)}</ol>}</aside>
 }
 
 function ReconciliationView({ reconciliation }: { reconciliation: MutationReconciliationList }) {
-  return <section className="mutation-section"><div className="mutation-section-heading"><h2>Reconciliation</h2><span>{reconciliation.items.length} item(s)</span></div>{reconciliation.items.length === 0 ? <div className="mutation-success"><strong>No reconciliation backlog</strong><p>There are no ambiguous finalization failures in the active project.</p></div> : reconciliation.items.map((item) => <article className="mutation-critical" key={item.operationId}><strong>{item.code}</strong><p>{item.summary}</p><dl className="mutation-meta"><div><dt>Business write may have succeeded</dt><dd>{item.businessWriteMayHaveSucceeded ? 'YES' : 'NO'}</dd></div><div><dt>Automatic retry forbidden</dt><dd>{item.automaticRetryForbidden ? 'YES' : 'NO'}</dd></div></dl><a href={mutationOperationPath(item.operationId)}>Inspect operation and audit</a></article>)}</section>
+  return <section className="mutation-section"><div className="mutation-section-heading"><h2>对账</h2><span>{reconciliation.items.length} 项</span></div>{reconciliation.items.length === 0 ? <div className="mutation-success"><strong>无对账积压</strong><p>当前项目中不存在模糊的最终化失败。</p></div> : reconciliation.items.map((item) => <article className="mutation-critical" key={item.operationId}><strong>{item.code}</strong><p>{item.summary}</p><dl className="mutation-meta"><div><dt>业务写入可能已成功</dt><dd>{item.businessWriteMayHaveSucceeded ? '是' : '否'}</dd></div><div><dt>禁止自动重试</dt><dd>{item.automaticRetryForbidden ? '是' : '否'}</dd></div></dl><a href={mutationOperationPath(item.operationId)}>查看操作与审计</a></article>)}</section>
 }
 
 function StatusBadge({ status }: { status: MutationOperation['status'] }) {
@@ -310,7 +310,7 @@ function StatusBadge({ status }: { status: MutationOperation['status'] }) {
 }
 
 function ErrorBanner({ error }: { error: MutationCenterError }) {
-  return <div className="mutation-error" role="alert"><strong>{error.code}</strong><span>{error.message}</span>{error.resolution === undefined ? null : <small>Resolution: {error.resolution}</small>}</div>
+  return <div className="mutation-error" role="alert"><strong>{error.code}</strong><span>{error.message}</span>{error.resolution === undefined ? null : <small>解决方案: {error.resolution}</small>}</div>
 }
 
 async function loadSnapshot(client: IndustryMutationApiClient, mode: MutationCenterMode, operationId: string | undefined): Promise<MutationCenterSnapshot> {

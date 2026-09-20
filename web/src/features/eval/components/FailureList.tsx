@@ -20,27 +20,27 @@ export function FailureList({ observations }: { observations: readonly IntentEva
   return (
     <div>
       <div className="eval-form-row">
-        <label>Expected
+        <label>期望
           <select value={expected} onChange={(event: ChangeEvent<HTMLSelectElement>) => setExpected(event.currentTarget.value as IntentName | typeof ALL)}>
-            <option value={ALL}>All</option>
+            <option value={ALL}>全部</option>
             {INTENTS.map((intent) => <option key={intent} value={intent}>{intent}</option>)}
           </select>
         </label>
-        <label>Actual
+        <label>实际
           <select value={actual} onChange={(event: ChangeEvent<HTMLSelectElement>) => setActual(event.currentTarget.value as IntentName | typeof ALL)}>
-            <option value={ALL}>All</option>
+            <option value={ALL}>全部</option>
             {INTENTS.map((intent) => <option key={intent} value={intent}>{intent}</option>)}
           </select>
         </label>
-        <label>Tag
-          <input value={tag} onChange={(event: ChangeEvent<HTMLInputElement>) => setTag(event.currentTarget.value)} placeholder="context" />
+        <label>标签
+          <input value={tag} onChange={(event: ChangeEvent<HTMLInputElement>) => setTag(event.currentTarget.value)} placeholder="上下文" />
         </label>
       </div>
 
-      {failures.length === 0 ? <p className="eval-muted">No failed cases match the current filters.</p> : (
+      {failures.length === 0 ? <p className="eval-muted">当前筛选没有匹配的失败用例。</p> : (
         <div className="eval-scroll">
           <table className="eval-table">
-            <thead><tr><th>Case</th><th>Query</th><th>Expected</th><th>Actual</th><th>Confidence</th><th>Tags</th><th>Trace</th></tr></thead>
+            <thead><tr><th>用例</th><th>查询</th><th>期望</th><th>实际</th><th>置信度</th><th>标签</th><th>追踪</th></tr></thead>
             <tbody>
               {failures.map((failure) => (
                 <tr key={failure.observationId}>

@@ -17,12 +17,12 @@ export function TraceAddToEvalDraft({ traceId, client = defaultClient }: { trace
     finally { setBusy(false) }
   }
 
-  return <section className="trace-panel" aria-label="Add trace to evaluation draft">
-    <h2>Add to Eval Draft</h2>
-    <p>Creates an unreviewed P7 Draft only. It does not enter Golden automatically.</p>
-    <label>Target domain <select value={targetDomain} disabled={busy} onChange={(event) => setTargetDomain(event.target.value as P7EvalDomain)}><option value="NORMALIZATION">Normalization</option><option value="ENTITY">Entity</option><option value="TOOL">Tool</option><option value="MEMORY">Memory</option></select></label>{' '}
-    <button type="button" disabled={busy || draft !== null} onClick={() => void addDraft()}>{draft === null ? 'Add to Eval Draft' : 'Draft created'}</button>
+  return <section className="trace-panel" aria-label="将追踪加入评测草稿">
+    <h2>加入评测草稿</h2>
+    <p>仅创建未评审的 P7 草稿。不会自动进入 Golden。</p>
+    <label>目标领域 <select value={targetDomain} disabled={busy} onChange={(event) => setTargetDomain(event.target.value as P7EvalDomain)}><option value="NORMALIZATION">归一化</option><option value="ENTITY">实体</option><option value="TOOL">工具</option><option value="MEMORY">内存</option></select></label>{' '}
+    <button type="button" disabled={busy || draft !== null} onClick={() => void addDraft()}>{draft === null ? '加入评测草稿' : '草稿已创建'}</button>
     {error === null ? null : <p role="alert">{error}</p>}
-    {draft === null ? null : <p><code>{draft.draftId}</code> · <strong>{draft.status}</strong> · reviewed={String(draft.reviewed)}</p>}
+    {draft === null ? null : <p><code>{draft.draftId}</code> · <strong>{draft.status}</strong> · 已评审={String(draft.reviewed)}</p>}
   </section>
 }

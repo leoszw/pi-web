@@ -75,15 +75,15 @@ export function ModelConfig({ state, onClose, onSelectModel, onSelectThinking, o
               <div className="current-model-name">{state.model !== null ? state.model.name : '未选择'}</div>
               {state.model !== null && (
                 <div className="current-model-meta">
-                  provider: {state.model.provider} · context: {state.model.contextWindow.toLocaleString()} · input:{' '}
+                  提供商: {state.model.provider} · 上下文: {state.model.contextWindow.toLocaleString()} · 输入:{' '}
                   {state.model.input.join(', ')}
                   {state.model.cost !== undefined &&
-                    ` · $${state.model.cost.input}/$${state.model.cost.output} per Mtok`}
+                    ` · $${state.model.cost.input}/$${state.model.cost.output} 每百万 token`}
                 </div>
               )}
             </div>
             <div className="thinking-row">
-              <span className="thinking-label">thinking</span>
+              <span className="thinking-label">思考</span>
               {state.thinkingLevels.map((level) => (
                 <button
                   key={level}
@@ -114,7 +114,7 @@ export function ModelConfig({ state, onClose, onSelectModel, onSelectThinking, o
                       <span className="model-row-name">{model.name}</span>
                       <span className="model-row-meta">
                         {model.id}
-                        {model.reasoning ? ' · reasoning' : ''}
+                        {model.reasoning ? ' · 推理' : ''}
                       </span>
                     </button>
                   ))}
@@ -395,7 +395,7 @@ function ServicesTab({ onGetConfig, onSaveConfig }: {
               checked={editor.supportsDeveloperRole}
               onChange={(event) => setEditor({ ...editor, supportsDeveloperRole: event.target.checked })}
             />
-            supportsDeveloperRole
+            支持开发者角色
           </label>
           <label>
             <input
@@ -403,7 +403,7 @@ function ServicesTab({ onGetConfig, onSaveConfig }: {
               checked={editor.supportsReasoningEffort}
               onChange={(event) => setEditor({ ...editor, supportsReasoningEffort: event.target.checked })}
             />
-            supportsReasoningEffort
+            支持推理强度
           </label>
         </details>
         <div className="model-rows">
@@ -445,7 +445,7 @@ function ServicesTab({ onGetConfig, onSaveConfig }: {
                   checked={row.reasoning}
                   onChange={(event) => updateRow(row.key, { reasoning: event.target.checked })}
                 />
-                reasoning
+                推理
               </label>
               <button
                 className="ghost"

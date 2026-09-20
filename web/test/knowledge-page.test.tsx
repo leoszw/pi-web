@@ -39,17 +39,17 @@ const form: KnowledgeUploadRequest = {
 describe('KnowledgePageView', () => {
   it('renders server-issued scope options, metadata-only picker, ingestion pipeline, chunk context and source version', () => {
     const html = renderToStaticMarkup(<KnowledgePageView snapshot={snapshot} form={form} busy={false} error={null} />)
-    expect(html).toContain('Knowledge / RAG')
-    expect(html).toContain('Local file (metadata only)')
+    expect(html).toContain('知识库 / RAG')
+    expect(html).toContain('本地文件(仅元数据)')
     expect(html).toContain('type="file"')
-    expect(html).toContain('file bytes are not uploaded or stored')
+    expect(html).toContain('文件字节不会上传或存储')
     expect(html).toContain('project-1')
     expect(html).toContain('project-user')
     expect(html).toContain('QUALITY_VALIDATING')
     expect(html).toContain('READY')
     expect(html).toContain('路基工程技术规范.pdf &gt; 路基填筑')
     expect(html).toContain('source-v1')
-    expect(html).toContain('p.12')
+    expect(html).toContain('页12')
   })
 
   it('does not invent unauthorized project company role or user choices', () => {
