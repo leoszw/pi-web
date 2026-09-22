@@ -19,9 +19,10 @@ function waitFor(predicate: () => boolean, timeoutMs = 5000): Promise<void> {
   })
 }
 
-function openSocket(port: number): Promise<WebSocket> {
+function openSocket(port: number, origin?: string): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`)
+    const url = `ws://127.0.0.1:${port}/ws`
+    const ws = origin === undefined ? new WebSocket(url) : new WebSocket(url, { origin })
     ws.once('open', () => resolve(ws))
     ws.once('error', reject)
   })
@@ -49,6 +50,26 @@ test('bridge forwards commands, responses, and events over WebSocket', async () 
     assert.ok(received.some((m) => m.type === 'response' && m.id === 'w2'))
   } finally {
     ws.close()
+    server.close()
+  }
+})
+
+test('local bridge rejects untrusted browser origins when an allowlist is configured', async () => {
+  const server = http.createServer()
+  attachBridge({
+    server,
+    piCommand: ['node', fakePi],
+    piCwd: process.cwd(),
+    mode: 'local',
+    allowedOrigins: new Set(['http://127.0.0.1:5173']),
+  })
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const port = (server.address() as { port: number }).port
+  try {
+    await assert.rejects(openSocket(port, 'https://evil.example'), /Unexpected server response: 403/)
+    const trusted = await openSocket(port, 'http://127.0.0.1:5173')
+    trusted.close()
+  } finally {
     server.close()
   }
 })
