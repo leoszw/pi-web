@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
-import { createIndustryWorkspaceApiClient, type IndustryWorkspaceApiClient } from '../api/workspace-client'
+import {
+  createIndustryWorkspaceApiClient,
+  IndustryWorkspaceApiError,
+  type IndustryWorkspaceApiClient,
+} from '../api/workspace-client'
 
 const defaultWorkspaceClient = createIndustryWorkspaceApiClient()
+
+type SelectorStatus = 'loading' | 'ready' | 'unavailable'
 
 export interface ProjectSelectorProps {
   workspaceClient?: IndustryWorkspaceApiClient
@@ -11,19 +17,29 @@ export interface ProjectSelectorProps {
 export function ProjectSelector({ workspaceClient = defaultWorkspaceClient, onProjectChanged }: ProjectSelectorProps) {
   const [projects, setProjects] = useState<ReadonlyArray<{ projectId: string; name: string }>>([])
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
+  const [status, setStatus] = useState<SelectorStatus>('loading')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
+    setStatus('loading')
+    setError(null)
     void workspaceClient.getContext()
       .then((context) => {
         if (cancelled) return
         setProjects(context.authorizedProjects)
         setCurrentProjectId(context.context.projectId)
+        setStatus('ready')
       })
       .catch((reason: unknown) => {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason))
+        if (cancelled) return
+        if (reason instanceof IndustryWorkspaceApiError && reason.code === 'INDUSTRY_CONTROL_PLANE_DISABLED') {
+          setStatus('unavailable')
+          return
+        }
+        setStatus('ready')
+        setError(reason instanceof Error ? reason.message : String(reason))
       })
     return () => { cancelled = true }
   }, [workspaceClient])
@@ -43,6 +59,8 @@ export function ProjectSelector({ workspaceClient = defaultWorkspaceClient, onPr
       setBusy(false)
     }
   }
+
+  if (status !== 'ready') return null
 
   return (
     <div className="app-shell__context" aria-label="项目选择">
