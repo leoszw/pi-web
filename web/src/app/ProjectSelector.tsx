@@ -3,7 +3,12 @@ import { createIndustryWorkspaceApiClient, type IndustryWorkspaceApiClient } fro
 
 const defaultWorkspaceClient = createIndustryWorkspaceApiClient()
 
-export function ProjectSelector({ workspaceClient = defaultWorkspaceClient }: { workspaceClient?: IndustryWorkspaceApiClient }) {
+export interface ProjectSelectorProps {
+  workspaceClient?: IndustryWorkspaceApiClient
+  onProjectChanged?: (projectId: string | null) => void
+}
+
+export function ProjectSelector({ workspaceClient = defaultWorkspaceClient, onProjectChanged }: ProjectSelectorProps) {
   const [projects, setProjects] = useState<ReadonlyArray<{ projectId: string; name: string }>>([])
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -27,8 +32,11 @@ export function ProjectSelector({ workspaceClient = defaultWorkspaceClient }: { 
     setBusy(true)
     setError(null)
     try {
+      const previousProjectId = currentProjectId
       const context = await workspaceClient.selectProject({ projectId: projectId === '' ? null : projectId })
-      setCurrentProjectId(context.context.projectId)
+      const nextProjectId = context.context.projectId
+      setCurrentProjectId(nextProjectId)
+      if (nextProjectId !== previousProjectId) onProjectChanged?.(nextProjectId)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
