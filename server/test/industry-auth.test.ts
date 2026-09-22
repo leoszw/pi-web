@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { MockPrincipalProvider, parseMockPrincipal, validatePrincipal } from '../src/industry/auth'
+import {
+  assertMockControlPlaneEnabled,
+  MockPrincipalProvider,
+  parseMockPrincipal,
+  validatePrincipal,
+} from '../src/industry/auth'
 
 const principal = {
   subject: 'subject-1',
@@ -30,4 +35,17 @@ test('control-plane mock principal configuration fails closed', () => {
     () => validatePrincipal({ ...principal, tenantId: '' }),
     /tenantId must be a non-empty string/,
   )
+})
+
+test('mock control-plane authentication requires explicit development opt-in', () => {
+  assert.doesNotThrow(() => assertMockControlPlaneEnabled('local', undefined))
+  assert.throws(
+    () => assertMockControlPlaneEnabled('control-plane', undefined),
+    /PI_WEB_ALLOW_MOCK_CONTROL_PLANE=1/,
+  )
+  assert.throws(
+    () => assertMockControlPlaneEnabled('control-plane', 'true'),
+    /PI_WEB_ALLOW_MOCK_CONTROL_PLANE=1/,
+  )
+  assert.doesNotThrow(() => assertMockControlPlaneEnabled('control-plane', '1'))
 })

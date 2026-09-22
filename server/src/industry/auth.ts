@@ -1,4 +1,5 @@
 import type { IncomingMessage } from 'node:http'
+import type { PiWebMode } from '../../../shared/industry/common'
 
 export interface AuthPrincipal {
   subject: string
@@ -24,6 +25,21 @@ export class MockPrincipalProvider implements PrincipalProvider {
   async getPrincipal(_request: IncomingMessage): Promise<AuthPrincipal> {
     return structuredClone(this.#principal)
   }
+}
+
+/**
+ * The current control-plane PrincipalProvider is deterministic/mock-backed and
+ * must never be mistaken for production authentication. Require an explicit
+ * development opt-in so PI_WEB_MODE=control-plane fails closed by default until
+ * a real OIDC/SSO or trusted-upstream PrincipalProvider is wired in.
+ */
+export function assertMockControlPlaneEnabled(mode: PiWebMode, raw: string | undefined): void {
+  if (mode !== 'control-plane') return
+  if (raw === '1') return
+  throw new Error(
+    'PI_WEB_MODE=control-plane currently uses mock authentication and is disabled by default; '
+      + 'set PI_WEB_ALLOW_MOCK_CONTROL_PLANE=1 only for trusted development/test environments',
+  )
 }
 
 export function parseMockPrincipal(raw: string | undefined): AuthPrincipal {
