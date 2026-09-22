@@ -38,18 +38,22 @@ export function attachBridge(options: BridgeOptions): WebSocketServer {
   }
   const rateLimiter = options.rateLimiter ?? new InMemoryRateLimiter({ readLimit: 240, writeLimit: 120 })
   const connectionKeys = new WeakMap<IncomingMessage, string>()
+  const verifyConfiguredOrigin = options.allowedOrigins !== undefined || mode === 'control-plane'
   const wss = new WebSocketServer({
     server: options.server,
     path: '/ws',
     maxPayload: mode === 'control-plane' ? 256 * 1024 : 100 * 1024 * 1024,
-    verifyClient: mode === 'control-plane'
+    verifyClient: verifyConfiguredOrigin
       ? (info, done) => {
-          const allowedOrigins = options.allowedOrigins!
-          const principalProvider = options.principalProvider!
-          if (!isOriginAllowed(info.req, allowedOrigins)) {
+          if (options.allowedOrigins !== undefined && !isOriginAllowed(info.req, options.allowedOrigins)) {
             done(false, 403, 'Forbidden')
             return
           }
+          if (mode !== 'control-plane') {
+            done(true)
+            return
+          }
+          const principalProvider = options.principalProvider!
           void principalProvider.getPrincipal(info.req).then((principal) => {
             const allowed = principal.permissions.includes('coding.admin') || principal.permissions.includes('coding.chat')
             if (!allowed) {
